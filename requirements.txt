@@ -3,3 +3,4 @@ fastapi[standard]
 uvicorn[standard]
 #database
 SQLAlchemy 
+aiosqlite
