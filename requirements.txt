@@ -1,0 +1,5 @@
+#api
+fastapi[standard]
+uvicorn[standard]
+#database
+SQLAlchemy 
