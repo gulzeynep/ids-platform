@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from datetime import datetime
 from .database import Base
 
-class Aler(Base):
+class Alert(Base):
     __tablename__= "alerts"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -11,4 +11,11 @@ class Aler(Base):
     source_ip = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
-    
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)
+    role = Column(String, default="admin")    

@@ -1,6 +1,10 @@
 #api
 fastapi[standard]
 uvicorn[standard]
+asyncpg
 #database
 SQLAlchemy 
 aiosqlite
+#auth
+python-jose[cryptography]
+passlib[bcrypt]
