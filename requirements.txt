@@ -5,6 +5,7 @@ asyncpg
 #database
 SQLAlchemy 
 aiosqlite
+alembic
 #auth
 python-jose[cryptography]
 passlib[bcrypt]
