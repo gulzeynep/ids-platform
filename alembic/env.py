@@ -1,5 +1,8 @@
 from logging.config import fileConfig
 
+import os
+from dotenv import load_dotenv
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -10,6 +13,7 @@ import asyncio
 
 from src.models import Base
 
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -66,7 +70,12 @@ async def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        url = config.get_main_option("sqlalchemy.url")
+
+    print(f"DEBUG: Alembic connecting to: {url}")
 
     connectable = create_async_engine(
         url,
@@ -75,6 +84,7 @@ async def run_migrations_online() -> None:
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
+
     await connectable.dispose()
 
 
