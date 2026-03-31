@@ -1,10 +1,16 @@
 import os
 from dotenv import load_dotenv
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+
+import secrets 
+
 from jose import JWTError, jwt 
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
 from src.database import get_db
 from src.models import User
 from src.core import security 
@@ -71,11 +77,17 @@ async def register(username: str, password: str, db:AsyncSession = Depends(get_d
     result = await db.execute(select(User).where(User.username ==username))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="This user already exists")
+    generated_api_key = f"ids_{secrets.token_hex(16)}"
     hashed_pw = security.get_password_hash(password)
-    new_user = User(username=username, hashed_password=hashed_pw)
+    new_user = User(username=username, 
+                    hashed_password=hashed_pw,
+                    api_key = generated_api_key,
+                    role = "analyst" #default
+                    )
     db.add(new_user)
     await db.commit()
-    return {"message": "Registered successfuly"}
+    return {"message": "Registered successfuly", 
+            "your_api_key": generated_api_key}
 
 @router.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):

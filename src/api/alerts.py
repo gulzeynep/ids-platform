@@ -11,7 +11,7 @@ from sqlalchemy.future import select
 from typing import List
 
 from src.database import get_db
-from src.models import Alert
+from src.models import Alert, User
 from src.schemas import AlertCreate, AlertDisplay
 from src.api.auth import get_current_admin_user
 from src.core.logger import logger
@@ -39,6 +39,13 @@ async def validate_api_key(api_key: str = Security(api_key_header)):
             detail="Could not validate API Key"
         )
     return api_key
+
+async def get_user_by_api_key(api_key: str, db: AsyncSession):
+    query =  select(User).where(User.api_key == api_key)
+    result = await db.execute(query)
+    return result.scalars().first()
+
+#router endpoints for alert management and engine upload 
 
 @router.get("/", response_model=List[AlertDisplay])
 async def get_alerts(token: str= Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
@@ -91,9 +98,19 @@ async def engine_upload_alert(
 @router.post("/ingest", status_code=status.HTTP_201_CREATED)
 async def ingest_alert(
     alert: AlertCreate,
-    api_key : str = Depends(validate_api_key)
+    api_key : str = Security(api_key_header),
+    db: AsyncSession = Depends(get_db)
 ):
     print(f"DEBUG: received alert: {alert}")
     logger.info(f" NEW ALERT: {alert.type} from {alert.source_ip}")
-    add_to_queue(alert.model_dump())
-    return {"message": "Alert queued successfully"}
+
+    user = await get_user_by_api_key(api_key, db)
+    if not user:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    
+    alert_dict = alert.model_dump()
+    alert_dict["owner_id"] = user.id 
+
+    add_to_queue(alert_dict)
+    return {"status": "accepted",
+            "client": user.company_name}

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from datetime import datetime
 from .database import Base
 
@@ -10,6 +10,7 @@ class Alert(Base):
     severity = Column(String)
     source_ip = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    owner_id = Column(Integer, ForeignKey("users.id"))
 
 class User(Base):
     __tablename__ = "users"
