@@ -93,6 +93,7 @@ async def ingest_alert(
     alert: AlertCreate,
     api_key : str = Depends(validate_api_key)
 ):
-    logger.info(f" New Alert: {alert.type} from {alert.source_ip}")
+    print(f"DEBUG: received alert: {alert}")
+    logger.info(f" NEW ALERT: {alert.type} from {alert.source_ip}")
     add_to_queue(alert.model_dump())
     return {"message": "Alert queued successfully"}

@@ -10,3 +10,6 @@ redis
 #auth
 python-jose[cryptography]
 passlib[bcrypt]
+
+#simulation
+requests
