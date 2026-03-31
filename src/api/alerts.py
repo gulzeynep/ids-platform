@@ -1,16 +1,21 @@
 import os 
 from dotenv import load_dotenv 
+
 from fastapi import APIRouter, Depends, HTTPException, Security, status
 from fastapi.security.api_key import APIKeyHeader
+from fastapi.security import OAuth2PasswordBearer
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from typing import List
+
 from src.database import get_db
 from src.models import Alert
 from src.schemas import AlertCreate, AlertDisplay
-from typing import List
-from fastapi.security import OAuth2PasswordBearer
 from src.api.auth import get_current_admin_user
 from src.core.logger import logger
+from src.core.queue import add_to_queue
 
 load_dotenv
 API_KEY = os.getenv("API_KEY")
@@ -86,12 +91,8 @@ async def engine_upload_alert(
 @router.post("/ingest", status_code=status.HTTP_201_CREATED)
 async def ingest_alert(
     alert: AlertCreate,
-    db: AsyncSession = Depends(get_db),
     api_key : str = Depends(validate_api_key)
 ):
     logger.info(f" New Alert: {alert.type} from {alert.source_ip}")
-
-    new_alert = Alert(**alert.model_dump())
-    db.add(new_alert)
-    await db.commit()
-    return {"message": "Alert ingested successfully"}
+    add_to_queue(alert.model_dump())
+    return {"message": "Alert queued successfully"}
