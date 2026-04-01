@@ -2,10 +2,10 @@ import time
 import json 
 import asyncio
 
-from src.core.queue import redis_client
-from src.database import AsyncSessionLocal
-from src.models import Alert
-from src.core.logger import logger
+from backend.src.core.queue import redis_client
+from backend.src.database import AsyncSessionLocal
+from backend.src.models import Alert
+from backend.src.core.logger import logger
 
 async def process_alerts():
     logger.info("Starting alert processing worker, listening to queue...")

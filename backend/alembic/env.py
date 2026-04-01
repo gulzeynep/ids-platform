@@ -11,7 +11,7 @@ from alembic import context
 
 import asyncio
 
-from src.models import Base
+from backend.src.models import Base
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 # this is the Alembic Config object, which provides

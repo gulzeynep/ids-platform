@@ -10,12 +10,12 @@ from sqlalchemy.future import select
 
 from typing import List
 
-from src.database import get_db
-from src.models import Alert, User
-from src.schemas import AlertCreate, AlertDisplay
-from src.api.auth import get_current_admin_user
-from src.core.logger import logger
-from src.core.queue import add_to_queue
+from backend.src.database import get_db
+from backend.src.models import Alert, User
+from backend.src.schemas import AlertCreate, AlertDisplay
+from backend.src.api.auth import get_current_admin_user
+from backend.src.core.logger import logger
+from backend.src.core.queue import add_to_queue
 
 load_dotenv
 API_KEY = os.getenv("API_KEY")

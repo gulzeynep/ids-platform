@@ -11,11 +11,11 @@ from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.database import get_db
-from src.models import User
-from src.core import security 
-from src.core.security import get_password_hash
-from src.schemas import UserDisplay, UserCreate, UserUpdate
+from backend.src.database import get_db
+from backend.src.models import User
+from backend.src.core import security 
+from backend.src.core.security import get_password_hash
+from backend.src.schemas import UserDisplay, UserCreate, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl= "auth/token")

@@ -1,10 +1,21 @@
 from fastapi import FastAPI
-from src.database import engine, Base
-from src import models
-from src.api import alerts , stats #, config
-from src.core.logger import logger
+from fastapi.middleware.cors import CORSMiddleware
+
+from backend.src.api import alerts
+from backend.src.database import engine, Base
+from backend.src import models
+from backend.src.api import stats #, config
+from backend.src.core.logger import logger
 
 app = FastAPI(title="W-IDS Platform")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"], # Frontend adresi
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 async def startup():

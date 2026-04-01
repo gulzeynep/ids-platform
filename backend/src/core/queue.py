@@ -1,7 +1,7 @@
 import redis 
 import json 
 import os 
-from src.core.logger import logger
+from backend.src.core.logger import logger
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))

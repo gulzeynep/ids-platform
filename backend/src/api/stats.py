@@ -4,9 +4,9 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.database import get_db
-from src.models import Alert, User
-from src.api.auth import get_current_user
+from backend.src.database import get_db
+from backend.src.models import Alert, User
+from backend.src.api.auth import get_current_user
 
 from datetime import datetime, timedelta
 import time 
