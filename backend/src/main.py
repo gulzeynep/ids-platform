@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.src.api import alerts, stats
+# 1. BURAYA auth MODÜLÜNÜ EKLE
+from backend.src.api import alerts, stats, auth, admin 
 from backend.src.database import engine, Base
 from backend.src.core.logger import logger
 
@@ -11,7 +12,6 @@ async def lifespan(app: FastAPI):
     logger.info("--- W-IDS Platform Starting Up ---")
     try:
         async with engine.begin() as conn:
-
             from backend.src import models 
             await conn.run_sync(Base.metadata.create_all)
         logger.info(" Database tables checked/created successfully.")
@@ -36,9 +36,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Router'ları ekle
+
+app.include_router(auth.router) 
 app.include_router(alerts.router)
 app.include_router(stats.router)
+app.include_router(admin.router)
 
 @app.get("/")
 async def root():

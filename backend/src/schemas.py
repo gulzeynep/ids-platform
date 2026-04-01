@@ -1,54 +1,36 @@
 from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
-class AlertBase(BaseModel):
+class AlertCreate(BaseModel):
     type: str
     severity: str
     source_ip: str
-    owner_id: Optional[int] = None
+    company_id: Optional[int] = None
 
-class AlertCreate(AlertBase):
-    pass
-
-class AlertDisplay(AlertBase):
-    id:int
+class AlertDisplay(BaseModel):
+    id: int
+    type: str
+    severity: str
+    source_ip: str
     timestamp: datetime
-
+    company_id: int
     model_config = ConfigDict(from_attributes=True)
 
-class UserBase(BaseModel):
-    username: str
+class UserCreate(BaseModel):
     email: EmailStr
-    password:str
-    full_name: Optional[str] = None
-    company_name: Optional[str] = None
-
-class UserCreate(UserBase):
     username: str
-    email: EmailStr
     password: str
-    full_name: Optional[str] = None
-    company_name: Optional[str] = None
+    company_name: str
 
-class UserDisplay(UserBase):
+class UserDisplay(BaseModel):
     id: int
-    username:str
+    username: str
     email: str
+    company_name: Optional[str] = None
+    is_admin: bool
     role: str
-    full_name: Optional[str]
-    company_name: Optional[str]
-    is_active: bool
+    model_config = ConfigDict(from_attributes=True)
 
-    model_config= ConfigDict(from_attributes=True)
-
-class UserUpdate(UserBase):
+class UserUpdate(BaseModel):
     password: Optional[str] = None
-    
-
-class Token(BaseModel):
-    acces_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
