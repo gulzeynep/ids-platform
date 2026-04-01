@@ -12,7 +12,8 @@ def send_fake_alert():
     data = {
         "type": random.choice(attack_types),
         "severity": random.choice(severity_levels),
-        "source_ip": f"192.168.1.{random.randint(1,254)}"
+        "source_ip": f"192.168.1.{random.randint(1,254)}",
+        "owner_id": 1
     }
     try:
         response = requests.post(URL, json = data, headers = HEADERS)

@@ -6,6 +6,7 @@ class AlertBase(BaseModel):
     type: str
     severity: str
     source_ip: str
+    owner_id: Optional[int] = None
 
 class AlertCreate(AlertBase):
     pass

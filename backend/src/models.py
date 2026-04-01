@@ -20,6 +20,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
+    api_key = Column(String, unique=True, index=True, nullable=True)
     role = Column(String, default="analyst")   
 
     full_name = Column(String, nullable=True)

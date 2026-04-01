@@ -17,7 +17,7 @@ from backend.src.api.auth import get_current_admin_user
 from backend.src.core.logger import logger
 from backend.src.core.queue import add_to_queue
 
-load_dotenv
+load_dotenv()
 API_KEY = os.getenv("API_KEY")
 api_key_header = APIKeyHeader(name="X-IDS-KEY", auto_error=True)
 
@@ -47,35 +47,46 @@ async def get_user_by_api_key(api_key: str, db: AsyncSession):
 
 #router endpoints for alert management and engine upload 
 
-@router.get("/", response_model=List[AlertDisplay])
-async def get_alerts(token: str= Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
+@router.get("/list", response_model=List[AlertDisplay])
+async def get_alerts_list(
+    #token: str= Depends(oauth2_scheme), 
+    db: AsyncSession = Depends(get_db)
+):
+    
     result = await db.execute(select(Alert).order_by(Alert.timestamp.desc()))
     return result.scalars().all()
 
-@router.post("/", response_model=List[AlertDisplay])
-async def create_alert(alert: AlertCreate, 
-                       db: AsyncSession = Depends(get_db)
-                       ):
+@router.get("/ {alert_id}", response_model=AlertDisplay)
+async def get_alert(
+    alert_id: int, 
+    db: AsyncSession = Depends(get_db)
+):
+    
+    result = await db.get(Alert, alert_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Alarm not found")
+    return result
+
+@router.post("/create", response_model=List[AlertDisplay])
+async def create_alert(
+    alert: AlertCreate, 
+    db: AsyncSession = Depends(get_db)
+):
+    
     db_alert = Alert(**alert.model_dump())
     db.add(db_alert)
     await db.commit()
     await db.refresh(db_alert)
     return db_alert
 
-@router.get("/{alert_id}")
-async def get_alert(alert_id: int, 
-                    db: AsyncSession = Depends(get_db)
-                    ):
-    result = await db.get(Alert, alert_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Alarm not found")
-    return result
 
 @router.delete("/{alert_id}")
-async def delete_alert(alert_id: int, 
-                       db: AsyncSession = Depends(get_db), 
-                       admin_user=Depends(get_current_admin_user)
-                       ):
+async def delete_alert(
+    alert_id: int, 
+    db: AsyncSession = Depends(get_db), 
+    admin_user=Depends(get_current_admin_user)
+):
+    
     alert = await db.get(Alert, alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail="Alarm not found")
