@@ -1,13 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  background-color: #0a0a0a; /* Derin siyah */
-  color: #e5e7eb; /* Yumuşak beyaz/gri */
-}
+@import "tailwindcss";
 
 body {
   margin: 0;
-  font-family: 'Inter', 'JetBrains Mono', monospace;
+  background-color: #000000;
 }

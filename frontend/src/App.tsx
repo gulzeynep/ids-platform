@@ -1,97 +1,104 @@
-import { useEffect, useState } from 'react';
-import { Shield, AlertTriangle, Activity, Database } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import Login from './components/Login';
+import LandingPage from './components/LandingPage';
+import Profile from './components/Profile';
+import Register from './components/Register';
+import Contact from './components/Contact';
+import AdminPanel from './components/AdminPanel';
+import { Shield, AlertTriangle, Activity, Database, Terminal, RefreshCcw, Globe, User as UserIcon, ShieldAlert } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import api from './lib/api';
 
-function App() {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
+interface Alert { id: number; type: string; severity: string; source_ip: string; timestamp: string; }
+interface User { username: string; is_admin: boolean; company_name?: string; }
+const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6'];
 
-  const fetchAlerts = async () => {
-    try {
-      const response = await api.get('/alerts/list'); 
-      setAlerts(response.data);
-    } catch (error) {
-      console.error("Veri çekme hatası:", error);
-    } finally {
-      setLoading(false);
-    }
+function App() {
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [view, setView] = useState<'landing' | 'login' | 'register' | 'dashboard' | 'profile' | 'contact' | 'admin'>(
+    localStorage.getItem('token') ? 'dashboard' : 'landing'
+  );
+
+  // Global View Listener (Login/Register içinden Contact'a gitmek için)
+  useEffect(() => {
+    const handleSetView = (e: any) => setView(e.detail);
+    window.addEventListener('setView', (e) => handleSetView(e));
+    return () => window.removeEventListener('setView', handleSetView);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    setUser(null);
+    setView('landing');
+  };
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setView('dashboard');
   };
 
   useEffect(() => {
-    fetchAlerts();
-    // Her 10 saniyede bir veriyi tazele (Polling)
-    const interval = setInterval(fetchAlerts, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    if (isAuthenticated) {
+      api.get('/auth/me').then(res => setUser(res.data)).catch(() => handleLogout());
+      const fetchAlerts = async () => {
+        if (view !== 'dashboard') return;
+        try { setLoading(true); const res = await api.get('/alerts/list'); setAlerts(res.data); setLastUpdated(new Date()); } 
+        catch (e) { console.error(e); } finally { setLoading(false); }
+      };
+      fetchAlerts();
+      const interval = setInterval(fetchAlerts, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, view]);
+
+  const chartData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    alerts.forEach(a => { counts[a.type] = (counts[a.type] || 0) + 1; });
+    return Object.keys(counts).map(k => ({ name: k, value: counts[k] }));
+  }, [alerts]);
+
+  // ROUTING
+  if (!isAuthenticated) {
+    if (view === 'login') return <Login onLoginSuccess={handleLoginSuccess} onRegisterClick={() => setView('register')} onBack={() => setView('landing')} />;
+    if (view === 'register') return <Register onRegisterSuccess={() => setView('login')} onBack={() => setView('landing')} />;
+    if (view === 'contact') return <Contact onBack={() => setView('landing')} />;
+    return <LandingPage onGetStarted={() => setView('register')} onLoginClick={() => setView('login')} onContactClick={() => setView('contact')} />;
+  }
+
+  if (view === 'profile') return <Profile user={user} onBack={() => setView('dashboard')} onLogout={handleLogout} />;
+  if (view === 'admin' && user?.is_admin) return <AdminPanel onBack={() => setView('dashboard')} />;
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-200 p-6">
-      {/* Üst Bar */}
-      <header className="flex justify-between items-center mb-8 border-b border-neutral-800 pb-4">
-        <div className="flex items-center gap-2">
-          <Shield className="text-blue-500 w-8 h-8" />
-          <h1 className="text-2xl font-bold tracking-tight">W-IDS <span className="text-neutral-500 font-light">| Monitor</span></h1>
+    <div className="min-h-screen bg-[#050505] text-slate-200 font-sans selection:bg-blue-500/30">
+      <nav className="border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50 h-16 flex items-center px-6 justify-between">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
+          <Shield className="text-blue-500 w-6 h-6" />
+          <h1 className="font-black italic text-lg uppercase tracking-tighter">W-IDS CORE</h1>
         </div>
-        <div className="flex items-center gap-4 text-sm">
-          <span className="flex items-center gap-1"><Activity className="text-green-500 w-4 h-4" /> Sistem Aktif</span>
-          <span className="bg-neutral-800 px-3 py-1 rounded-full border border-neutral-700">Admin_User</span>
+        <div className="flex items-center gap-4">
+          <div className="hidden md:block text-[10px] text-slate-500 font-mono italic pr-4 border-r border-white/10">SYNC: {lastUpdated.toLocaleTimeString()}</div>
+          {user?.is_admin && <button onClick={() => setView('admin')} className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl border border-red-500/20"><ShieldAlert size={18}/></button>}
+          <button onClick={() => setView('profile')} className="p-2 text-slate-400 hover:text-white"><UserIcon size={20}/></button>
         </div>
-      </header>
-
-      {/* İstatistik Kartları */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Toplam Alarm" value={alerts.length} icon={<Database className="text-blue-400" />} />
-        <StatCard title="Kritik Tehdit" value="0" icon={<AlertTriangle className="text-red-500" />} color="border-red-900/50" />
-        <StatCard title="Aktif Sensörler" value="3" icon={<Shield className="text-green-400" />} />
-        <StatCard title="Sistem Yükü" value="%12" icon={<Activity className="text-orange-400" />} />
-      </div>
-
-      {/* Alarm Listesi / Tablo */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-neutral-800 flex justify-between items-center">
-          <h2 className="font-semibold text-lg">Son Algılanan Alarmlar</h2>
-          <button onClick={fetchAlerts} className="text-xs bg-neutral-800 hover:bg-neutral-700 px-3 py-1 rounded transition">Yenile</button>
+      </nav>
+      <main className="max-w-[1600px] mx-auto p-6 grid grid-cols-12 gap-6">
+        {/* Dashboard içeriğin buraya geliyor (Tablolar, Grafikler) */}
+        <div className="col-span-12 lg:col-span-4 space-y-6">
+           <div className="p-6 bg-[#0a0a0a] border border-white/5 rounded-[32px]">
+              <div className="flex items-center gap-2 mb-4 text-[10px] font-black text-slate-500 uppercase tracking-widest"><Globe size={14} className="text-blue-500 animate-pulse"/> Global Link</div>
+              <p className="text-2xl font-black">{alerts.length} ALERTS</p>
+           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-neutral-800/50 text-neutral-400 uppercase text-xs">
-              <tr>
-                <th className="p-4">Zaman</th>
-                <th className="p-4">Saldırı Tipi</th>
-                <th className="p-4">Kaynak IP</th>
-                <th className="p-4">Şiddet</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {alerts.length > 0 ? alerts.map((alert: any) => (
-                <tr key={alert.id} className="hover:bg-neutral-800/30 transition">
-                  <td className="p-4 text-neutral-500">{new Date(alert.created_at).toLocaleTimeString()}</td>
-                  <td className="p-4 font-medium text-blue-400">{alert.type}</td>
-                  <td className="p-4 font-mono">{alert.source_ip}</td>
-                  <td className="p-4">
-                    <span className="px-2 py-1 rounded-md bg-red-900/20 text-red-400 border border-red-900/30 text-xs">Yüksek</span>
-                  </td>
-                </tr>
-              )) : (
-                <tr><td colSpan={4} className="p-10 text-center text-neutral-600">Henüz alarm bulunamadı...</td></tr>
-              )}
-            </tbody>
-          </table>
+        <div className="col-span-12 lg:col-span-8 bg-[#0a0a0a] border border-white/5 rounded-[32px] p-6 min-h-[400px]">
+           <h2 className="font-bold text-xs uppercase tracking-[0.3em] mb-6 flex items-center gap-2 text-slate-400"><Terminal size={14}/> Live Feed</h2>
+           {/* Tablo kodların buraya */}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// Küçük Stat Kartı Bileşeni
-function StatCard({ title, value, icon, color = "border-neutral-800" }: any) {
-  return (
-    <div className={`bg-neutral-900 border ${color} p-5 rounded-xl`}>
-      <div className="flex justify-between items-start mb-2">
-        <span className="text-neutral-500 text-sm font-medium">{title}</span>
-        {icon}
-      </div>
-      <div className="text-3xl font-bold">{value}</div>
+      </main>
     </div>
   );
 }
