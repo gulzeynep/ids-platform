@@ -12,12 +12,14 @@ export default function Login({ onLoginSuccess, onRegisterClick, onBack }: Login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const formData = new FormData();
-      // KRİTİK: OAuth2 form_data.username bekler, biz oraya email'i koyuyoruz.
-      formData.append('username', email); 
-      formData.append('password', password);
+      const params = new URLSearchParams();
+      params.append('username', email); 
+      params.append('password', password);
       
-      const res = await api.post('/auth/token', formData);
+      const res = await api.post('/auth/token', params, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+      
       localStorage.setItem('token', res.data.access_token);
       onLoginSuccess();
     } catch (err) { 

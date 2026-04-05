@@ -18,14 +18,15 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  
+  // Uygulama ilk açıldığında localStorage'da token varsa direkt giriş yapmış sayıyoruz
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
   
-  // SAYFA YENİLEME ÇÖZÜMÜ: view durumunu localStorage'dan oku
   const [view, setView] = useState<'landing' | 'login' | 'register' | 'dashboard' | 'profile' | 'contact' | 'admin'>(
     (localStorage.getItem('currentView') as any) || (localStorage.getItem('token') ? 'dashboard' : 'landing')
   );
 
-  // View değiştikçe localStorage'a kaydet
+  // View değiştikçe localStorage'a kaydet (Sayfa yenilendiğinde aynı ekranda kalsın)
   useEffect(() => {
     localStorage.setItem('currentView', view);
   }, [view]);
@@ -35,15 +36,21 @@ function App() {
     localStorage.removeItem('currentView');
     setIsAuthenticated(false);
     setUser(null);
-    setView('landing');
+    setView('landing'); // Çıkış yapınca reklam sayfasına (landing) dönmeli
   };
 
+  // GİRİŞ BAŞARILI OLUNCA: Yetkiyi ver ve Dashboard'a at
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     setView('dashboard');
   };
 
-  // fetchAlerts fonksiyonunu useCallback içine aldık ki bağımlılık hatası vermesin
+  // KAYIT BAŞARILI OLUNCA: Yetkiyi ver ve Profile at
+  const handleRegisterSuccess = () => {
+    setIsAuthenticated(true);
+    setView('profile');
+  };
+
   const fetchAlerts = useCallback(async () => {
     if (!isAuthenticated || view !== 'dashboard') return;
     try {
@@ -81,17 +88,22 @@ function App() {
     return () => window.removeEventListener('setView', handleSetView);
   }, []);
 
-  // ROUTING
+  // --- ROUTING (YÖNLENDİRME) ---
+  
+  // 1. EĞER KULLANICI GİRİŞ YAPMAMIŞSA (Token Yoksa veya Yetkisizse)
   if (!isAuthenticated) {
     if (view === 'login') return <Login onLoginSuccess={handleLoginSuccess} onRegisterClick={() => setView('register')} onBack={() => setView('landing')} />;
-    if (view === 'register') return <Register onRegisterSuccess={() => setView('login')} onBack={() => setView('landing')} />;
+    if (view === 'register') return <Register onRegisterSuccess={handleRegisterSuccess} onBack={() => setView('landing')} />;
     if (view === 'contact') return <Contact onBack={() => setView('landing')} />;
+    // Hiçbiri değilse varsayılan olarak Landing gösterilir
     return <LandingPage onGetStarted={() => setView('register')} onLoginClick={() => setView('login')} onContactClick={() => setView('contact')} />;
   }
 
+  // 2. EĞER KULLANICI GİRİŞ YAPMIŞSA
   if (view === 'profile') return <Profile user={user} onBack={() => setView('dashboard')} onLogout={handleLogout} />;
   if (view === 'admin' && user?.is_admin) return <AdminPanel onBack={() => setView('dashboard')} />;
 
+  // 3. YETKİLİ KULLANICI İÇİN VARSAYILAN EKRAN (DASHBOARD)
   return (
     <div className="min-h-screen bg-[#050505] text-slate-200 font-sans selection:bg-blue-500/30">
       <nav className="border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50 h-16 flex items-center px-6 justify-between">

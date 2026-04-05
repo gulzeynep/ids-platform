@@ -22,22 +22,32 @@ export default function Register({ onRegisterSuccess, onBack }: RegisterProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert("Hata: Şifreler eşleşmiyor!");
+      alert("Error: Passwords do no match!");
       return;
     }
 
     try { 
-      // Backend'deki UserCreate şemasına tam uyumlu gönderim
       await api.post('/auth/register', {
         username: formData.username,
         email: formData.email,
         password: formData.password,
         company_name: formData.company
       }); 
-      alert("Kayıt Başarılı! Giriş yapabilirsiniz.");
+
+      const params = new URLSearchParams();
+      params.append('username', formData.email); 
+      params.append('password', formData.password);
+      
+      const loginRes = await api.post('/auth/token', params, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+      
+
+      localStorage.setItem('token', loginRes.data.access_token);
       onRegisterSuccess(); 
+
     } catch (err) { 
-      alert("Kayıt başarısız: Bilgileri kontrol edin veya bu email zaten kullanımda olabilir."); 
+      alert("Unsuccessfull: Chehck your information or this email address may already be in use."); 
     }
   };
 

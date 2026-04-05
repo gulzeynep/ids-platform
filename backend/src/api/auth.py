@@ -71,11 +71,25 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     access_token = security.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
+# ÇÖZÜLEN KISIM BURASI: Şirket adını ID üzerinden çekiyoruz
 @router.get("/me")
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db) 
+):
+    # Kullanıcının şirket ismini veritabanından bul
+    company_name = "Bilinmeyen Şirket"
+    if current_user.company_id:
+        company_query = await db.execute(select(Company).where(Company.id == current_user.company_id))
+        company = company_query.scalars().first()
+        if company:
+            company_name = company.name
+
     return {
+        "id": current_user.id,
         "username": current_user.username,
         "email": current_user.email,
         "is_admin": current_user.is_admin,
-        "company_name": current_user.company_name
+        "role": current_user.role,
+        "company_name": company_name
     }

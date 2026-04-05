@@ -2,6 +2,7 @@
 fastapi[standard]
 uvicorn[standard]
 asyncpg
+python-multipart
 #database and datap pipline 
 SQLAlchemy 
 aiosqlite
@@ -9,7 +10,7 @@ alembic
 redis
 #auth
 python-jose[cryptography]
-passlib[bcrypt]
+bcrypt 
 
 #simulation
 requests
