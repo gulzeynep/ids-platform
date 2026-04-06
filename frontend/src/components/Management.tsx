@@ -183,22 +183,30 @@ export default function Management() {
         /* NOTIFICATIONS FEED VIEW */
         <div className="max-w-4xl space-y-4 animate-in slide-in-from-right-4 duration-500">
           {notifications.map(n => (
-            <div key={n.id} className="p-8 bg-[#0a0a0a] border border-white/5 rounded-[32px] flex items-start gap-6 group hover:border-white/10 transition-colors">
-              <div className={`p-4 rounded-2xl bg-white/5 border border-white/5 ${n.type === 'security' ? 'text-red-500' : 'text-blue-500'}`}>
-                 {n.type === 'security' ? <ShieldAlert size={24}/> : <Activity size={24}/>}
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-black text-white uppercase italic tracking-tight">{n.title}</h4>
-                  <span className="text-[10px] font-mono text-slate-600 uppercase font-bold">{n.time}</span>
+            <div key={n.id} className={`p-6 border rounded-[32px] flex items-start justify-between gap-4 transition-all ${n.is_read ? 'bg-black opacity-60' : 'bg-[#0a0a0a] border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.05)]'}`}>
+                <div className="flex gap-4">
+                <div className={`p-3 rounded-xl bg-white/5 ${n.is_read ? 'text-slate-700' : 'text-blue-500'}`}>
+                    <Bell size={20} />
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed mb-4">{n.body}</p>
-                <button className="flex items-center gap-2 text-[10px] font-black text-blue-500 uppercase tracking-widest hover:text-white transition-colors">
-                  Acknowledge Receipt <ArrowRight size={14}/>
+                <div>
+                    <h4 className="font-bold text-white text-sm uppercase italic">{n.title}</h4>
+                    <p className="text-slate-500 text-xs mt-1">{n.body}</p>
+                </div>
+                </div>
+                
+                {!n.is_read && (
+                <button 
+                    onClick={async () => {
+                    await api.post(`/management/notifications/${n.id}/read`);
+                    // Listeyi tekrar çekmek için state güncellemesi yapmalısın
+                    }}
+                    className="p-2 text-slate-500 hover:text-green-500 transition-colors"
+                >
+                    <CheckCircle size={20} />
                 </button>
-              </div>
+                )}
             </div>
-          ))}
+            ))}
         </div>
       )}
 

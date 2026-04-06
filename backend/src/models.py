@@ -26,6 +26,11 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     company_id = Column(Integer, ForeignKey("companies.id"))
 
+    alert_email = Column(String, nullable=True) # Bildirimlerin gideceği özel mail
+    enable_email_notifications = Column(Boolean, default=True)
+    enable_in_app_notifications = Column(Boolean, default=True)
+    min_severity_level = Column(String, default="high") # low, medium, high, critical
+
 class Alert(Base):
     __tablename__ = "alerts"
 
@@ -51,3 +56,13 @@ class Alert(Base):
     # İLİŞKİLER
     company_id = Column(Integer, ForeignKey("companies.id"), index=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True) # İnceleyen Analist (Assignee)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    body = Column(String)
+    type = Column(String) # 'system', 'security', 'success'
+    is_read = Column(Boolean, default=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"))
