@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.src.api import auth, alerts, admin, analytics
+from backend.src.api import auth, alerts, admin, analytics, ws  
 from backend.src.database import engine, Base
 from backend.src.core.logger import logger
 
@@ -40,6 +40,7 @@ app.include_router(auth.router)
 app.include_router(alerts.router)
 app.include_router(analytics.router)
 app.include_router(admin.router)
+app.include_router(ws.router)
 
 @app.get("/")
 async def root():
