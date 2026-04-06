@@ -7,6 +7,7 @@ import Overview from './components/Overview';
 import Analysis from './components/Analysis';
 import Intrusions from './components/Intrusions';
 import UserPanel from './components/UserPanel';
+import Contact from './components/Contact';
 
 // KORUMALI ROTA (Sadece giriş yapanlar girebilir)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -26,20 +27,10 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* HERKESE AÇIK SAYFALAR */}
-        <Route path="/" element={<LandingPage 
-            onGetStarted={() => window.location.href='/register'} 
-            onLoginClick={() => window.location.href='/login'} 
-            onContactClick={() => {}} 
-        />} />
-        <Route path="/login" element={<Login 
-            onLoginSuccess={() => window.location.href='/overview'} 
-            onRegisterClick={() => window.location.href='/register'} 
-            onBack={() => window.location.href='/'} 
-        />} />
-        <Route path="/register" element={<Register 
-            onRegisterSuccess={() => window.location.href='/overview'} 
-            onBack={() => window.location.href='/'} 
-        />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/contact" element={<Contact />} />
 
         {/* SADECE GİRİŞ YAPANLARA AÇIK SAYFALAR (LAYOUT İÇİNDE) */}
         <Route path="/" element={

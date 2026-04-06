@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { Shield, Activity, Search, AlertTriangle, Users, Settings, LogOut, User as UserIcon } from 'lucide-react';
+import { Shield, Activity, Search, AlertTriangle, Users, Settings, LogOut, Mail, User as UserIcon } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
@@ -16,6 +16,7 @@ export default function Layout() {
     { path: '/intrusions', name: 'Intrusions', icon: <AlertTriangle size={16} /> },
     { path: '/users', name: 'User Panel', icon: <Users size={16} /> },
     { path: '/settings', name: 'Settings', icon: <Settings size={16} /> },
+    { path: '/contact', name: 'Contact', icon: <Mail size={16} /> },
   ];
 
   return (
