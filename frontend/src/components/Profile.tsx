@@ -3,9 +3,7 @@ import { User, Key, Building, LogOut, ArrowLeft } from 'lucide-react';
 export default function Profile({ user, onBack, onLogout }: any) {
   return (
     <div className="max-w-2xl mx-auto pt-20 px-6">
-      <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-white mb-8 transition-colors">
-        <ArrowLeft size={18} /> Back to Dashboard
-      </button>
+      
       
       <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-8">
         <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">

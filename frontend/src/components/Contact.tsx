@@ -11,6 +11,7 @@ export default function Contact() {
     setSubmitted(true);
     // Real logic would go here (e.g., sending email via backend)
   };
+  
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-200 flex items-center justify-center p-6 relative overflow-hidden">
@@ -20,8 +21,15 @@ export default function Contact() {
         
         {/* LEFT SIDE: INFO */}
         <div className="flex flex-col justify-center">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2 text-blue-500 hover:text-blue-400 font-bold text-xs uppercase tracking-widest mb-8 transition-colors">
-            <ArrowLeft size={16} /> Back to HQ
+          <button 
+            onClick={() => {
+              const token = localStorage.getItem('token');
+              token ? navigate('/overview') : navigate('/');
+            }} 
+            className="flex items-center gap-2 text-blue-500 hover:text-blue-400 font-bold text-xs uppercase tracking-widest mb-8 transition-colors group"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 
+            {localStorage.getItem('token') ? 'Back to Dashboard' : 'Back to HQ'}
           </button>
           
           <h2 className="text-5xl font-black text-white italic tracking-tighter mb-6 leading-none">

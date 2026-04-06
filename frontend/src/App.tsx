@@ -6,8 +6,10 @@ import Layout from './components/Layout';
 import Overview from './components/Overview';
 import Analysis from './components/Analysis';
 import Intrusions from './components/Intrusions';
-import UserPanel from './components/UserPanel';
+import Profile from './components/Profile';
 import Contact from './components/Contact';
+import Management from './components/Management';
+import Settings from './components/Settings';
 
 // KORUMALI ROTA (Sadece giriş yapanlar girebilir)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -17,10 +19,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   return <>{children}</>;
 };
-
-// --- AŞAMA 5 İÇİN GEÇİCİ SAYFALAR (PLACEHOLDERS) ---
-// Bir sonraki aşamada bunların her biri için ayrı birer dosya oluşturup içini dolduracağız!
-const Settings = () => <div className="text-2xl font-black">Settings Yapım Aşamasında...</div>;
 
 function App() {
   return (
@@ -33,18 +31,14 @@ function App() {
         <Route path="/contact" element={<Contact />} />
 
         {/* SADECE GİRİŞ YAPANLARA AÇIK SAYFALAR (LAYOUT İÇİNDE) */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }>
-          {/* Layout'un içindeki <Outlet /> kısmına buralar gelecek */}
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="overview" element={<Overview />} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="intrusions" element={<Intrusions />} />
-          <Route path="users" element={<UserPanel />} />
+          <Route path="management" element={<Management />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
-        </Route>
+          </Route>
         
         {/* Yanlış adrese gidilirse Overview'a at */}
         <Route path="*" element={<Navigate to="/overview" replace />} />

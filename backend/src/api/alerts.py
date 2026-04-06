@@ -70,10 +70,13 @@ async def list_alerts(
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(Alert).where(Alert.company_id == current_user.company_id)
+    query = select(Alert)    
+    if current_user.role != "super_admin":
+        query = query.where(Alert.company_id == current_user.company_id)
+
     if status:
         query = query.where(Alert.status == status)
-        
+    
     query = query.order_by(Alert.timestamp.desc())
     result = await db.execute(query)
     return result.scalars().all()
