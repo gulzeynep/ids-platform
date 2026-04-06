@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { AlertTriangle, Activity, Database, Terminal, RefreshCcw, Globe, Shield } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import api from '../lib/api'; // API dosyanızın yolu
+import api from '../lib/api'; 
 
 const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6'];
 
@@ -31,11 +31,9 @@ export default function Overview() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      // Backend'de yazdığımız yeni Dashboard Analytics API'si
       const statsRes = await api.get('/analytics/overview');
       setStats(statsRes.data);
       
-      // Backend'deki Alarm listesi (En son 50 olayı getirir)
       const alertsRes = await api.get('/alerts/list');
       setAlerts(alertsRes.data.slice(0, 50)); 
       
@@ -49,9 +47,58 @@ export default function Overview() {
 
   useEffect(() => {
     fetchData();
-    // NOT: Websocket bağlantısını bir sonraki adımda buraya ekleyeceğiz. Şimdilik 5 saniyede bir çekiyor.
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let ws: WebSocket;
+    // DÜZELTME: NodeJS.Timeout yerine tarayıcı uyumlu dönüş tipi
+    let reconnectTimer: ReturnType<typeof setTimeout>;
+
+    const connectWS = () => {
+      ws = new WebSocket(`ws://localhost:8000/ws/alerts?token=${token}`);
+
+      ws.onopen = () => {
+        console.log("🟢 WebSocket Connection Established! Monitoring live SOC feed...");
+      };
+
+      ws.onmessage = (event) => {
+        const newAlert = JSON.parse(event.data);
+        console.log("🔥 LIVE FEED - NEW ALERT RECEIVED:", newAlert);
+
+        setAlerts((prevAlerts) => {
+          if (prevAlerts.some(a => a.id === newAlert.id)) return prevAlerts;
+          return [newAlert, ...prevAlerts].slice(0, 50);
+        });
+
+        setLastUpdated(new Date());
+
+        api.get('/analytics/overview')
+           .then(res => setStats(res.data))
+           .catch(console.error);
+      };
+
+      ws.onclose = () => {
+        console.log("⚪ WebSocket Connection Closed. Reconnecting in 3 seconds...");
+        reconnectTimer = setTimeout(connectWS, 3000);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    };
+
+    connectWS();
+
+    return () => {
+      clearTimeout(reconnectTimer);
+      if (ws) {
+        ws.onclose = null;
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+      }
+    };
   }, [fetchData]);
 
   const chartData = useMemo(() => {
@@ -63,7 +110,6 @@ export default function Overview() {
   return (
     <div className="max-w-[1600px] mx-auto p-6 grid grid-cols-12 gap-6 animate-in fade-in duration-500">
       
-      {/* BAŞLIK VE SYNC BUTONU */}
       <div className="col-span-12 flex justify-between items-end mb-2 border-b border-white/5 pb-4">
         <div>
           <h2 className="text-2xl font-black italic tracking-tight">TRAFFIC & THREAT OVERVIEW</h2>
@@ -79,7 +125,6 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* SOL TARAF - İSTATİSTİKLER VE GRAFİKLER */}
       <div className="col-span-12 lg:col-span-4 space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="p-6 bg-[#0a0a0a] border border-white/5 rounded-[32px] hover:border-blue-500/30 transition-colors">
@@ -104,7 +149,7 @@ export default function Overview() {
           </div>
           <div className="h-[250px] w-full">
             {alerts.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie data={chartData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
                     {chartData.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
@@ -132,7 +177,6 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* SAĞ TARAF - OLAY AKIŞI (LIVE INTRUSION FEED) */}
       <div className="col-span-12 lg:col-span-8 bg-[#0a0a0a] border border-white/5 rounded-[32px] overflow-hidden flex flex-col h-[700px]">
         <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
