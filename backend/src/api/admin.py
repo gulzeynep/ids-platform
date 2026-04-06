@@ -1,67 +1,55 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy.future import select
 from typing import List
+
 from backend.src.database import get_db
-from backend.src.models import User, Alert, Company
+from backend.src.models import User, Company
+from backend.src.schemas import UserResponse, CompanyResponse
 from backend.src.api.auth import get_current_user
-from backend.src.schemas import UserDisplay
 
-router = APIRouter(prefix="/admin", tags=["Admin Control Center"])
+router = APIRouter(prefix="/admin", tags=["Admin Panel"])
 
-# Gelişmiş Yetki Kontrolü
-async def admin_required(current_user: User = Depends(get_current_user)):
-    # is_admin True olmalı VEYA rolü 'admin'/'developer' olmalı
-    if not current_user.is_admin and current_user.role not in ["admin", "developer"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="ACCESS DENIED: Internal Security Clearance Required"
-        )
+# --- GÜVENLİK KAPISI: SADECE ADMİNLER GİREBİLİR ---
+def require_admin(current_user: User = Depends(get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Erişim reddedildi. Bu alan sadece yöneticiler içindir.")
     return current_user
 
-@router.get("/users", response_model=List[UserDisplay])
+# Tüm kullanıcıları getir (Sadece Admin)
+@router.get("/users", response_model=List[UserResponse])
 async def get_all_users(
-    db: AsyncSession = Depends(get_db), 
-    admin: User = Depends(admin_required)
+    admin_user: User = Depends(require_admin), 
+    db: AsyncSession = Depends(get_db)
 ):
-    # Tüm sistemdeki kullanıcıları şirket isimleriyle beraber çekelim
     result = await db.execute(select(User))
+    users = result.scalars().all()
+    
+    # Kullanıcıların şirket isimlerini de ekleyerek döndür
+    user_responses = []
+    for user in users:
+        company_name = None
+        if user.company_id:
+            comp = await db.execute(select(Company).where(Company.id == user.company_id))
+            company_obj = comp.scalars().first()
+            if company_obj:
+                company_name = company_obj.name
+        
+        user_responses.append({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "is_admin": user.is_admin,
+            "company_name": company_name
+        })
+    return user_responses
+
+# Tüm şirketleri getir (Sadece Admin)
+@router.get("/companies", response_model=List[CompanyResponse])
+async def get_all_companies(
+    admin_user: User = Depends(require_admin), 
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Company))
     return result.scalars().all()
-
-@router.get("/stats")
-async def get_system_stats(
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(admin_required)
-):
-    # Genel sistem özeti
-    user_count = await db.execute(select(func.count(User.id)))
-    alert_count = await db.execute(select(func.count(Alert.id)))
-    company_count = await db.execute(select(func.count(Company.id)))
-    
-    return {
-        "total_operators": user_count.scalar(),
-        "total_system_alerts": alert_count.scalar(),
-        "active_companies": company_count.scalar(),
-        "system_load": "Stable",
-        "integrity_check": "Verified"
-    }
-
-@router.patch("/users/{user_id}/role")
-async def update_user_role(
-    user_id: int, 
-    new_role: str, 
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(admin_required)
-):
-    # Bir kullanıcının yetkisini manuel olarak değiştirmek için
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalars().first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Operator not found")
-    
-    user.role = new_role
-    if new_role in ["admin", "developer"]:
-        user.is_admin = True
-    
-    await db.commit()
-    return {"message": f"User {user.username} updated to {new_role}"}
