@@ -36,6 +36,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
     return user
 
+# SUPER ADMIN (DEVELOPER/SEN): Her şeye erişir.
+async def require_super_admin(current_user: User = Depends(get_current_user)):
+    # is_admin flag'i True ve role "super_admin" olanlar
+    if not current_user.is_admin or current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Clearance Level: Super Admin Required."
+        )
+    return current_user
+
+# COMPANY ADMIN: Sadece kendi şirketini yönetir.
+async def require_company_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Privilege Level: Company Admin Required."
+        )
+    return current_user
+
 
 # --- KAYIT OLMA (REGISTER) ---
 @router.post("/register")

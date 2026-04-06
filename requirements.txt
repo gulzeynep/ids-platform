@@ -3,6 +3,8 @@ fastapi[standard]
 uvicorn[standard]
 asyncpg
 python-multipart
+fastapi-mail
+
 #database and datap pipline 
 SQLAlchemy 
 aiosqlite

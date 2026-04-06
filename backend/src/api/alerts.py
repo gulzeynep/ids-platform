@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
@@ -8,8 +8,7 @@ from backend.src.database import get_db
 from backend.src.models import Alert, User
 from backend.src.schemas import AlertCreate, AlertResponse, AlertUpdateStatus
 from backend.src.api.auth import get_current_user
-
-# İŞTE EKSİK OLAN KAHRAMAN BURADA:
+from backend.src.core.mailer import send_security_alert
 from backend.src.core.ws_manager import manager 
 
 router = APIRouter(prefix="/alerts", tags=["Intrusions & Alerts"])
@@ -17,6 +16,7 @@ router = APIRouter(prefix="/alerts", tags=["Intrusions & Alerts"])
 @router.post("/", response_model=AlertResponse)
 async def create_alert(
     alert_in: AlertCreate, 
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
@@ -49,7 +49,15 @@ async def create_alert(
         "status": new_alert.status,
         "timestamp": new_alert.timestamp.isoformat() if new_alert.timestamp else datetime.utcnow().isoformat()
     }
-    
+    if alert_in.severity.lower() == "critical":
+        # Background task kullanarak sistemi yavaşlatmadan maili sıraya alıyoruz
+        background_tasks.add_task(
+            send_security_alert, 
+            current_user.email, 
+            alert_in.type, 
+            alert_in.severity, 
+            alert_in.source_ip
+        )
     # Haberi sadece o şirketin açık olan ekranlarına (React) yolla
     await manager.broadcast_to_company(alert_payload, current_user.company_id)
 
