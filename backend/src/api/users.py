@@ -1,106 +1,84 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime
 
-from backend.src.database import get_db
-from backend.src.models import User, Company
-from backend.src.schemas import UserResponse
-from backend.src.api.auth import get_current_user, require_super_admin, require_company_admin
+from ..database import get_db
+from ..models import User, Workspace, Notification
+from ..schemas import UserResponse, WorkspaceResponse
+from .auth import get_current_user
 
-router = APIRouter(prefix="/management", tags=["User & Company Management"])
+router = APIRouter(prefix="/management", tags=["User & Workspace Management"])
 
+# --- USER SETTINGS ---
 @router.patch("/settings")
-async def update_user_settings(
+def update_user_settings(
     settings_in: dict, 
     current_user: User = Depends(get_current_user), 
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
-    # Kullanıcıyı DB'den bul
-    result = await db.execute(select(User).where(User.id == current_user.id))
-    user = result.scalars().first()
+    """Updates operative notification preferences and profile details."""
+    current_user.alert_email = settings_in.get("alert_email", current_user.alert_email)
+    current_user.enable_email_notifications = settings_in.get("enable_email_notifications", current_user.enable_email_notifications)
+    current_user.enable_in_app_notifications = settings_in.get("enable_in_app_notifications", current_user.enable_in_app_notifications)
+    current_user.min_severity_level = settings_in.get("min_severity_level", current_user.min_severity_level)
 
-    # Ayarları güncelle (Pydantic şeması ile yapmak daha temizdir ama şimdilik hızlıca böyle yapalım)
-    user.alert_email = settings_in.get("alert_email", user.alert_email)
-    user.enable_email_notifications = settings_in.get("enable_email_notifications", user.enable_email_notifications)
-    user.enable_in_app_notifications = settings_in.get("enable_in_app_notifications", user.enable_in_app_notifications)
-    user.min_severity_level = settings_in.get("min_severity_level", user.min_severity_level)
+    db.commit()
+    return {"status": "success", "message": "Neural settings updated."}
 
-    await db.commit()
-    return {"status": "success", "message": "Settings updated."}
-
-@router.get("/notifications", response_model=List[dict])
-async def get_my_notifications(
+# --- NOTIFICATIONS ---
+@router.get("/notifications")
+def get_my_notifications(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
-    result = await db.execute(
-        select(Notification)
-        .where(Notification.user_id == current_user.id)
-        .order_by(Notification.timestamp.desc())
-        .limit(20)
-    )
-    return result.scalars().all()
+    """Fetches the latest 20 security or system notifications for the current workspace."""
+    notifications = db.query(Notification)\
+        .filter(Notification.workspace_id == current_user.workspace_id)\
+        .order_by(Notification.timestamp.desc())\
+        .limit(20)\
+        .all()
+    return notifications
 
 @router.post("/notifications/{notif_id}/read")
-async def mark_notification_as_read(
+def mark_notification_as_read(
     notif_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
-    result = await db.execute(
-        select(Notification).where(Notification.id == notif_id, Notification.user_id == current_user.id)
-    )
-    notif = result.scalars().first()
+    """Marks a specific notification as acknowledged."""
+    notif = db.query(Notification).filter(
+        Notification.id == notif_id, 
+        Notification.workspace_id == current_user.workspace_id
+    ).first()
+    
     if not notif:
-        raise HTTPException(status_code=404, detail="Notification not found")
+        raise HTTPException(status_code=404, detail="Notification not found in your sector.")
     
     notif.is_read = True
-    await db.commit()
-    return {"message": "Marked as read"}
+    db.commit()
+    return {"message": "Notification cleared."}
 
-
-# --- DEVELOPER (SUPER ADMIN) ÖZEL: TÜM MÜŞTERİLER ---
-@router.get("/all-companies", response_model=List[dict])
-async def get_all_platforms(
-    admin: User = Depends(require_super_admin),
-    db: AsyncSession = Depends(get_db)
-):
-    # Developer olarak tüm şirketleri ve üye sayılarını gör
-    result = await db.execute(select(Company))
-    companies = result.scalars().all()
-    
-    return [
-        {
-            "id": c.id, 
-            "name": c.name, 
-            "plan": c.subscription_plan,
-            "created_at": c.created_at
-        } for c in companies
-    ]
-
-# --- COMPANY ADMIN ÖZEL: KENDİ EKİBİ ---
+# --- TEAM MANAGEMENT (Workspace Admin Only) ---
 @router.get("/team", response_model=List[UserResponse])
-async def get_company_team(
-    admin: User = Depends(require_company_admin),
-    db: AsyncSession = Depends(get_db)
+def get_workspace_team(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    # Sadece kendi şirketindeki analistleri listele
-    result = await db.execute(
-        select(User).where(User.company_id == admin.company_id)
-    )
-    users = result.scalars().all()
-    return users
+    """Lists all operatives assigned to the current workspace."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Clearance level insufficient.")
+        
+    team = db.query(User).filter(User.workspace_id == current_user.workspace_id).all()
+    return team
 
-# --- ANALYST ÖZEL: KENDİ ÖZETİ ---
+# --- PERFORMANCE METRICS ---
 @router.get("/my-performance")
-async def get_my_stats(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    # Bu kullanıcı kaç tane 'reviewed' alarm yapmış? (İleride ekleyeceğiz)
+def get_my_stats(user: User = Depends(get_current_user)):
+    """Simple status check for the current operative."""
     return {
-        "user": user.username,
+        "operative": user.email,
         "role": user.role,
-        "tasks_completed": 0 # Placeholder for now
+        "workspace_id": user.workspace_id,
+        "status": "Active"
     }

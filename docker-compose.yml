@@ -31,12 +31,14 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend      
+      dockerfile: Dockerfile  
     container_name: ids_backend
     restart: always
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend:/app     
     env_file:
       - .env
     depends_on:
@@ -47,11 +49,13 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend      
+      dockerfile: Dockerfile
     container_name: ids_worker
     restart: always
-    command: python backend/src/worker.py 
+    command: python src/worker.py 
+    volumes:
+      - ./backend:/app
     env_file:
       - .env
     depends_on:

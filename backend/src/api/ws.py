@@ -1,46 +1,42 @@
-import os
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
-from jose import jwt, JWTError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from typing import Dict, List
+import json
 
-from backend.src.database import get_db
-from backend.src.models import User
-from backend.src.core.ws_manager import manager
+router = APIRouter()
 
-router = APIRouter(prefix="/ws", tags=["WebSockets"])
+class ConnectionManager:
+    def __init__(self):
+        # Maps workspace_id to a list of active WebSocket connections
+        self.active_connections: Dict[int, List[WebSocket]] = {}
 
-# Güvenlik: Bağlanmaya çalışan kişinin token'ını kontrol et
-async def get_user_from_token(token: str, db: AsyncSession) -> User:
-    try:
-        payload = jwt.decode(token, os.getenv("SECRET_KEY", "super_gizli_jwt_anahtari"), algorithms=[os.getenv("ALGORITHM", "HS256")])
-        email: str = payload.get("sub")
-        if not email: return None
-    except JWTError:
-        return None
-    
-    result = await db.execute(select(User).where(User.email == email))
-    return result.scalars().first()
+    async def connect(self, websocket: WebSocket, workspace_id: int):
+        await websocket.accept()
+        if workspace_id not in self.active_connections:
+            self.active_connections[workspace_id] = []
+        self.active_connections[workspace_id].append(websocket)
 
-@router.websocket("/alerts")
-async def websocket_alerts_endpoint(
-    websocket: WebSocket, 
-    token: str = Query(...), # Bağlanırken URL'den token alacağız (ws://.../alerts?token=ABC)
-    db: AsyncSession = Depends(get_db)
-):
-    user = await get_user_from_token(token, db)
-    
-    # Kimliksiz veya sahte token ile gelenleri kapı dışarı et
-    if not user:
-        await websocket.close(code=1008) 
-        return
-    
-    company_id = user.company_id
-    await manager.connect(websocket, company_id)
-    
+    def disconnect(self, websocket: WebSocket, workspace_id: int):
+        if workspace_id in self.active_connections:
+            self.active_connections[workspace_id].remove(websocket)
+            if not self.active_connections[workspace_id]:
+                del self.active_connections[workspace_id]
+
+    async def broadcast_to_workspace(self, message: dict, workspace_id: int):
+        """Sends a real-time JSON payload to all analysts currently viewing this workspace."""
+        if workspace_id in self.active_connections:
+            for connection in self.active_connections[workspace_id]:
+                await connection.send_json(message)
+
+# Global manager instance to be imported by other files
+manager = ConnectionManager()
+
+# The actual WebSocket endpoint the React frontend connects to
+@router.websocket("/stream/{workspace_id}")
+async def websocket_endpoint(websocket: WebSocket, workspace_id: int):
+    await manager.connect(websocket, workspace_id)
     try:
         while True:
-            # Kanalı açık tutmak için bekleriz. Analist sayfayı kapatana kadar burası çalışır.
+            # Keep the connection alive and listen for client pings
             data = await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket, company_id)
+        manager.disconnect(websocket, workspace_id)

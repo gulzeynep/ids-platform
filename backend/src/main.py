@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# YENİ VE ESKİ TÜM ROTALARI İÇERİ AKTARIYORUZ
-from backend.src.api import auth, alerts, admin, analytics, ws, users
+from src.api import auth, alerts, admin, analytics, ws, users
 
 app = FastAPI(title="W-IDS Core API", description="Siber Güvenlik Operasyon Merkezi API")
 
@@ -16,12 +15,12 @@ app.add_middleware(
 )
 
 # TÜM YOLLARI (ENDPOINTLERİ) ANA ŞALTERE BAĞLIYORUZ
-app.include_router(auth.router)
-app.include_router(alerts.router)
-app.include_router(admin.router)
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(analytics.router) 
-app.include_router(ws.router)        
-app.include_router(users.router)
+app.include_router(ws.router, tags=["WebSockets"])        
+app.include_router(users.router, prefix="/management", tags=["Management"])
 
 @app.get("/")
 async def root():
