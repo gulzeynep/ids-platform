@@ -68,32 +68,20 @@ export default function Profile() {
             <User size={40} />
           </div>
           <div className="flex-1">
-            
-            {/* EDIT MODE TOGGLE FOR FULL NAME */}
-            <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-white/10 transition-all">
-            <div className="flex items-center gap-2 text-slate-500 mb-2">
-              <Key size={16}/>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em]">Persona</span>
-            </div>
-            
+            {/* FULL NAME EDIT LOGIC */}
             {isEditing ? (
-              <select 
-                value={editForm.user_persona}
-                onChange={(e) => setEditForm({...editForm, user_persona: e.target.value})}
-                className="text-sm font-bold text-white font-mono bg-[#0a0a0a] border border-white/20 rounded-lg px-3 py-2 w-full focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
-              >
-                <option value="" disabled>Select your persona</option>
-                <option value="Cybersecurity Student">Student</option>
-                <option value="Solo Developer">Solo Developer</option>
-                <option value="Security Analyst">Security Analyst</option>
-                <option value="IT Administrator">IT Administrator</option>
-                <option value="Researcher">Researcher</option>
-                <option value="Other">Other</option>
-              </select>
+              <input 
+                type="text" 
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
+                placeholder="Enter Full Name..."
+                className="text-2xl font-black text-white italic uppercase tracking-tight bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2 w-full max-w-md focus:outline-none focus:border-blue-500"
+              />
             ) : (
-              <p className="text-sm font-bold text-white font-mono">{user.user_persona || 'Unassigned'}</p>
+              <h3 className="text-3xl font-black text-white italic uppercase tracking-tight">
+                {user.full_name || 'Anonymous Operative'}
+              </h3>
             )}
-          </div>
 
             <div className="flex items-center gap-3 mt-3">
                <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -116,20 +104,27 @@ export default function Profile() {
           <ProfileField icon={<Building size={16}/>} label="Organization" value={user.company_name} />
           <ProfileField icon={<Clock size={16}/>} label="Account Created" value={new Date(user.created_at).toLocaleDateString()} />
           
-          {/* EDIT MODE TOGGLE FOR PERSONA */}
+          {/* PERSONA SELECTION LOGIC */}
           <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-white/10 transition-all">
             <div className="flex items-center gap-2 text-slate-500 mb-2">
               <Key size={16}/>
               <span className="text-[9px] font-black uppercase tracking-[0.2em]">Persona</span>
             </div>
+            
             {isEditing ? (
-              <input 
-                type="text" 
+              <select 
                 value={editForm.user_persona}
                 onChange={(e) => setEditForm({...editForm, user_persona: e.target.value})}
-                placeholder="e.g. Lead Analyst"
-                className="text-sm font-bold text-white font-mono bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 w-full focus:outline-none focus:border-blue-500"
-              />
+                className="text-sm font-bold text-white font-mono bg-[#0a0a0a] border border-white/20 rounded-lg px-3 py-1.5 w-full focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+              >
+                <option value="" disabled>Select your persona</option>
+                <option value="Student">Student</option>
+                <option value="Solo Developer">Solo Developer</option>
+                <option value="Security Analyst">Security Analyst</option>
+                <option value="IT Administrator">IT Administrator</option>
+                <option value="Researcher">Researcher</option>
+                <option value="Other">Other</option>
+              </select>
             ) : (
               <p className="text-sm font-bold text-white font-mono">{user.user_persona || 'Unassigned'}</p>
             )}
@@ -159,7 +154,6 @@ export default function Profile() {
              </button>
            )}
         </div>
-
       </div>
     </div>
   );
