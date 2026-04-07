@@ -1,10 +1,18 @@
 import requests
 
-def get_ip_location(ip_address):
+def get_ip_metadata(ip_address):
+    """
+    IP adresinden ülke, şehir, enlem ve boylam bilgilerini çeker.
+    Ücretsiz ip-api.com servisini kullanır.
+    """
     try:
-        # Ücretsiz API (Saniyede 45 istek sınırı var, geliştirme için ideal)
+        # Lokal IP'ler için (Test aşamasında sıkça karşılaşırsın)
+        if ip_address in ["127.0.0.1", "localhost", "0.0.0.0"]:
+            return {"lat": 41.0082, "lon": 28.9784, "country": "Local", "city": "Internal Network"}
+
         response = requests.get(f"http://ip-api.com/json/{ip_address}?fields=status,country,city,lat,lon")
         data = response.json()
+        
         if data['status'] == 'success':
             return {
                 "lat": data['lat'],
@@ -13,7 +21,7 @@ def get_ip_location(ip_address):
                 "city": data['city']
             }
     except Exception as e:
-        print(f"GeoIP Error: {e}")
+        print(f"GeoIP Lookup Error: {e}")
     
-    # Hata durumunda veya lokal IP'lerde varsayılan (Ankara/İstanbul gibi)
-    return {"lat": 39.9334, "lon": 32.8597, "country": "Unknown", "city": "Unknown"}
+    # Hata durumunda varsayılan (Default) koordinat
+    return {"lat": 0, "lon": 0, "country": "Unknown", "city": "Unknown"}

@@ -10,6 +10,8 @@ import Profile from './components/Profile';
 import Contact from './components/Contact';
 import Management from './components/Management';
 import Settings from './components/Settings';
+import Onboarding from './components/Onboarding';
+import SetupGuide from './components/SetupGuide';
 
 // KORUMALI ROTA (Sadece giriş yapanlar girebilir)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -32,6 +34,8 @@ function App() {
 
         {/* SADECE GİRİŞ YAPANLARA AÇIK SAYFALAR (LAYOUT İÇİNDE) */}
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/setup" element={<SetupGuide />} />
           <Route path="overview" element={<Overview />} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="intrusions" element={<Intrusions />} />

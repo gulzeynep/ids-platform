@@ -1,131 +1,131 @@
-import os, secrets
+import secrets
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from jose import JWTError, jwt 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 
-from backend.src.database import get_db
-from backend.src.models import User, Company
-from backend.src.core import security
-from backend.src.schemas import UserCreate, UserResponse
+from ..database import get_db
+from ..models import User, Workspace
+from ..schemas import UserRegister, UserProfileUpdate, UserResponse
+from ..core.security import (
+    get_password_hash,
+    verify_password,
+    create_access_token,
+    get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+router = APIRouter()
 
-# --- KİMLİK KONTROL (KAPI GÖREVLİSİ) ---
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Geçersiz veya süresi dolmuş token.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        # Token'ı çöz ve içindeki email'i al
-        payload = jwt.decode(token, os.getenv("SECRET_KEY", "super_gizli_jwt_anahtari"), algorithms=[os.getenv("ALGORITHM", "HS256")])
-        email: str = payload.get("sub") 
-        if email is None: 
-            raise credentials_exception
-    except JWTError: 
-        raise credentials_exception
-    
-    # DB'den kullanıcıyı bul
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
-    if user is None: 
-        raise credentials_exception
-    return user
-
-# SUPER ADMIN (DEVELOPER/SEN): Her şeye erişir.
-async def require_super_admin(current_user: User = Depends(get_current_user)):
-    # is_admin flag'i True ve role "super_admin" olanlar
-    if not current_user.is_admin or current_user.role != "super_admin":
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
+    """
+    Step 1: Initial Registration.
+    Only requires email and password. No workspace is created yet.
+    """
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Clearance Level: Super Admin Required."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this email already exists."
         )
-    return current_user
 
-# COMPANY ADMIN: Sadece kendi şirketini yönetir.
-async def require_company_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["admin", "super_admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Privilege Level: Company Admin Required."
-        )
-    return current_user
-
-
-# --- KAYIT OLMA (REGISTER) ---
-@router.post("/register")
-async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
-    # NOT: user_in verisi buraya geldiğinde Pydantic tarafından temizlenmiş (strip, lower) haldedir!
-
-    # 1. Kullanıcı var mı kontrol et
-    user_query = await db.execute(select(User).where((User.email == user_in.email) | (User.username == user_in.username)))
-    if user_query.scalars().first():
-        raise HTTPException(status_code=400, detail="Bu email veya kullanıcı adı zaten kayıtlı.")
-
-    # 2. Şirket var mı kontrol et, yoksa oluştur
-    company_query = await db.execute(select(Company).where(Company.name == user_in.company_name))
-    company = company_query.scalars().first()
-    
-    if not company:
-        company = Company(name=user_in.company_name)
-        db.add(company)
-        await db.commit()
-        await db.refresh(company)
-
-    # 3. Yeni kullanıcıyı şirkete bağlayarak oluştur
+    # Create new user
+    hashed_pw = get_password_hash(user_data.password)
     new_user = User(
-        username=user_in.username,
-        email=user_in.email,
-        hashed_password=security.get_password_hash(user_in.password),
-        full_name=user_in.full_name,
-        company_id=company.id, 
-        api_key=f"ids_{secrets.token_hex(16)}",
-        is_admin=False,
-        role="analyst" # Varsayılan rol
+        email=user_data.email,
+        hashed_password=hashed_pw,
+        is_active=True
     )
-    db.add(new_user)
-    await db.commit()
-    return {"message": "Kayıt başarılı", "api_key": new_user.api_key}
-
-
-# --- GİRİŞ YAPMA (LOGIN) ---
-@router.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    # VİP KORUMA: Formdan gelen email'i DB'de aramadan önce boşluklardan arındır ve küçült!
-    # Bu adım o sinsi boşluk hatasını kökten bitirir.
-    login_email = form_data.username.strip().lower()
-
-    result = await db.execute(select(User).where(User.email == login_email))
-    user = result.scalars().first()
-
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Hatalı email veya şifre")
     
-    access_token = security.create_access_token(data={"sub": user.email})
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return {"message": "User registered successfully. Proceed to onboarding."}
+
+
+@router.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    Standard OAuth2 Login. Returns a JWT access token.
+    Frontend should send 'username' (which is the email) and 'password' as form data.
+    """
+    user = db.query(User).filter(User.email == form_data.username).first()
+    
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user account")
+
+    # Generate JWT Token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# --- PROFİL BİLGİLERİNİ GETİRME (ME) ---
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Kullanıcının şirket ismini veritabanından bul
-    company_name = "Bilinmeyen Şirket"
-    if current_user.company_id:
-        company_query = await db.execute(select(Company).where(Company.id == current_user.company_id))
-        company = company_query.scalars().first()
-        if company:
-            company_name = company.name
+@router.put("/profile")
+def complete_onboarding(
+    profile_data: UserProfileUpdate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Step 2: Onboarding Setup.
+    Creates a dedicated Workspace, generates the API key, and links the user.
+    """
+    # 1. Check if user already has a workspace (prevent double onboarding)
+    if current_user.workspace_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User has already completed onboarding."
+        )
 
-    # Şemaya uygun şekilde döndürüyoruz
-    return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "email": current_user.email,
-        "is_admin": current_user.is_admin,
-        "role": current_user.role,
-        "company_name": company_name
-    }
+    try:
+        # 2. Create the completely isolated Workspace
+        generated_api_key = f"wids_live_{secrets.token_urlsafe(32)}"
+        
+        new_workspace = Workspace(
+            name=profile_data.company_name,
+            subscription_plan=profile_data.plan,
+            api_key=generated_api_key
+        )
+        
+        db.add(new_workspace)
+        db.flush() # Flushes to DB to get the new_workspace.id without full commit
+
+        # 3. Update the current user with their persona and link them to the Workspace
+        current_user.full_name = profile_data.full_name
+        current_user.user_persona = profile_data.user_persona
+        current_user.workspace_id = new_workspace.id
+        
+        db.commit()
+        db.refresh(current_user)
+        db.refresh(new_workspace)
+
+        return {
+            "message": "Operative profile and workspace initialized successfully.",
+            "api_key": new_workspace.api_key
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database transaction failed: {str(e)}")
+
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_profile(current_user: User = Depends(get_current_user)):
+    """
+    Returns the currently logged-in user's data.
+    Used by the frontend to populate the Profile page and check onboarding status.
+    """
+    return current_user
