@@ -8,7 +8,7 @@ class Workspace(Base):
     __tablename__ = "workspaces"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False) # e.g., "Acme Corp" or "STUDENT WORKSPACE"
+    name = Column(String, nullable=True) # e.g., "Acme Corp" or "STUDENT WORKSPACE"
     subscription_plan = Column(String, default="startup") # startup, enterprise
     api_key = Column(String, unique=True, index=True, nullable=True) # The Sensor Key belongs to the Workspace!
     created_at = Column(DateTime(timezone=True), server_default=func.now())

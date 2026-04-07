@@ -2,130 +2,87 @@ import secrets
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from ..database import get_db
 from ..models import User, Workspace
 from ..schemas import UserRegister, UserProfileUpdate, UserResponse
 from ..core.security import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    get_current_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    get_password_hash, verify_password, create_access_token, 
+    get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 router = APIRouter()
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    """
-    Step 1: Initial Registration.
-    Only requires email and password. No workspace is created yet.
-    """
-    # Check if user already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this email already exists."
-        )
-
-    # Create new user
-    hashed_pw = get_password_hash(user_data.password)
+@router.post("/register", status_code=201)
+async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
+    """Step 1: Raw Registration"""
+    result = await db.execute(select(User).where(User.email == user_data.email))
+    if result.scalars().first():
+        raise HTTPException(status_code=400, detail="User already registered.")
+    
+    # Yeni bcrypt logic'imizi kullanıyor (security.py'de güncellediğimiz)
     new_user = User(
-        email=user_data.email,
-        hashed_password=hashed_pw,
-        is_active=True
+        email=user_data.email, 
+        hashed_password=get_password_hash(user_data.password)
     )
-    
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return {"message": "User registered successfully. Proceed to onboarding."}
+    await db.commit()
+    return {"message": "Success"}
 
-
-@router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """
-    Standard OAuth2 Login. Returns a JWT access token.
-    Frontend should send 'username' (which is the email) and 'password' as form data.
-    """
-    user = db.query(User).filter(User.email == form_data.username).first()
+@router.post("/token") # <-- LOGIN YERİNE TOKEN YAPTIK (Frontend 404 vermesin diye)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+    """OAuth2 compatible token login"""
+    result = await db.execute(select(User).where(User.email == form_data.username))
+    user = result.scalars().first()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid email or password"
         )
-        
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user account")
-
-    # Generate JWT Token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
     
-    return {"access_token": access_token, "token_type": "bearer"}
-
+    token = create_access_token(
+        data={"sub": user.email}, 
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": token, "token_type": "bearer"}
 
 @router.put("/profile")
-def complete_onboarding(
+async def complete_onboarding(
     profile_data: UserProfileUpdate, 
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Step 2: Onboarding Setup.
-    Creates a dedicated Workspace, generates the API key, and links the user.
-    """
-    # 1. Check if user already has a workspace (prevent double onboarding)
-    if current_user.workspace_id is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User has already completed onboarding."
-        )
-
-    try:
-        # 2. Create the completely isolated Workspace
-        generated_api_key = f"wids_live_{secrets.token_urlsafe(32)}"
-        
-        new_workspace = Workspace(
-            name=profile_data.company_name,
-            subscription_plan=profile_data.plan,
-            api_key=generated_api_key
-        )
-        
-        db.add(new_workspace)
-        db.flush() # Flushes to DB to get the new_workspace.id without full commit
-
-        # 3. Update the current user with their persona and link them to the Workspace
-        current_user.full_name = profile_data.full_name
-        current_user.user_persona = profile_data.user_persona
-        current_user.workspace_id = new_workspace.id
-        
-        db.commit()
-        db.refresh(current_user)
-        db.refresh(new_workspace)
-
-        return {
-            "message": "Operative profile and workspace initialized successfully.",
-            "api_key": new_workspace.api_key
-        }
-        
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database transaction failed: {str(e)}")
-
+    """Step 2: Workspace Creation & API Key Generation"""
+    if current_user.workspace_id:
+        raise HTTPException(status_code=400, detail="Onboarding already complete.")
+    
+    # 1. Yeni Workspace oluştur
+    api_key = f"wids_live_{secrets.token_urlsafe(32)}"
+    new_ws = Workspace(
+        name=profile_data.company_name, 
+        subscription_plan=profile_data.plan, 
+        api_key=api_key
+    )
+    db.add(new_ws)
+    await db.flush() # ID almak için
+    
+    # 2. Kullanıcıyı bağla (AsyncSession'da objeyi session'a tekrar dahil etmeliyiz)
+    current_user.workspace_id = new_ws.id
+    current_user.user_persona = profile_data.user_persona
+    
+    # Bazı durumlarda current_user detached olabilir, merge ile garantiye alıyoruz
+    await db.merge(current_user)
+    await db.commit()
+    
+    return {
+        "message": "Workspace initialized", 
+        "api_key": api_key
+    }
 
 @router.get("/me", response_model=UserResponse)
-def get_current_user_profile(current_user: User = Depends(get_current_user)):
-    """
-    Returns the currently logged-in user's data.
-    Used by the frontend to populate the Profile page and check onboarding status.
-    """
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Current Operative Profile Status"""
     return current_user
