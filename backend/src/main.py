@@ -13,8 +13,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/auth")
-app.include_router(alerts.router, prefix="/alerts")
-app.include_router(admin.router, prefix="/admin")
-app.include_router(analytics.router, prefix="/analytics")
+app.include_router(alerts.router)
+app.include_router(admin.router)
+app.include_router(analytics.router)
 app.include_router(ws.router)
-app.include_router(users.router, prefix="/management")
+app.include_router(users.router )

@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel
+from typing import Optional
 
 from ..database import get_db
 from ..models import User, Workspace
@@ -82,7 +84,50 @@ async def complete_onboarding(
         "api_key": api_key
     }
 
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
-    """Current Operative Profile Status"""
-    return current_user
+@router.get("/me")
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns the current operative profile with attached workspace data."""
+    workspace_name = "Pending Assignment"
+    
+    # If the user has completed onboarding, fetch their workspace name
+    if current_user.workspace_id:
+        ws_query = await db.execute(select(Workspace).where(Workspace.id == current_user.workspace_id))
+        workspace = ws_query.scalars().first()
+        if workspace and workspace.name:
+            workspace_name = workspace.name
+
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "user_persona": current_user.user_persona,
+        "workspace_id": current_user.workspace_id,
+        "company_name": workspace_name,
+        "is_active": current_user.is_active,
+        "created_at": current_user.created_at
+    }
+
+# --- SCHEMA FOR PROFILE UPDATE ---
+class ProfileUpdateStrict(BaseModel):
+    full_name: Optional[str] = None
+    user_persona: Optional[str] = None
+
+# --- ENDPOINT ---
+@router.patch("/me")
+async def update_my_profile(
+    update_data: ProfileUpdateStrict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Allows operative to update their basic profile information."""
+    if update_data.full_name is not None:
+        current_user.full_name = update_data.full_name
+    if update_data.user_persona is not None:
+        current_user.user_persona = update_data.user_persona
+        
+    await db.commit()
+    return {"message": "Profile updated successfully."}
