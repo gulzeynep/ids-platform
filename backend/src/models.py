@@ -66,7 +66,8 @@ class Alert(Base):
     # Status & Management
     action = Column(String, default="logged") # blocked, allowed, logged
     status = Column(String, default="new") # new, reviewing, reviewed, false_positive
-    
+    notes = Column(Text, nullable=True) # for Analyst remarks
+
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     
     # Data Isolation (Which workspace does this alert belong to?)
