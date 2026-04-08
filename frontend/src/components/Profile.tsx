@@ -101,7 +101,7 @@ export default function Profile() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
           <ProfileField icon={<Mail size={16}/>} label="Comm Channel" value={user.email} />
-          <ProfileField icon={<Building size={16}/>} label="Organization" value={user.company_name} />
+          <ProfileField icon={<Building size={16}/>} label="Workspace" value={user.workspace_name} />
           <ProfileField icon={<Clock size={16}/>} label="Account Created" value={new Date(user.created_at).toLocaleDateString()} />
           
           {/* PERSONA SELECTION LOGIC */}

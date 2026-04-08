@@ -37,6 +37,17 @@ async def get_all_workspaces(
     result = await db.execute(select(Workspace))
     return result.scalars().all()
 
+@router.get("/team", response_model=List[UserResponse])
+async def get_workspace_team(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all operatives assigned to the current workspace."""
+    result = await db.execute(
+        select(User).where(User.workspace_id == current_user.workspace_id)
+    )
+    return result.scalars().all()
+
 @router.post("/team/add", status_code=status.HTTP_201_CREATED)
 async def add_team_member(
     user_in: UserRegister, 
@@ -67,13 +78,42 @@ async def add_team_member(
     await db.commit()
     return {"message": "New operative successfully deployed."}
 
-@router.get("/team", response_model=List[UserResponse])
-async def get_workspace_team(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+@router.patch("/team/{user_id}/grant-access")
+async def grant_operative_access(
+    user_id: int,
+    new_role: str,
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_system_admin)
 ):
-    """List all operatives assigned to the current workspace."""
+    """Allows Admin to upgrade/downgrade an operative's clearance level."""
+    result = await db.execute(select(User).where(User.id == user_id, User.workspace_id == admin_user.workspace_id))
+    user_to_update = result.scalars().first()
+    
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="Operative not found in this workspace.")
+        
+    user_to_update.role = new_role
+    await db.commit()
+    return {"message": f"Access granted as {new_role}."}
+
+@router.patch("/team/{user_id}/toggle-access")
+async def toggle_operative_access(
+    user_id: int,
+    db: AsyncSession =  Depends(get_db),
+    admin_user: User = Depends(require_system_admin)
+):
+    """Admin toggles the active status of an operative (Revoke/Restore)"""
+
     result = await db.execute(
-        select(User).where(User.workspace_id == current_user.workspace_id)
+        select(User.id == user_id, User.workspace_id == admin_user.workspace_id)
     )
-    return result.scalars().all()
+    user_to_update = result.scalars().first()
+
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="Operative not found.")
+    
+    user_to_update.is_active = not user_to_update.is_active
+    await db.commit()
+
+    status_msg = "restored" if user_to_update.is_active else "revoked"
+    return {"message":f"Access strictly {status_msg}."}

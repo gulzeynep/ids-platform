@@ -11,6 +11,7 @@ export default function Onboarding() {
   const [hasCompany, setHasCompany] = useState(true);
   const [soloRole, setSoloRole] = useState('student'); // default solo role
   const [customRole, setCustomRole] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -126,6 +127,17 @@ export default function Onboarding() {
                 )}
               </div>
             )}
+
+            <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Workspace / Team Name</label>
+            <input 
+              type="text" 
+              value={workspaceName} 
+              onChange={(e) => setWorkspaceName(e.target.value)}
+              placeholder="e.g. Alpha Security Hub"
+              className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-3 text-white focus:border-blue-500"
+            />
+          </div>
           </div>
 
           {/* PLAN SELECTION */}

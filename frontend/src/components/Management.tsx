@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { 
   Users, UserPlus, Shield, Settings, Bell, 
-  ShieldAlert, Server, CheckCircle, AlertTriangle, Check 
+  ShieldAlert, Server, CheckCircle, AlertTriangle, Check, X
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -27,6 +27,10 @@ export default function Management() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMember, setNewMember] = useState({ email: '', password: '', role: 'analyst' });
+  const [selectedMember, setSelectedMember] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState("");
 
   // --- FETCH DATA ---
   const fetchData = useCallback(async () => {
@@ -49,6 +53,48 @@ export default function Management() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+
+   // --- member detail handler --- 
+   const openMemberDetail = (member: User) => {
+    setSelectedMember(member);
+    setEditRole(member.role);
+   }
+
+   const handleUpdateRole = async () => {
+    if (!selectedMember) return;
+    try{
+      await api.patch(`/admin/team/${selectedMember.id}/grant-access?new_role=${editRole}`);
+      fetchData();
+      setSelectedMember(null);
+    } catch (error){
+      console.error("Failed to update clearance:", error);
+    }
+   };
+
+   const handleToggleAccess = async ()=>{
+    if (!selectedMember) return;
+    try{
+      await api.patch(`/admin/team/${selectedMember.id}/toggle-access`);
+      fetchData();
+    } catch (error) {
+      console.error("Failed to toggle access:", error);
+    }
+   }
+   // --- Action Handler ---
+  const handleDeploy = async () => {
+    try{
+      await api.post('/admin/team/add', newMember);
+
+      setShowAddModal(false);
+      setNewMember({email: '', password: '', role: ''});
+
+      fetchData();
+    } catch (error){
+      console.error("Failed to deploy operative:", error);
+      alert("Deployment failed.");
+    }
+  };
 
   if (loading) {
     return (
@@ -84,33 +130,37 @@ export default function Management() {
               
               {/* Only Admins can deploy operatives */}
               {currentUser?.role === 'admin' && (
-                <button className="px-5 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(37,99,235,0.1)] flex items-center gap-2">
-                  <UserPlus size={14} /> Deploy Operative
+                <button onClick={() => setShowAddModal(true)} 
+                className="px-5 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(37,99,235,0.1)] flex items-center gap-2">
+                  <UserPlus size={14} /> Deploy Operative <UserPlus/>
                 </button>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {teamMembers.map((member) => (
-                <div key={member.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center gap-4 hover:border-white/10 transition-colors">
-                  <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                <div 
+                  key={member.id} 
+                  onClick={() => openMemberDetail(member)} 
+                  className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center gap-4 hover:border-white/20 transition-all cursor-pointer hover:translate-x-1"
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${member.is_active ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
                     <Shield size={20} />
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white truncate max-w-[150px]">{member.email}</h4>
+                  <div className="flex-1 overflow-hidden">
+                    <h4 className="text-sm font-bold text-white truncate">{member.email}</h4>
                     <div className="flex gap-2 mt-1">
                       <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded">
                         {member.role}
                       </span>
-                      {member.is_active && (
-                        <span className="text-[8px] font-black text-green-400 uppercase tracking-widest bg-green-500/10 px-2 py-0.5 rounded">
-                          Active
-                        </span>
-                      )}
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${member.is_active ? 'text-green-400 bg-green-500/10' : 'text-red-400 bg-red-500/10'}`}>
+                        {member.is_active ? 'Active' : 'Suspended'}
+                      </span>
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
               {teamMembers.length === 0 && (
                 <div className="col-span-2 py-8 text-center text-slate-500 text-xs italic">
                   No operatives found in this workspace.
@@ -146,7 +196,156 @@ export default function Management() {
           <NotificationsFeed />
         </div>
 
-      </div>
+      
+      {/* --- DEPLOY OPERATIVE MODAL --- */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative overflow-hidden">
+            
+            <div className="mb-6">
+              <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">Deploy Operative</h3>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Grant workspace access</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Comm Channel (Email)</label>
+                <input 
+                  type="email" 
+                  value={newMember.email}
+                  onChange={(e) => setNewMember({...newMember, email: e.target.value})}
+                  placeholder="operative@wids.com"
+                  className="w-full bg-white/[0.02] border border-white/5 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Initial Passkey</label>
+                <input 
+                  type="password" 
+                  value={newMember.password}
+                  onChange={(e) => setNewMember({...newMember, password: e.target.value})}
+                  placeholder="••••••••"
+                  className="w-full bg-white/[0.02] border border-white/5 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Clearance Level (Role)</label>
+                <select 
+                  value={newMember.role}
+                  onChange={(e) => setNewMember({...newMember, role: e.target.value})}
+                  className="w-full bg-[#0a0a0a] border border-white/5 rounded-xl p-3 text-sm font-bold text-white uppercase tracking-wider focus:outline-none focus:border-blue-500 cursor-pointer appearance-none"
+                >
+                  <option value="analyst">Analyst</option>
+                  <option value="admin">Admin</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeploy}
+                className="flex-1 py-3 bg-blue-500 hover:bg-blue-400 text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)]"
+              >
+                Confirm Deployment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --- OPERATIVE INTELLIGENCE & MANAGEMENT MODAL --- */}
+      {selectedMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-md p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-start mb-6 border-b border-white/5 pb-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-4 rounded-2xl ${selectedMember.is_active ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
+                  <Shield size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black italic text-white uppercase tracking-tight truncate max-w-[200px]">
+                    {selectedMember.email.split('@')[0]}
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Operative Details</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedMember(null)} className="p-2 hover:bg-white/5 rounded-full text-slate-400 transition-colors">
+                <X size={20}/>
+              </button>
+            </div>
+
+            {/* Content & Settings */}
+            <div className="space-y-6">
+              
+              {/* Static Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Status</p>
+                  <p className={`text-xs font-bold uppercase tracking-wider ${selectedMember.is_active ? 'text-green-500' : 'text-red-500'}`}>
+                    {selectedMember.is_active ? 'Active Clearance' : 'Access Revoked'}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Comm Channel</p>
+                  <p className="text-xs font-bold text-white truncate">{selectedMember.email}</p>
+                </div>
+              </div>
+
+              {/* Role Update Mechanism */}
+              <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                  Clearance Level (Role)
+                </label>
+                <div className="flex gap-2">
+                  <select 
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value)}
+                    className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl p-3 text-xs font-bold text-white uppercase tracking-wider focus:outline-none focus:border-blue-500 cursor-pointer appearance-none"
+                  >
+                    <option value="analyst">Analyst</option>
+                    <option value="lead_analyst">Lead Analyst</option>
+                    <option value="viewer">Viewer</option>
+                    <option value="admin">System Admin</option>
+                  </select>
+                  <button 
+                    onClick={handleUpdateRole}
+                    disabled={editRole === selectedMember.role}
+                    className="px-4 py-3 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    Update
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Critical Actions */}
+            <div className="mt-8 pt-6 border-t border-white/5">
+              <button 
+                onClick={handleToggleAccess}
+                className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                  selectedMember.is_active 
+                    ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20' 
+                    : 'bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20'
+                }`}
+              >
+                {selectedMember.is_active ? 'Revoke System Access' : 'Restore System Access'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

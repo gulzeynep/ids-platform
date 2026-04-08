@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
     role: str
     user_persona: Optional[str]
     workspace_id: Optional[int]
+    is_active: bool
 
     class Config:
         from_attributes = True

@@ -9,7 +9,7 @@ from typing import Optional
 
 from ..database import get_db
 from ..models import User, Workspace
-from ..schemas import UserRegister, UserProfileUpdate, UserResponse
+from ..schemas import UserRegister, UserResponse
 from ..core.security import (
     get_password_hash, verify_password, create_access_token, 
     get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -17,14 +17,14 @@ from ..core.security import (
 
 router = APIRouter()
 
-@router.post("/register", status_code=201)
+# --- 1. REGISTRATION ---
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Step 1: Raw Registration"""
     result = await db.execute(select(User).where(User.email == user_data.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="User already registered.")
     
-    # Yeni bcrypt logic'imizi kullanıyor (security.py'de güncellediğimiz)
     new_user = User(
         email=user_data.email, 
         hashed_password=get_password_hash(user_data.password)
@@ -33,7 +33,8 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
     await db.commit()
     return {"message": "Success"}
 
-@router.post("/token") # <-- LOGIN YERİNE TOKEN YAPTIK (Frontend 404 vermesin diye)
+# --- 2. LOGIN (TOKEN GENERATION) ---
+@router.post("/token") 
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     """OAuth2 compatible token login"""
     result = await db.execute(select(User).where(User.email == form_data.username))
@@ -51,9 +52,15 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     )
     return {"access_token": token, "token_type": "bearer"}
 
-@router.put("/profile")
+
+# --- 3. ONBOARDING SCHEMA & ENDPOINT ---
+class OnboardingRequest(BaseModel):
+    workspace_name: str  
+    persona: str
+
+@router.post("/onboard")
 async def complete_onboarding(
-    profile_data: UserProfileUpdate, 
+    data: OnboardingRequest, 
     db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):
@@ -61,29 +68,29 @@ async def complete_onboarding(
     if current_user.workspace_id:
         raise HTTPException(status_code=400, detail="Onboarding already complete.")
     
-    # 1. Yeni Workspace oluştur
+    # 1. Generate secure API key and create Workspace
     api_key = f"wids_live_{secrets.token_urlsafe(32)}"
-    new_ws = Workspace(
-        name=profile_data.company_name, 
-        subscription_plan=profile_data.plan, 
-        api_key=api_key
+    new_workspace = Workspace(
+        name=data.workspace_name, 
+        api_key=api_key 
     )
-    db.add(new_ws)
-    await db.flush() # ID almak için
+    db.add(new_workspace)
+    await db.flush() # Flush to get the new workspace ID
     
-    # 2. Kullanıcıyı bağla (AsyncSession'da objeyi session'a tekrar dahil etmeliyiz)
-    current_user.workspace_id = new_ws.id
-    current_user.user_persona = profile_data.user_persona
+    # 2. Bind the user to this new workspace
+    current_user.workspace_id = new_workspace.id
+    current_user.user_persona = data.persona
     
-    # Bazı durumlarda current_user detached olabilir, merge ile garantiye alıyoruz
     await db.merge(current_user)
     await db.commit()
-    
+
     return {
-        "message": "Workspace initialized", 
+        "message": "Workspace initialized successfully.",
         "api_key": api_key
     }
 
+
+# --- 4. PROFILE MANAGEMENT ---
 @router.get("/me")
 async def get_me(
     current_user: User = Depends(get_current_user),
@@ -92,7 +99,6 @@ async def get_me(
     """Returns the current operative profile with attached workspace data."""
     workspace_name = "Pending Assignment"
     
-    # If the user has completed onboarding, fetch their workspace name
     if current_user.workspace_id:
         ws_query = await db.execute(select(Workspace).where(Workspace.id == current_user.workspace_id))
         workspace = ws_query.scalars().first()
@@ -106,17 +112,16 @@ async def get_me(
         "role": current_user.role,
         "user_persona": current_user.user_persona,
         "workspace_id": current_user.workspace_id,
-        "company_name": workspace_name,
+        "workspace_name": workspace_name,
         "is_active": current_user.is_active,
         "created_at": current_user.created_at
     }
 
-# --- SCHEMA FOR PROFILE UPDATE ---
+
 class ProfileUpdateStrict(BaseModel):
     full_name: Optional[str] = None
     user_persona: Optional[str] = None
 
-# --- ENDPOINT ---
 @router.patch("/me")
 async def update_my_profile(
     update_data: ProfileUpdateStrict,
