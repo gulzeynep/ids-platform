@@ -12,6 +12,7 @@ interface User {
   role: string;
   is_active: boolean;
   full_name?: string;
+  api_key?: string; // Real API key from backend
 }
 
 interface NotificationData {
@@ -24,25 +25,24 @@ interface NotificationData {
 }
 
 export default function Management() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newMember, setNewMember] = useState({ email: '', password: '', role: 'analyst' });
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [activeOsTab, setActiveOsTab] = useState<'linux' | 'windows' | 'node' | 'python'>('linux');
 
   // --- FETCH DATA ---
   const fetchData = useCallback(async () => {
     try {
-      // 1. Get current user to check if they are an admin
       const userRes = await api.get('/auth/me');
       setCurrentUser(userRes.data);
 
-      // 2. Fetch team members 
       const teamRes = await api.get('/admin/team'); 
       setTeamMembers(teamRes.data);
-
     } catch (error) {
       console.error("Failed to fetch management data:", error);
     } finally {
@@ -54,43 +54,43 @@ export default function Management() {
     fetchData();
   }, [fetchData]);
 
-
-   // --- member detail handler --- 
-   const openMemberDetail = (member: User) => {
+  // --- HANDLERS --- 
+  const openMemberDetail = (member: User) => {
     setSelectedMember(member);
     setEditRole(member.role);
-   }
+  };
 
-   const handleUpdateRole = async () => {
+  const handleUpdateRole = async () => {
     if (!selectedMember) return;
-    try{
+    try {
+      // Note: Ensure your backend endpoint matches exactly: /admin/team/{id}/grant-access
       await api.patch(`/admin/team/${selectedMember.id}/grant-access?new_role=${editRole}`);
       fetchData();
       setSelectedMember(null);
-    } catch (error){
+    } catch (error) {
       console.error("Failed to update clearance:", error);
     }
-   };
+  };
 
-   const handleToggleAccess = async ()=>{
+  const handleToggleAccess = async () => {
     if (!selectedMember) return;
-    try{
+    try {
+      // Force refresh data and close modal on success
       await api.patch(`/admin/team/${selectedMember.id}/toggle-access`);
-      fetchData();
+      await fetchData();
+      setSelectedMember(null);
     } catch (error) {
       console.error("Failed to toggle access:", error);
     }
-   }
-   // --- Action Handler ---
+  };
+
   const handleDeploy = async () => {
-    try{
+    try {
       await api.post('/admin/team/add', newMember);
-
       setShowAddModal(false);
-      setNewMember({email: '', password: '', role: ''});
-
+      setNewMember({ email: '', password: '', role: 'analyst' });
       fetchData();
-    } catch (error){
+    } catch (error) {
       console.error("Failed to deploy operative:", error);
       alert("Deployment failed.");
     }
@@ -128,11 +128,10 @@ export default function Management() {
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Workspace Access Control</p>
               </div>
               
-              {/* Only Admins can deploy operatives */}
               {currentUser?.role === 'admin' && (
                 <button onClick={() => setShowAddModal(true)} 
-                className="px-5 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(37,99,235,0.1)] flex items-center gap-2">
-                  <UserPlus size={14} /> Deploy Operative <UserPlus/>
+                  className="px-5 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_0_15px_rgba(37,99,235,0.1)] flex items-center gap-2">
+                  <UserPlus size={14} /> Deploy Operative
                 </button>
               )}
             </div>
@@ -161,188 +160,203 @@ export default function Management() {
                 </div>
               ))}
             </div>
-              {teamMembers.length === 0 && (
-                <div className="col-span-2 py-8 text-center text-slate-500 text-xs italic">
-                  No operatives found in this workspace.
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* System Settings Section */}
+          {/* System Settings Section - ENHANCED SPACING */}
           <div className="bg-[#0a0a0a] border border-white/5 rounded-[32px] p-8">
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-10">
               <Settings size={20} className="text-slate-400"/>
               <h3 className="text-xl font-black italic text-white uppercase tracking-tight">Security Preferences</h3>
             </div>
             
-            <div className="space-y-4">
-              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex justify-between items-center">
-                <div>
-                  <h4 className="text-sm font-bold text-white">Critical Email Alerts</h4>
-                  <p className="text-xs text-slate-500">Receive an email when severity is CRITICAL</p>
+            <div className="flex flex-col gap-6">
+              <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 hover:border-white/10 transition-all">
+                <div className="max-w-[320px]">
+                  <h4 className="text-sm font-bold text-white uppercase tracking-tight">Critical Email Alerts</h4>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                    Receive emergency intelligence reports when severity reaches CRITICAL.
+                  </p>
                 </div>
-                <div className="w-12 h-6 bg-blue-500 rounded-full relative cursor-pointer shadow-[0_0_10px_rgba(37,99,235,0.3)]">
+                <div className="w-12 h-6 bg-blue-500 rounded-full relative cursor-pointer shrink-0">
                   <div className="w-4 h-4 bg-white rounded-full absolute right-1 top-1"></div>
                 </div>
               </div>
+
+              <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 group hover:border-white/10 transition-all">
+                <div className="max-w-[320px]">
+                  <h4 className="text-sm font-bold text-white uppercase tracking-tight">Sensor Integration</h4>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                    Access deployment scripts and unique workspace API keys for external nodes.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowIntegrationModal(true)}
+                  className="w-full lg:w-auto px-6 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 shrink-0"
+                >
+                  <Server size={14} className="text-blue-500 group-hover:text-blue-400"/> 
+                  Setup Guide
+                </button>
+              </div>
             </div>
           </div>
-
         </div>
 
         {/* --- RIGHT COLUMN: NOTIFICATIONS FEED --- */}
         <div className="w-full xl:w-[450px]">
           <NotificationsFeed />
         </div>
+      </div>
 
-      
-      {/* --- DEPLOY OPERATIVE MODAL --- */}
+      {/* --- ALL MODALS --- */}
+
+      {/* DEPLOY MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative overflow-hidden">
-            
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative">
             <div className="mb-6">
               <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">Deploy Operative</h3>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Grant workspace access</p>
             </div>
-
             <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Comm Channel (Email)</label>
-                <input 
-                  type="email" 
-                  value={newMember.email}
-                  onChange={(e) => setNewMember({...newMember, email: e.target.value})}
-                  placeholder="operative@wids.com"
-                  className="w-full bg-white/[0.02] border border-white/5 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Initial Passkey</label>
-                <input 
-                  type="password" 
-                  value={newMember.password}
-                  onChange={(e) => setNewMember({...newMember, password: e.target.value})}
-                  placeholder="••••••••"
-                  className="w-full bg-white/[0.02] border border-white/5 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Clearance Level (Role)</label>
-                <select 
-                  value={newMember.role}
-                  onChange={(e) => setNewMember({...newMember, role: e.target.value})}
-                  className="w-full bg-[#0a0a0a] border border-white/5 rounded-xl p-3 text-sm font-bold text-white uppercase tracking-wider focus:outline-none focus:border-blue-500 cursor-pointer appearance-none"
-                >
-                  <option value="analyst">Analyst</option>
-                  <option value="admin">Admin</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-              </div>
+              <input 
+                type="email" 
+                value={newMember.email}
+                onChange={(e) => setNewMember({...newMember, email: e.target.value})}
+                placeholder="Email Address"
+                className="w-full bg-white/[0.02] border border-white/5 rounded-xl p-3 text-sm text-white focus:border-blue-500 transition-colors"
+              />
+              <input 
+                type="password" 
+                value={newMember.password}
+                onChange={(e) => setNewMember({...newMember, password: e.target.value})}
+                placeholder="Initial Passkey"
+                className="w-full bg-white/[0.02] border border-white/5 rounded-xl p-3 text-sm text-white focus:border-blue-500 transition-colors"
+              />
+              <select 
+                value={newMember.role}
+                onChange={(e) => setNewMember({...newMember, role: e.target.value})}
+                className="w-full bg-[#0a0a0a] border border-white/5 rounded-xl p-3 text-sm font-bold text-white uppercase"
+              >
+                <option value="analyst">Analyst</option>
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </select>
             </div>
-
             <div className="mt-8 flex gap-3">
-              <button 
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDeploy}
-                className="flex-1 py-3 bg-blue-500 hover:bg-blue-400 text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)]"
-              >
-                Confirm Deployment
-              </button>
+              <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 bg-white/5 text-white rounded-xl text-[10px] font-black uppercase">Cancel</button>
+              <button onClick={handleDeploy} className="flex-1 py-3 bg-blue-500 text-black rounded-xl text-[10px] font-black uppercase shadow-lg">Confirm</button>
             </div>
           </div>
         </div>
       )}
-      {/* --- OPERATIVE INTELLIGENCE & MANAGEMENT MODAL --- */}
+
+      {/* OPERATIVE DETAIL MODAL - WITH ROLE LOCKING */}
       {selectedMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-md p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
-            
-            {/* Modal Header */}
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative">
             <div className="flex justify-between items-start mb-6 border-b border-white/5 pb-6">
               <div className="flex items-center gap-4">
                 <div className={`p-4 rounded-2xl ${selectedMember.is_active ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
                   <Shield size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black italic text-white uppercase tracking-tight truncate max-w-[200px]">
-                    {selectedMember.email.split('@')[0]}
-                  </h3>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Operative Details</p>
+                  <h3 className="text-xl font-black italic text-white uppercase truncate max-w-[200px]">{selectedMember.email.split('@')[0]}</h3>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Operative Details</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedMember(null)} className="p-2 hover:bg-white/5 rounded-full text-slate-400 transition-colors">
-                <X size={20}/>
-              </button>
+              <button onClick={() => setSelectedMember(null)} className="p-2 hover:bg-white/5 rounded-full text-slate-400"><X size={20}/></button>
             </div>
 
-            {/* Content & Settings */}
             <div className="space-y-6">
-              
-              {/* Static Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Status</p>
-                  <p className={`text-xs font-bold uppercase tracking-wider ${selectedMember.is_active ? 'text-green-500' : 'text-red-500'}`}>
+                  <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Status</p>
+                  <p className={`text-xs font-bold uppercase ${selectedMember.is_active ? 'text-green-500' : 'text-red-500'}`}>
                     {selectedMember.is_active ? 'Active Clearance' : 'Access Revoked'}
                   </p>
                 </div>
                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Comm Channel</p>
+                  <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Comm Channel</p>
                   <p className="text-xs font-bold text-white truncate">{selectedMember.email}</p>
                 </div>
               </div>
 
-              {/* Role Update Mechanism */}
-              <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                  Clearance Level (Role)
-                </label>
+              {/* LOCKED ROLE SECTION IF SUSPENDED */}
+              <div className={`p-5 border rounded-2xl transition-all ${!selectedMember.is_active ? 'bg-red-500/5 border-red-500/10 opacity-60' : 'bg-white/[0.02] border-white/5'}`}>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Clearance Level (Role)</label>
                 <div className="flex gap-2">
                   <select 
                     value={editRole}
                     onChange={(e) => setEditRole(e.target.value)}
-                    className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl p-3 text-xs font-bold text-white uppercase tracking-wider focus:outline-none focus:border-blue-500 cursor-pointer appearance-none"
+                    disabled={!selectedMember.is_active}
+                    className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl p-3 text-xs font-bold text-white uppercase disabled:cursor-not-allowed appearance-none"
                   >
                     <option value="analyst">Analyst</option>
-                    <option value="lead_analyst">Lead Analyst</option>
                     <option value="viewer">Viewer</option>
                     <option value="admin">System Admin</option>
                   </select>
                   <button 
                     onClick={handleUpdateRole}
-                    disabled={editRole === selectedMember.role}
-                    className="px-4 py-3 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    disabled={!selectedMember.is_active || editRole === selectedMember.role}
+                    className="px-4 py-3 bg-blue-500/10 text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed border border-blue-500/20 rounded-xl text-[10px] font-black uppercase transition-all"
                   >
                     Update
                   </button>
                 </div>
+                {!selectedMember.is_active && (
+                  <p className="text-[9px] text-red-500/60 font-bold uppercase mt-3 italic text-center">Restore access to modify clearance.</p>
+                )}
               </div>
-
             </div>
 
-            {/* Critical Actions */}
             <div className="mt-8 pt-6 border-t border-white/5">
               <button 
                 onClick={handleToggleAccess}
                 className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                  selectedMember.is_active 
-                    ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20' 
-                    : 'bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20'
+                  selectedMember.is_active ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'
                 }`}
               >
                 {selectedMember.is_active ? 'Revoke System Access' : 'Restore System Access'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
+      {/* INTEGRATION MODAL */}
+      {showIntegrationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-white/5 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black italic text-white uppercase">Deploy W-IDS Sensor</h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Workspace API credentials</p>
+              </div>
+              <button onClick={() => setShowIntegrationModal(false)} className="text-slate-500 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-6 flex flex-col md:flex-row gap-6">
+              <div className="flex flex-col gap-2 w-full md:w-48">
+                {['linux', 'windows', 'node', 'python'].map((os) => (
+                  <button 
+                    key={os}
+                    onClick={() => setActiveOsTab(os as any)}
+                    className={`px-4 py-3 rounded-xl text-left text-xs font-bold uppercase transition-all ${activeOsTab === os ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 'text-slate-400 hover:bg-white/5'}`}
+                  >
+                    {os === 'linux' ? 'Linux / Ubuntu' : os === 'windows' ? 'Windows Server' : os === 'node' ? 'Node.js' : 'Python'}
+                  </button>
+                ))}
+              </div>
+              <div className="flex-1">
+                <div className="bg-black border border-white/10 rounded-2xl p-4 relative">
+                  <pre className="text-xs font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap">
+                    {activeOsTab === 'linux' && `curl -sSL https://api.w-ids.com/install.sh | bash\nwids-sensor start --api-key="${currentUser?.api_key || 'wids_live_...'}"`}
+                    {activeOsTab === 'windows' && `Invoke-WebRequest -Uri "https://api.w-ids.com/install.ps1" -OutFile "install.ps1"\n.\\install.ps1 -ApiKey "${currentUser?.api_key || 'wids_live_...'}"`}
+                    {activeOsTab === 'node' && `npm install @w-ids/express-middleware\n\nconst wids = require('@w-ids/express-middleware');\napp.use(wids.protect({ apiKey: '${currentUser?.api_key || 'wids_live_...'}' }));`}
+                    {activeOsTab === 'python' && `pip install wids-fastapi\n\nfrom wids import WidsMiddleware\napp.add_middleware(WidsMiddleware, api_key="${currentUser?.api_key || 'wids_live_...'}")`}
+                  </pre>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

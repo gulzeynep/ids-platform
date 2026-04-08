@@ -12,7 +12,7 @@ export default function Layout() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    navigate('/login');s
+    navigate('/login');
   };
 
     const menuItems = [

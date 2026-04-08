@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, Globe, ShieldAlert, Network } from 'lucide-react';
+import { Globe, ShieldAlert } from 'lucide-react';
 import api from '../lib/api';
 
 interface AnalysisStats {

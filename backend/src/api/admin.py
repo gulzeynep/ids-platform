@@ -15,7 +15,7 @@ async def require_system_admin(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Neural link rejected. Administrative clearance required."
+            detail="Not authorized"
         )
     return current_user
 
@@ -99,21 +99,23 @@ async def grant_operative_access(
 @router.patch("/team/{user_id}/toggle-access")
 async def toggle_operative_access(
     user_id: int,
-    db: AsyncSession =  Depends(get_db),
-    admin_user: User = Depends(require_system_admin)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Admin toggles the active status of an operative (Revoke/Restore)"""
-
+    # 1. Kullanıcıyı bul
     result = await db.execute(
-        select(User.id == user_id, User.workspace_id == admin_user.workspace_id)
+        select(User).where(User.id == user_id, User.workspace_id == current_user.workspace_id)
     )
     user_to_update = result.scalars().first()
-
+    
     if not user_to_update:
         raise HTTPException(status_code=404, detail="Operative not found.")
-    
-    user_to_update.is_active = not user_to_update.is_active
-    await db.commit()
 
-    status_msg = "restored" if user_to_update.is_active else "revoked"
-    return {"message":f"Access strictly {status_msg}."}
+    # 2. DURUMU DEĞİŞTİR (En kritik kısım)
+    user_to_update.is_active = not user_to_update.is_active
+    
+    # 3. ZORLA KAYDET
+    await db.merge(user_to_update) # Nesneyi session'a tekrar bağla
+    await db.commit() # Değişikliği kalıcı yap
+    
+    return {"message": "Success", "new_status": user_to_update.is_active}
