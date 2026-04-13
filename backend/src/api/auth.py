@@ -12,12 +12,13 @@ from ..models import User, Workspace
 from ..schemas import UserRegister, UserResponse
 from ..core.security import (
     get_password_hash, verify_password, create_access_token, 
-    get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
+    get_current_user, get_current_active_user, 
+    ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 router = APIRouter()
 
-# --- 1. REGISTRATION ---
+# ---  REGISTRATION ---
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Step 1: Raw Registration"""
@@ -33,7 +34,7 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
     await db.commit()
     return {"message": "Success"}
 
-# --- 2. LOGIN (TOKEN GENERATION) ---
+# ---  LOGIN (TOKEN GENERATION) ---
 @router.post("/token") 
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     """OAuth2 compatible token login"""
@@ -53,7 +54,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     return {"access_token": token, "token_type": "bearer"}
 
 
-# --- 3. ONBOARDING SCHEMA & ENDPOINT ---
+# ---  ONBOARDING SCHEMA & ENDPOINT ---
 class OnboardingRequest(BaseModel):
     workspace_name: str  
     persona: str
@@ -90,10 +91,10 @@ async def complete_onboarding(
     }
 
 
-# --- 4. PROFILE MANAGEMENT ---
+# ---  PROFILE MANAGEMENT ---
 @router.get("/me")
 async def get_me(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Returns the current operative profile with attached workspace data."""
