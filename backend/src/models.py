@@ -91,3 +91,21 @@ class Notification(Base):
     
     # Relationships
     workspace = relationship("Workspace", back_populates="notifications")
+
+class BlacklistedIP(Base):
+    """Represents a banned IP address in workspace"""
+    __tablename__= "blacklisted_ips"
+
+    id = Column(Integer, primary_key=True, index= True)
+    ip_address = Column(String, index=True, nullable=False)
+    reason = Column(String, nullable=True)
+
+    #which admin banned it 
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # isolation for workspace 
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
+
+    #relationship
+    workspace = relationship("Workspace")
