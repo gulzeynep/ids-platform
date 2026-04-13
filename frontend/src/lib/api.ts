@@ -1,16 +1,17 @@
 import axios from 'axios';
 
-// Backend'in adresi
+// Automatically use the Vite environment variable, fallback to localhost for local dev
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL,
 });
 
-// ARAYA GİRİCİ (INTERCEPTOR): Her istekten önce çalışır
+// REQUEST INTERCEPTOR: Runs before every request
 api.interceptors.request.use((config) => {
-  // Cüzdandan (localStorage) token'ı al
+  // Read from local storage directly for the interceptor
   const token = localStorage.getItem('token');
   
-  // Eğer token varsa, bunu yakamıza (Headers) yapıştır
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -19,12 +20,5 @@ api.interceptors.request.use((config) => {
 }, (error) => {
   return Promise.reject(error);
 });
-
-export const blacklistIP = async (ip: string, reason: string) => {
-  return await api.post(`/security/blacklist/${ip}`, { reason });
-};
-export const getBlacklist = async () => {
-  return await api.get('/security/blacklist');
-};
 
 export default api;

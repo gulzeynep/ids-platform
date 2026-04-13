@@ -1,25 +1,24 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16
     container_name: ids_postgres
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
+      POSTGRES_DB: ${POSTGRES_DB:-ids_db}
     ports:
       - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - wids-network
+
   redis:
     image: redis:7
     container_name: ids_redis
@@ -76,15 +75,18 @@ services:
         condition: service_healthy
     networks:
       - wids-network
-    command: python src/worker.py
+    command: python src/worker.py 
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000 # API calls from client browser
     container_name: ids_frontend
-    ports:
-      - "5173:80" # Nginx running inside on 80, mapped to 5173
     restart: always
+    ports:
+      - "5173:80" # Map host 5173 to Nginx port 80
     networks:
       - wids-network
 

@@ -1,121 +1,47 @@
-import { Shield, Lock, Activity, Terminal, ChevronRight, Globe } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Shield, Activity, Lock, Globe, ArrowRight } from 'lucide-react';
 
-export default function LandingPage() {
-  const navigate = useNavigate();
-
+const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-200 font-sans selection:bg-blue-500/30 overflow-hidden relative">
-      
-      {/* ARKAPLAN EFEKTLERİ */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-red-500/5 blur-[150px] rounded-full pointer-events-none" />
-
-      {/* NAVBAR */}
-      <nav className="relative z-10 flex items-center justify-between px-8 py-6 max-w-[1400px] mx-auto border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <Shield className="text-blue-500 w-8 h-8" />
-          <h1 className="font-black italic text-xl uppercase tracking-tighter">W-IDS CORE</h1>
-        </div>
-        <div className="hidden md:flex items-center gap-8">
-        <button onClick={() => navigate('/')} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">HOME</button>
-        <button onClick={() => navigate('/contact')} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">CONTACT</button>
-      </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/login')} className="px-5 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors">
-            SIGN IN
-          </button>
-          <button onClick={() => navigate('/register')} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-black uppercase tracking-wider rounded-lg transition-colors shadow-[0_0_20px_rgba(37,99,235,0.3)]">
-            GET STARTED
-          </button>
-        </div>
-      </nav>
-
-      {/* HERO BÖLÜMÜ */}
-      <main className="relative z-10 max-w-[1400px] mx-auto px-8 pt-32 pb-20 flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-8">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          Next-Gen Intrusion Detection
-        </div>
-        
-        <h2 className="text-5xl md:text-7xl font-black text-white tracking-tight leading-tight mb-6">
-          Secure Your Perimeter. <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500 italic">
-            Analyze In Real-Time.
-          </span>
-        </h2>
-        
-        <p className="text-lg text-slate-400 max-w-2xl mb-12">
-          Enterprise-grade Web Intrusion Detection System. Monitor network traffic, detect anomalies, and mitigate threats with AI-driven analytics and zero-latency WebSocket feeds.
-        </p>
-
-        <div className="flex items-center gap-6">
-          <button onClick={() => navigate('/register')} className="flex items-center gap-2 px-8 py-4 bg-white text-black hover:bg-slate-200 text-sm font-black uppercase tracking-wider rounded-xl transition-all">
-            Deploy Now <ChevronRight size={18} />
-          </button>
-          <button onClick={() => navigate('/login')} className="flex items-center gap-2 px-8 py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-sm font-black uppercase tracking-wider rounded-xl transition-all">
-            View Dashboard
-          </button>
-        </div>
-      </main>
-
-      {/* ÖZELLİKLER (FEATURES) */}
-      <div className="relative z-10 max-w-[1400px] mx-auto px-8 py-20 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-8 bg-[#0a0a0a] border border-white/5 rounded-[32px] hover:border-white/10 transition-colors">
-          <Activity className="text-blue-500 w-10 h-10 mb-6" />
-          <h3 className="text-lg font-bold text-white mb-3">Real-Time Traffic</h3>
-          <p className="text-sm text-slate-500 leading-relaxed">Zero-latency event streaming via secure WebSockets. See threats the millisecond they hit your servers.</p>
-        </div>
-        <div className="p-8 bg-[#0a0a0a] border border-white/5 rounded-[32px] hover:border-red-500/30 transition-colors group">
-          <Lock className="text-slate-500 group-hover:text-red-500 w-10 h-10 mb-6 transition-colors" />
-          <h3 className="text-lg font-bold text-white mb-3">Threat Classification</h3>
-          <p className="text-sm text-slate-500 leading-relaxed">Automatic categorization of SQLi, XSS, DDoS, and Brute Force attacks with severity scoring.</p>
-        </div>
-        <div className="p-8 bg-[#0a0a0a] border border-white/5 rounded-[32px] hover:border-white/10 transition-colors">
-          <Terminal className="text-slate-500 w-10 h-10 mb-6" />
-          <h3 className="text-lg font-bold text-white mb-3">SOC Management</h3>
-          <p className="text-sm text-slate-500 leading-relaxed">Dedicated portals for analysts and admins. Review, mitigate, and resolve incidents from a single pane of glass.</p>
-        </div>
-      </div>
-      {/* FOOTER SECTION */}
-      <footer className="relative z-10 border-t border-white/5 bg-black/50 py-12 mt-20">
-        <div className="max-w-[1400px] mx-auto px-8 grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-3 mb-6">
-              <Shield className="text-blue-500 w-6 h-6" />
-              <h1 className="font-black italic text-lg uppercase tracking-tighter text-white">W-IDS CORE</h1>
+    <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-blue-500/30">
+      {/* HERO SECTION */}
+      <div className="relative overflow-hidden pt-16 pb-32">
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
+        <div className="container mx-auto px-6 relative">
+          <nav className="flex items-center justify-between mb-24">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Shield className="text-white w-6 h-6" />
+              </div>
+              <span className="text-xl font-bold text-white tracking-tight">W-IDS <span className="text-blue-500">CORE</span></span>
             </div>
-            <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
-              Next-generation web intrusion detection system providing real-time perimeter security and advanced threat analytics for enterprise networks.
-            </p>
-          </div>
-          <div>
-            <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-6">Platform</h4>
-            <ul className="space-y-4 text-sm text-slate-500">
-              <li><button onClick={() => navigate('/login')} className="hover:text-blue-500 transition-colors">Dashboard</button></li>
-              <li><button onClick={() => navigate('/register')} className="hover:text-blue-500 transition-colors">Security Nodes</button></li>
-              <li><button className="hover:text-blue-500 transition-colors italic">API Documentation</button></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-6">Support</h4>
-            <ul className="space-y-4 text-sm text-slate-500">
-              <li><button onClick={() => navigate('/contact')} className="hover:text-blue-500 transition-colors">Contact Engineering</button></li>
-              <li><button className="hover:text-blue-500 transition-colors">System Status</button></li>
-              <li><button className="hover:text-blue-500 transition-colors">Privacy Policy</button></li>
-            </ul>
-          </div>
-        </div>
-        <div className="max-w-[1400px] mx-auto px-8 pt-12 mt-12 border-t border-white/5 flex flex-col md:row justify-between items-center gap-4">
-          <p className="text-[10px] text-slate-600 font-mono uppercase tracking-widest">© 2026 W-IDS CORE PLATFORM // ALL RIGHTS RESERVED.</p>
-          <div className="flex gap-6 text-slate-600">
-            <Globe size={14} className="hover:text-white cursor-pointer transition-colors" />
-            <Terminal size={14} className="hover:text-white cursor-pointer transition-colors" />
-          </div>
-        </div>
-      </footer>
-    </div>
+            <div className="flex items-center gap-6">
+              <Link to="/login" className="text-sm font-medium hover:text-white transition-colors">Operative Login</Link>
+              <Link to="/register" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20">Initialize Account</Link>
+            </div>
+          </nav>
 
-    
+          <div className="max-w-3xl">
+            <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-8 leading-tight">
+              Next-Gen <span className="text-blue-500">Intrusion</span> Detection Systems.
+            </h1>
+            <p className="text-xl text-slate-400 mb-10 leading-relaxed">
+              Autonomous threat intelligence and real-time network monitoring. 
+              Protect your digital workspace with neural-link security analysis.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link to="/register" className="bg-white text-slate-950 px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-50 transition-all">
+                Get Started <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link to="/contact" className="bg-slate-900 border border-slate-800 text-white px-8 py-4 rounded-xl font-bold hover:bg-slate-800 transition-all">
+                Request Demo
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default LandingPage;

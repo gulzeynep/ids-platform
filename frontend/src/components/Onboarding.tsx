@@ -1,188 +1,88 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building, User, Target, Loader2, CheckCircle2, Briefcase, GraduationCap, Code, TestTube, Edit3 } from 'lucide-react';
+import { Rocket, Building2, UserCircle, ArrowRight, Loader2 } from 'lucide-react';
 import api from '../lib/api';
 
-export default function Onboarding() {
+const Onboarding = () => {
+  const [step, setStep] = useState(1);
+  const [data, setData] = useState({ workspace_name: '', persona: 'Security Analyst' });
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  
-  // UI States
-  const [hasCompany, setHasCompany] = useState(true);
-  const [soloRole, setSoloRole] = useState('student'); // default solo role
-  const [customRole, setCustomRole] = useState('');
-  const [workspaceName, setWorkspaceName] = useState('');
-  
-  const [formData, setFormData] = useState({
-    full_name: '',
-    company_name: '',
-    plan: 'startup'
-  });
 
-  const handleSetupComplete = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
+  const handleComplete = async () => {
+    setIsLoading(true);
     try {
-      // Determine the exact persona/role to send to the database
-      const finalRole = hasCompany ? 'corporate' : (soloRole === 'other' ? customRole : soloRole);
-      const finalCompany = hasCompany ? formData.company_name : `${finalRole.toUpperCase()} WORKSPACE`;
-
-      const finalPayload = {
-        full_name: formData.full_name,
-        company_name: finalCompany,
-        plan: formData.plan,
-        user_persona: finalRole // Send this to backend so you know EXACTLY who is using your app!
-      };
-
-      await api.put('/auth/profile', finalPayload); 
-      navigate('/setup');
-      
+      await api.post('/auth/onboard', data);
+      navigate('/overview');
     } catch (err) {
-      console.error("Setup failed:", err);
+      alert("Onboarding failed. Workspace name might be taken.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl animate-in fade-in zoom-in-95 duration-500">
-        
-        <div className="text-center mb-12">
-          <div className="w-16 h-16 bg-blue-600/20 border border-blue-500/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
-             <CheckCircle2 className="text-blue-500" size={32} />
-          </div>
-          <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">Identity Verified</h2>
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-[0.4em] mt-3">Configure your perimeter defenses</p>
+    <div className="max-w-xl mx-auto mt-20 bg-slate-900 border border-slate-800 rounded-3xl p-10 shadow-2xl">
+      <div className="flex items-center gap-4 mb-8">
+        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center">
+          <Rocket className="text-white w-6 h-6" />
         </div>
+        <div>
+          <h1 className="text-2xl font-bold text-white">System Initialization</h1>
+          <p className="text-slate-500 text-sm">Step {step} of 2</p>
+        </div>
+      </div>
 
-        <form onSubmit={handleSetupComplete} className="bg-[#0a0a0a] border border-white/5 rounded-[40px] p-10 shadow-2xl space-y-8">
-          
-          {/* OPERATIVE NAME */}
+      {step === 1 ? (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <User size={12}/> Operative Name
+            <label className="text-slate-300 font-medium flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-blue-500" /> Workspace Identity
             </label>
             <input 
               type="text" 
-              required 
-              placeholder="John Doe"
-              className="w-full bg-black border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-blue-500/50 transition-colors" 
-              onChange={e => setFormData({...formData, full_name: e.target.value})} 
+              placeholder="e.g. Alpha-Squad-SOC"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-white outline-none focus:ring-2 focus:ring-blue-500"
+              value={data.workspace_name}
+              onChange={(e) => setData({...data, workspace_name: e.target.value})}
             />
           </div>
-
-          {/* DYNAMIC ORGANIZATION / PERSONA SECTION */}
-          <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl transition-all duration-300">
-            {hasCompany ? (
-              // COMPANY INPUT
-              <div className="space-y-3 animate-in fade-in">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Building size={12}/> Organization Name
-                  </label>
-                  <button type="button" onClick={() => setHasCompany(false)} className="text-[9px] text-blue-500 hover:text-white font-bold uppercase tracking-widest transition-colors">
-                    Don't have a company?
-                  </button>
-                </div>
-                <input 
-                  type="text" 
-                  required={hasCompany}
-                  placeholder="Acme Corp"
-                  className="w-full bg-black border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-blue-500/50 transition-colors" 
-                  onChange={e => setFormData({...formData, company_name: e.target.value})} 
-                />
-              </div>
-            ) : (
-              // PERSONA SELECTOR (When they don't have a company)
-              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Briefcase size={12}/> Who are you?
-                  </label>
-                  <button type="button" onClick={() => setHasCompany(true)} className="text-[9px] text-blue-500 hover:text-white font-bold uppercase tracking-widest transition-colors">
-                    I have a company
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <PersonaButton icon={<GraduationCap size={16}/>} label="Student" value="student" current={soloRole} setRole={setSoloRole} />
-                  <PersonaButton icon={<Code size={16}/>} label="Solo Dev" value="solo_dev" current={soloRole} setRole={setSoloRole} />
-                  <PersonaButton icon={<TestTube size={16}/>} label="Researcher" value="researcher" current={soloRole} setRole={setSoloRole} />
-                  <PersonaButton icon={<Edit3 size={16}/>} label="Other" value="other" current={soloRole} setRole={setSoloRole} />
-                </div>
-
-                {/* SHOW CUSTOM INPUT IF 'OTHER' IS SELECTED */}
-                {soloRole === 'other' && (
-                  <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                    <input 
-                      type="text" 
-                      required={soloRole === 'other'}
-                      placeholder="Please specify your role..."
-                      className="w-full bg-black border border-blue-500/30 rounded-xl p-3 text-sm text-white outline-none focus:border-blue-500 transition-colors" 
-                      onChange={e => setCustomRole(e.target.value)} 
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Workspace / Team Name</label>
-            <input 
-              type="text" 
-              value={workspaceName} 
-              onChange={(e) => setWorkspaceName(e.target.value)}
-              placeholder="e.g. Alpha Security Hub"
-              className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-3 text-white focus:border-blue-500"
-            />
-          </div>
-          </div>
-
-          {/* PLAN SELECTION */}
-          <div className="space-y-4">
-             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Target size={12}/> Security Plan
-              </label>
-             <div className="grid grid-cols-2 gap-4">
-                <div 
-                  onClick={() => setFormData({...formData, plan: 'startup'})}
-                  className={`p-5 rounded-2xl border cursor-pointer transition-all ${formData.plan === 'startup' ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-black border-white/10 text-slate-500 hover:border-white/20'}`}
-                >
-                   <h4 className="text-xs font-black uppercase mb-1">Standard Node</h4>
-                   <p className="text-[9px] uppercase tracking-widest opacity-70">Basic IDS & Traffic logs</p>
-                </div>
-                <div 
-                  onClick={() => setFormData({...formData, plan: 'enterprise'})}
-                  className={`p-5 rounded-2xl border cursor-pointer transition-all ${formData.plan === 'enterprise' ? 'bg-purple-600/10 border-purple-500 text-purple-400' : 'bg-black border-white/10 text-slate-500 hover:border-white/20'}`}
-                >
-                   <h4 className="text-xs font-black uppercase mb-1">Advanced Core</h4>
-                   <p className="text-[9px] uppercase tracking-widest opacity-70">Deep packet ML & GeoIP</p>
-                </div>
-             </div>
-          </div>
-
-          <button disabled={loading} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.2em] transition-all mt-8 shadow-[0_0_30px_rgba(37,99,235,0.2)] disabled:opacity-50">
-            {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Generate API Key"}
+          <button 
+            disabled={!data.workspace_name}
+            onClick={() => setStep(2)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            Continue to Persona <ArrowRight className="w-5 h-5" />
           </button>
-        </form>
-
-      </div>
+        </div>
+      ) : (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+          <div className="grid grid-cols-2 gap-4">
+            {['Security Analyst', 'Network Admin', 'CISO', 'Researcher'].map((p) => (
+              <button 
+                key={p}
+                onClick={() => setData({...data, persona: p})}
+                className={`p-4 rounded-xl border transition-all text-sm font-bold ${
+                  data.persona === p ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-800 bg-slate-950 text-slate-500'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-4">
+            <button onClick={() => setStep(1)} className="flex-1 bg-slate-800 text-white py-4 rounded-xl font-bold">Back</button>
+            <button 
+              onClick={handleComplete}
+              className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"
+            >
+              {isLoading ? <Loader2 className="animate-spin" /> : 'Finalize Setup'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
 
-// Helper Component for Persona Buttons
-function PersonaButton({ icon, label, value, current, setRole }: any) {
-  const isActive = current === value;
-  return (
-    <div 
-      onClick={() => setRole(value)}
-      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-black border-white/10 text-slate-400 hover:border-white/30'}`}
-    >
-      {icon}
-      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
-    </div>
-  );
-}
+export default Onboarding;

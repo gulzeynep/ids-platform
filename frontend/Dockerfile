@@ -1,27 +1,27 @@
-# 1. Aşama: Build (Node.js)
+# STEP 1: Build Phase
 FROM node:20-alpine AS build-stage
+
 WORKDIR /app
 
-# Sadece package.json'ları kopyala (Cache dostu)
+# Install dependencies
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Kodun kalanını kopyala ve build al
+# Copy code and build
 COPY . .
+# Vite requires environment variables at build time
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 RUN npm run build
 
-# 2. Aşama: Production (Nginx)
-FROM nginx:stable-alpine
-# Custom Nginx Config (Sayfa yenileme hatasını çözer)
-RUN echo 'server { \
-    listen 80; \
-    location / { \
-        root /usr/share/nginx/html; \
-        index index.html; \
-        try_files $uri $uri/ /index.html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# STEP 2: Production Phase (Nginx)
+FROM nginx:stable-alpine AS production-stage
 
+# Copy built files to Nginx
 COPY --from=build-stage /app/dist /usr/share/nginx/html
+
+# Expose port 80 (Standard Nginx)
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]

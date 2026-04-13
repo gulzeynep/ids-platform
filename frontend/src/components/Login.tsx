@@ -1,106 +1,106 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Shield, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
 import api from '../lib/api';
+import { useAuthStore } from '../lib/store';
 
-export default function Login() {
-  const navigate = useNavigate();
+const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  
+  const navigate = useNavigate();
+  const setToken = useAuthStore((state) => state.setToken);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setError('');
-    setLoading(true);
 
     try {
-      // FastAPI OAuth2PasswordRequestForm requires x-www-form-urlencoded
-      const formData = new URLSearchParams();
-      formData.append('username', email); // email goes into username field
+      // OAuth2 compatible form data for our /auth/token endpoint
+      const formData = new FormData();
+      formData.append('username', email);
       formData.append('password', password);
 
-      const res = await api.post('/auth/token', formData, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      });
-
-      localStorage.setItem('token', res.data.access_token);
+      const response = await api.post('/auth/token', formData);
+      
+      // Save to Zustand (which also handles localStorage)
+      setToken(response.data.access_token);
+      
+      // Redirect to dashboard
       navigate('/overview');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid credentials. Access denied.');
+      setError(err.response?.data?.detail || 'Authentication failed. Please check your credentials.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-200 flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 blur-[150px] rounded-full pointer-events-none" />
-      
-      <div className="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 border border-white/10 mb-6 cursor-pointer" onClick={() => navigate('/')}>
-            <Shield className="text-blue-500 w-8 h-8" />
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+            <LogIn className="text-white w-6 h-6" />
           </div>
-          <h2 className="text-3xl font-black text-white italic tracking-tight">SYSTEM ACCESS</h2>
-          <p className="text-slate-500 text-xs uppercase tracking-widest mt-2">Authenticate to access SOC Dashboard</p>
+          <h1 className="text-2xl font-bold text-white">W-IDS Operative Login</h1>
+          <p className="text-slate-400 text-sm mt-2">Enter your credentials to access the terminal</p>
         </div>
 
-        <form onSubmit={handleLogin} className="bg-[#0a0a0a] border border-white/5 rounded-[32px] p-8 shadow-2xl">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold uppercase tracking-wider text-center">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          <div className="space-y-5">
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
-                <input 
-                  type="email" 
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#050505] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
-                  placeholder="analyst@wids.com"
-                />
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input
+                type="email"
+                required
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                placeholder="operative@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
-                <input 
-                  type="password" 
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#050505] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm uppercase tracking-wider py-4 rounded-xl transition-all mt-8 disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="animate-spin" size={18} /> : (
-                <>Authorize <ArrowRight size={18} /></>
-              )}
-            </button>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Access Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input
+                type="password"
+                required
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Authorize Access'}
+          </button>
         </form>
 
-        <p className="text-center mt-8 text-xs text-slate-500">
-          Don't have clearance? <button onClick={() => navigate('/register')} className="text-blue-400 font-bold hover:text-blue-300">Request Access</button>
+        <p className="text-center mt-8 text-slate-400 text-sm">
+          New operative? <Link to="/register" className="text-blue-500 hover:text-blue-400 font-medium">Request Registration</Link>
         </p>
       </div>
     </div>
   );
-}
+};
+
+export default Login;
