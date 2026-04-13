@@ -4,7 +4,7 @@ from sqlalchemy import select
 from ...database import get_db
 from ...models import Alert, Workspace, BlacklistedIP
 from ...schemas import AlertCreate
-from ..ws import manager
+from ...core.ws_manager import manager
 from ...core.redis import get_redis
 
 router = APIRouter(prefix="/alerts", tags=["Sensor Ingestion"])
