@@ -1,20 +1,19 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from src.api import auth, alerts, admin, analytics, ws, users
+from .api.alerts import ingest, management, security as alert_security
+from .api.analytics import dashboard
+from .api import auth, admin, users
 
-app = FastAPI(title="W-IDS Core")
+app = FastAPI(title="W-IDS Platform")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# Routes
 app.include_router(auth.router, prefix="/auth")
-app.include_router(alerts.router)
 app.include_router(admin.router)
-app.include_router(analytics.router)
-app.include_router(ws.router)
-app.include_router(users.router )
+app.include_router(users.router)
+app.include_router(ingest.router)        # /alerts/ingest
+app.include_router(management.router)    # /alerts (GET, PATCH)
+app.include_router(alert_security.router) # /security/blacklist
+app.include_router(dashboard.router)     # /analytics/overview
+
+@app.get("/")
+async def root():
+    return {"status": "W-IDS Core Online"}
