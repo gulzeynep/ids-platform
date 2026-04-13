@@ -14,16 +14,12 @@ async def get_workspace_alerts(
     status: str = "new",
     severity: str = "all",
     db: AsyncSession = Depends(get_db), 
-    current_user: User = Depends(get_current_active_user) # Aktiflik kontrolü
+    current_user: User = Depends(get_current_active_user)
 ):
     query_status = "new" if status == "new" else "reviewed"
-    query = select(Alert).where(
-        Alert.workspace_id == current_user.workspace_id,
-        Alert.status == query_status
-    )
+    query = select(Alert).where(Alert.workspace_id == current_user.workspace_id, Alert.status == query_status)
     if severity != "all":
         query = query.where(Alert.severity == severity)
-
     result = await db.execute(query.order_by(Alert.timestamp.desc()))
     return result.scalars().all()
 
@@ -34,16 +30,17 @@ async def update_alert_triage(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    result = await db.execute(
-        select(Alert).where(Alert.id == alert_id, Alert.workspace_id == current_user.workspace_id)
-    )
+    result = await db.execute(select(Alert).where(Alert.id == alert_id, Alert.workspace_id == current_user.workspace_id))
     alert = result.scalars().first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found.")
-    
+    if not alert: raise HTTPException(status_code=404, detail="Alert not found.")
     alert.status = triage_data.status
-    if hasattr(triage_data, 'notes') and triage_data.notes:
-        alert.notes = triage_data.notes
-        
+    if hasattr(triage_data, 'notes') and triage_data.notes: alert.notes = triage_data.notes
     await db.commit()
     return {"message": "Triage complete."}
+
+@router.get("/{alert_id}", response_model=AlertResponse)
+async def get_alert_detail(alert_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    result = await db.execute(select(Alert).where(Alert.id == alert_id, Alert.workspace_id == current_user.workspace_id))
+    alert = result.scalars().first()
+    if not alert: raise HTTPException(status_code=404, detail="Not found.")
+    return alert

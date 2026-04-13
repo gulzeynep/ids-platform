@@ -16,7 +16,7 @@ from ..core.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 # ---  REGISTRATION ---
 @router.post("/register", status_code=status.HTTP_201_CREATED)

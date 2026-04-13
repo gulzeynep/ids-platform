@@ -20,4 +20,11 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+export const blacklistIP = async (ip: string, reason: string) => {
+  return await api.post(`/security/blacklist/${ip}`, { reason });
+};
+export const getBlacklist = async () => {
+  return await api.get('/security/blacklist');
+};
+
 export default api;

@@ -1,24 +1,27 @@
-# 1. Aşama: Build (İnşa)
-FROM node:20-alpine AS build
-
+# 1. Aşama: Build (Node.js)
+FROM node:20-alpine AS build-stage
 WORKDIR /app
 
-# Bağımlılıkları kopyala ve yükle
+# Sadece package.json'ları kopyala (Cache dostu)
 COPY package*.json ./
-
-# İŞTE SİHİRLİ SATIR BURADA!
 RUN npm install --legacy-peer-deps
 
-# Kaynak kodları kopyala ve build al
+# Kodun kalanını kopyala ve build al
 COPY . .
 RUN npm run build
 
-# 2. Aşama: Production (Sunum)
+# 2. Aşama: Production (Nginx)
 FROM nginx:stable-alpine
+# Custom Nginx Config (Sayfa yenileme hatasını çözer)
+RUN echo 'server { \
+    listen 80; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html; \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
-# Nginx'in varsayılan HTML klasörüne build çıktılarını kopyala
-COPY --from=build /app/dist /usr/share/nginx/html
-
+COPY --from=build-stage /app/dist /usr/share/nginx/html
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]

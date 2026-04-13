@@ -82,13 +82,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ids_frontend
-    restart: always
     ports:
-      - "5173:80" 
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    depends_on:
-      - backend
+      - "5173:80" # Nginx 80'de çalışır, biz 5173'ten erişiriz
+    restart: always
     networks:
       - wids-network
 
