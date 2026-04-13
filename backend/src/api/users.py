@@ -1,64 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
+from typing import Dict, Any
 
 from ..database import get_db
-from ..models import User, Notification
-from ..schemas import UserResponse, UserRegister
-from ..core.security import get_current_user, get_password_hash
+from ..models import User
+from ..core.security import get_current_user
+from ..services.user_service import UserService
 
 router = APIRouter(prefix="/management", tags=["User & Workspace Management"])
 
+def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:
+    return UserService(db)
+
 @router.patch("/settings")
 async def update_user_settings(
-    settings_in: dict, 
-    current_user: User = Depends(get_current_user), 
-    db: AsyncSession = Depends(get_db)
+    settings_in: Dict[str, Any], 
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user)
 ):
-    """Update operative notification and alert preferences."""
-    if "alert_email" in settings_in:
-        current_user.alert_email = settings_in["alert_email"]
-    if "enable_email_notifications" in settings_in:
-        current_user.enable_email_notifications = settings_in["enable_email_notifications"]
-    if "min_severity_level" in settings_in:
-        current_user.min_severity_level = settings_in["min_severity_level"]
-
-    await db.commit()
-    return {"status": "success", "message": "Neural settings synchronized."}
+    return await service.update_user_settings(current_user, settings_in)
 
 @router.get("/notifications")
 async def get_my_notifications(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user)
 ):
-    """Fetch the latest workspace-wide system and security notifications."""
-    result = await db.execute(
-        select(Notification)
-        .where(Notification.workspace_id == current_user.workspace_id)
-        .order_by(Notification.timestamp.desc())
-        .limit(20)
-    )
-    return result.scalars().all()
+    return await service.get_workspace_notifications(workspace_id=current_user.workspace_id)
 
 @router.patch("/notifications/{notif_id}/read")
 async def mark_notification_as_read(
     notif_id: int,
-    db: AsyncSession = Depends(get_db),
+    service: UserService = Depends(get_user_service),
     current_user: User = Depends(get_current_user)
 ):
-    """Marks a specific workspace notification as acknowledged/read."""
-    result = await db.execute(
-        select(Notification).where(
-            Notification.id == notif_id,
-            Notification.workspace_id == current_user.workspace_id
-        )
-    )
-    notif = result.scalars().first()
-    
-    if not notif:
-        raise HTTPException(status_code=404, detail="Notification not found.")
-        
-    notif.is_read = True
-    await db.commit()
-    return {"message": "Notification cleared."}
+    success = await service.mark_notification_read(notif_id, current_user.workspace_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found.")
+    return {"status": "success", "message": "Notification acknowledged."}

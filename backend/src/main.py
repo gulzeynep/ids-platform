@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .core.config import settings
+
 from .api.alerts import ingest, management, stats, security as alert_security
 from .api.analytics import dashboard
 from .api import auth, admin, users
 
-app = FastAPI(title="W-IDS Platform")
+app = FastAPI(title=settings.PROJECT_NAME)
 
 origins = [
     "http://localhost:5173",
@@ -15,19 +17,19 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # Tüm metodlara izin ver (GET, POST, OPTIONS vb.)
-    allow_headers=["*"], # Tüm header'lara izin ver
+    allow_methods=["*"], 
+    allow_headers=["*"], 
 )
 
 # Routes
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(users.router)
-app.include_router(ingest.router)        # /alerts/ingest
-app.include_router(management.router)    # /alerts (GET, PATCH)
-app.include_router(stats.router)         # /alerts/stats/overview
-app.include_router(alert_security.router) # /security/blacklist
-app.include_router(dashboard.router)     # /analytics/overview
+app.include_router(ingest.router)        
+app.include_router(management.router)    
+app.include_router(stats.router)         
+app.include_router(alert_security.router) 
+app.include_router(dashboard.router)     
 
 @app.get("/")
 async def root():

@@ -1,9 +1,14 @@
 import redis.asyncio as redis
-import os
+from typing import AsyncGenerator
+from src.core.config import settings
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://ids_redis:6379/0")
-
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-
-async def get_redis():
-    return redis_client
+async def get_redis() -> AsyncGenerator[redis.Redis, None]:
+    """
+    Dependency generator for Redis connections.
+    Properly handles connection pooling and cleanup.
+    """
+    redis_client = await redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        yield redis_client
+    finally:
+        await redis_client.aclose()

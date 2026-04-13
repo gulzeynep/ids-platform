@@ -1,24 +1,25 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:16
     container_name: ids_postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "12345"
-      POSTGRES_DB: ids_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ids_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - wids-network
-
   redis:
     image: redis:7
     container_name: ids_redis
@@ -46,7 +47,7 @@ services:
     env_file:
       - .env
     environment:
-      - PYTHONPATH=/app  # PYTHON'A ANA DİZİNİ GÖSTERİYORUZ
+      - PYTHONPATH=/app 
     depends_on:
       db:
         condition: service_healthy
@@ -62,13 +63,12 @@ services:
       dockerfile: Dockerfile
     container_name: ids_worker
     restart: always
-    environment:
-      - PYTHONPATH=/app  # PYTHON'A ANA DİZİNİ GÖSTERİYORUZ
-    command: python src/worker.py 
     volumes:
       - ./backend:/app
     env_file:
       - .env
+    environment:
+      - PYTHONPATH=/app 
     depends_on:
       db:
         condition: service_healthy
@@ -76,14 +76,14 @@ services:
         condition: service_healthy
     networks:
       - wids-network
-
+    command: python src/worker.py
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ids_frontend
     ports:
-      - "5173:80" # Nginx 80'de çalışır, biz 5173'ten erişiriz
+      - "5173:80" # Nginx running inside on 80, mapped to 5173
     restart: always
     networks:
       - wids-network

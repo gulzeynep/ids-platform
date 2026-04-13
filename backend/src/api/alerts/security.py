@@ -1,28 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+
 from ...database import get_db
-from ...models import User, BlacklistedIP
+from ...models import User
 from ...core.security import get_current_admin_user
 from ...core.redis import get_redis
+from ...services.security_service import SecurityService
 
 router = APIRouter(prefix="/security", tags=["Security Enforcement"])
 
-@router.post("/blacklist/{ip_address}")
+def get_security_service(
+    db: AsyncSession = Depends(get_db), 
+    redis_client = Depends(get_redis)
+) -> SecurityService:
+    """Dependency injector for SecurityService."""
+    return SecurityService(db=db, redis_client=redis_client)
+
+@router.post("/blacklist/{ip_address}", status_code=status.HTTP_201_CREATED)
 async def blacklist_ip(
     ip_address: str,
     reason: str = "Manual Admin Block",
-    db: AsyncSession = Depends(get_db),
-    redis = Depends(get_redis),
+    service: SecurityService = Depends(get_security_service),
     admin: User = Depends(get_current_admin_user)
 ):
-    # 1. DB
-    new_ban = BlacklistedIP(ip_address=ip_address, reason=reason, workspace_id=admin.workspace_id, created_by=admin.id)
-    db.add(new_ban)
+    """
+    Blacklists an IP address for the active workspace.
+    Only accessible by workspace administrators.
+    """
+    await service.blacklist_ip(
+        ip_address=ip_address,
+        reason=reason,
+        workspace_id=admin.workspace_id,
+        admin_id=admin.id
+    )
     
-    # 2. Redis
-    redis_key = f"blacklist:{admin.workspace_id}"
-    await redis.sadd(redis_key, ip_address)
-    
-    await db.commit()
     return {"message": f"IP {ip_address} is now blacklisted."}
