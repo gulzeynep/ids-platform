@@ -1,26 +1,62 @@
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
-from typing import Optional
+from jose import JWTError, jwt
 
 from ..database import get_db
 from ..models import User, Workspace
-from ..schemas import UserRegister, UserResponse
+from ..schemas import UserRegister, UserResponse, UserProfileUpdate
 from ..core.security import (
     get_password_hash, verify_password, create_access_token, 
-    get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES, oauth2_scheme, SECRET_KEY, ALGORITHM
 )
 
 router = APIRouter()
 
-# --- 1. REGISTRATION ---
+async def get_current_user(token: str = Depends(oauth2_scheme), 
+                           db: AsyncSession = Depends(get_db)) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalars().first()
+    
+    if user is None:
+        raise credentials_exception
+        
+    # user status check 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been suspended by the administrator."
+        )
+        
+    return user
+
+
+#  REGISTRATION 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
-    """Step 1: Raw Registration"""
+async def register_user(
+    user_data: UserRegister, 
+    db: AsyncSession = Depends(get_db)
+):
+    """Raw Registration"""
     result = await db.execute(select(User).where(User.email == user_data.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="User already registered.")
@@ -33,67 +69,83 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
     await db.commit()
     return {"message": "Success"}
 
-# --- 2. LOGIN (TOKEN GENERATION) ---
+# LOGIN (TOKEN GENERATION)
 @router.post("/token") 
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    """OAuth2 compatible token login"""
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: AsyncSession = Depends(get_db)
+):
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalars().first()
-    
+
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    token = create_access_token(
-        data={"sub": user.email}, 
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+    # extra check at login 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account suspended."
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
     )
-    return {"access_token": token, "token_type": "bearer"}
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
-# --- 3. ONBOARDING SCHEMA & ENDPOINT ---
-class OnboardingRequest(BaseModel):
-    workspace_name: str  
-    persona: str
-
-@router.post("/onboard")
+# ONBOARDING 
+@router.post("/onboard", status_code=status.HTTP_200_OK)
 async def complete_onboarding(
-    data: OnboardingRequest, 
-    db: AsyncSession = Depends(get_db), 
+    onboard_data: UserProfileUpdate,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Step 2: Workspace Creation & API Key Generation"""
+    """
+    Completes the user registration by creating their isolated Workspace
+    and generating the initial Sensor API Key.
+    """
+    # Prevent re-onboarding if already in a workspace
     if current_user.workspace_id:
-        raise HTTPException(status_code=400, detail="Onboarding already complete.")
-    
-    # 1. Generate secure API key and create Workspace
-    api_key = f"wids_live_{secrets.token_urlsafe(32)}"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Operative is already assigned to a Workspace."
+        )
+
+    # Create the new Workspace for the user
     new_workspace = Workspace(
-        name=data.workspace_name, 
-        api_key=api_key 
+        name=onboard_data.company_name,
+        api_key=secrets.token_hex(32)  # Generates a secure random 64-character API Key
     )
     db.add(new_workspace)
-    await db.flush() # Flush to get the new workspace ID
-    
-    # 2. Bind the user to this new workspace
+    await db.commit()
+    await db.refresh(new_workspace)
+
+    # Update the current user with profile data and link to workspace
+    current_user.full_name = onboard_data.full_name
+    current_user.user_persona = onboard_data.user_persona
+    current_user.role = "admin"  # The first user to onboard is the admin of that workspace
     current_user.workspace_id = new_workspace.id
-    current_user.user_persona = data.persona
     
-    await db.merge(current_user)
     await db.commit()
 
     return {
-        "message": "Workspace initialized successfully.",
-        "api_key": api_key
+        "message": "Onboarding complete.",
+        "workspace_name": new_workspace.name,
+        "sensor_api_key": new_workspace.api_key
     }
 
 
-# --- 4. PROFILE MANAGEMENT ---
+# PROFILE MANAGEMENT 
 @router.get("/me")
-async def get_me(
-    current_user: User = Depends(get_current_user),
+async def read_users_me(
+    current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
     """Returns the current operative profile with attached workspace data."""
@@ -135,4 +187,4 @@ async def update_my_profile(
         current_user.user_persona = update_data.user_persona
         
     await db.commit()
-    return {"message": "Profile updated successfully."}
+    return {"status": "Profile updated successfully."}
