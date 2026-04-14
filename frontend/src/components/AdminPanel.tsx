@@ -1,80 +1,45 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, ShieldAlert, UserMinus, UserPlus, Key, Loader2 } from 'lucide-react';
-import api from '../lib/api';
+import { ShieldCheck, Trash2 } from 'lucide-react';
 
-const AdminPanel = () => {
-  const queryClient = useQueryClient();
-
-  const { data: team, isLoading } = useQuery({
-    queryKey: ['workspace-team'],
-    queryFn: async () => (await api.get('/admin/team')).data
-  });
-
-  const toggleStatusMutation = useMutation({
-    mutationFn: async (userId: number) => {
-      return await api.patch(`/admin/team/${userId}/toggle-status`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspace-team'] });
-    }
-  });
-
-  if (isLoading) return <Loader2 className="animate-spin text-blue-500 mx-auto mt-20" />;
-
+export default function AdminPanel({ users, onBack }: any) {
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-3">
-        <Users className="text-blue-500 w-8 h-8" />
-        <h1 className="text-2xl font-bold text-white">Workspace Team Management</h1>
+    <div className="p-8 max-w-6xl mx-auto">
+      <div className="flex justify-between items-center mb-10">
+        <h2 className="text-3xl font-black tracking-tighter flex items-center gap-3">
+          <ShieldCheck className="text-red-500" /> SYSTEM AUTHORITY
+        </h2>
+        <button onClick={onBack} className="text-xs font-bold text-slate-500 hover:text-white uppercase tracking-widest">Exit Terminal</button>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="grid md:grid-cols-3 gap-6 mb-12">
+        <div className="bg-[#0a0a0a] border border-white/5 p-6 rounded-3xl">
+          <p className="text-[10px] text-slate-500 uppercase font-black mb-1 text-center">Active Operators</p>
+          <p className="text-4xl font-mono text-center">{users.length}</p>
+        </div>
+        {/* Diğer global istatistik kartları... */}
+      </div>
+
+      <div className="bg-[#0a0a0a] border border-white/5 rounded-[32px] overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-slate-950 border-b border-slate-800">
+          <thead className="bg-white/5 text-[10px] uppercase font-black text-slate-500">
             <tr>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase">Operative</th>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase">Role</th>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase">Actions</th>
+              <th className="px-6 py-4 italic">Operator</th>
+              <th className="px-6 py-4 italic">Organization</th>
+              <th className="px-6 py-4 italic">Role</th>
+              <th className="px-6 py-4 text-right italic">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
-            {team?.map((member: any) => (
-              <tr key={member.id} className="hover:bg-slate-800/30 transition-colors">
-                <td className="p-4">
-                  <div className="text-white font-medium">{member.full_name || 'Pending Name'}</div>
-                  <div className="text-xs text-slate-500">{member.email}</div>
+          <tbody className="divide-y divide-white/5">
+            {users.map((u: any) => (
+              <tr key={u.id} className="hover:bg-white/[0.02]">
+                <td className="px-6 py-4 font-bold">{u.username}</td>
+                <td className="px-6 py-4 text-slate-400">{u.company_name}</td>
+                <td className="px-6 py-4">
+                   <span className={`px-2 py-1 rounded text-[10px] font-bold ${u.is_admin ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10'}`}>
+                     {u.is_admin ? 'ADMIN' : 'OPERATOR'}
+                   </span>
                 </td>
-                <td className="p-4">
-                  <span className="text-xs text-blue-400 bg-blue-400/10 px-2 py-1 rounded uppercase font-bold">
-                    {member.role}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${member.is_active ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-                    <span className={`text-sm ${member.is_active ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {member.is_active ? 'Active' : 'Suspended'}
-                    </span>
-                  </div>
-                </td>
-                <td className="p-4">
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => toggleStatusMutation.mutate(member.id)}
-                      className={`p-2 rounded-lg border transition-all ${
-                        member.is_active 
-                        ? 'border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white' 
-                        : 'border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white'
-                      }`}
-                      title={member.is_active ? 'Suspend Operative' : 'Activate Operative'}
-                    >
-                      {member.is_active ? <UserMinus className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                    </button>
-                    <button className="p-2 rounded-lg border border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white transition-all">
-                      <Key className="w-4 h-4" />
-                    </button>
-                  </div>
+                <td className="px-6 py-4 text-right">
+                  <button className="text-red-500/50 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                 </td>
               </tr>
             ))}
@@ -83,6 +48,4 @@ const AdminPanel = () => {
       </div>
     </div>
   );
-};
-
-export default AdminPanel;
+}

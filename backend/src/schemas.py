@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -31,7 +31,9 @@ class UserResponse(BaseModel):
     user_persona: Optional[str]
     workspace_id: Optional[int]
     is_active: bool
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
 
 # ==========================================
 # WORKSPACE SCHEMAS

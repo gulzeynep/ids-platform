@@ -12,8 +12,7 @@ alembic
 redis
 #auth
 python-jose[cryptography]
-passlib
-bcrypt
+passlib[bcrypt] 
 
 #simulation
 requests

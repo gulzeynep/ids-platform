@@ -4,20 +4,18 @@ services:
     container_name: ids_postgres
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
-      POSTGRES_DB: ${POSTGRES_DB:-ids_db}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "12345"
+      POSTGRES_DB: ids_db
     ports:
       - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ids_db"]
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - wids-network
 
   redis:
     image: redis:7
@@ -30,8 +28,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - wids-network
 
   backend:
     build:
@@ -45,16 +41,11 @@ services:
       - ./backend:/app     
     env_file:
       - .env
-    environment:
-      - PYTHONPATH=/app 
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - wids-network
-    command: sh -c "sleep 5 && alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"
 
   worker:
     build:
@@ -62,35 +53,16 @@ services:
       dockerfile: Dockerfile
     container_name: ids_worker
     restart: always
+    command: python src/worker.py 
     volumes:
       - ./backend:/app
     env_file:
       - .env
-    environment:
-      - PYTHONPATH=/app 
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - wids-network
-    command: python src/worker.py 
-
-  frontend:
-    build: ./frontend
-    container_name: ids_frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    networks:
-      - wids-network
-
-networks:
-  wids-network:
-    driver: bridge
 
 volumes:
   postgres_data:

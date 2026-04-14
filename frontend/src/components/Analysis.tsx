@@ -1,131 +1,132 @@
-import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Activity, Globe, Database, ShieldAlert, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Globe, ShieldAlert } from 'lucide-react';
 import api from '../lib/api';
 
-// Professional dashboard colors
-const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#6366f1'];
+interface AnalysisStats {
+  top_attackers: { ip: string; count: number }[];
+  severity_distribution: Record<string, number>;
+  protocol_distribution: Record<string, number>;
+}
 
-const Analysis = () => {
-  // Fetch detailed analytics (Top IPs, Severities, Protocols)
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['security-analysis'],
-    queryFn: async () => {
-      const response = await api.get('/alerts/stats/analysis');
-      return response.data;
-    },
-    refetchInterval: 30000, // Update every 30 seconds
-  });
+export default function Analysis() {
+  const [stats, setStats] = useState<AnalysisStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (isLoading) {
+  useEffect(() => {
+    const fetchAnalysisData = async () => {
+      try {
+        const res = await api.get('/alerts/stats/analysis');
+        setStats(res.data);
+      } catch (error) {
+        console.error("Failed to fetch analysis data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalysisData();
+  }, []);
+
+  if (loading || !stats) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 space-y-4">
-        <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-        <p className="text-slate-400 animate-pulse">Synchronizing threat intelligence...</p>
+      <div className="h-full w-full flex items-center justify-center p-20">
+        <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-6 rounded-2xl">
-        <h3 className="font-bold flex items-center gap-2 mb-2">
-          <ShieldAlert className="w-5 h-5" /> Analytics Connection Failed
-        </h3>
-        <p className="text-sm">Unable to reach the security engine. Please verify the backend status.</p>
-      </div>
-    );
-  }
+  // Calculate totals for percentages
+  const totalSeverity = Object.values(stats.severity_distribution).reduce((a, b) => a + b, 0) || 1;
+  const maxAttackerCount = stats.top_attackers.length > 0 ? stats.top_attackers[0].count : 1;
 
   return (
-    <div className="space-y-8">
-      {/* HEADER SECTION */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Threat Analysis</h1>
-          <p className="text-slate-400 text-sm">Deep dive into workspace security metrics and attacker behavior</p>
-        </div>
-        <div className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-4 py-2 rounded-lg border border-blue-500/20">
-          <Activity className="w-4 h-4 animate-pulse" />
-          <span className="text-xs font-bold uppercase">Real-time Engine Active</span>
-        </div>
+    <div className="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-500">
+      
+      {/* HEADER */}
+      <div className="mb-8 border-b border-white/5 pb-6">
+        <h2 className="text-3xl font-black italic tracking-tighter text-purple-500 uppercase">Intelligence Lab</h2>
+        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Deep Threat Analysis & Trends</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* TOP ATTACKER IPs (Bar Chart) */}
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
-            <Globe className="text-blue-500 w-5 h-5" />
-            <h3 className="text-white font-semibold">Top Threat Sources (By IP)</h3>
+        {/* TOP ATTACKERS (Threat Actors) */}
+        <div className="bg-[#0a0a0a] border border-white/5 rounded-[32px] p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-3 bg-purple-500/10 rounded-xl text-purple-500">
+              <Globe size={20} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black italic text-white uppercase tracking-tight">Top Threat Actors</h3>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">Highest frequency source IPs</p>
+            </div>
           </div>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data?.top_ips}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="ip" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
 
-        {/* SEVERITY DISTRIBUTION (Pie Chart) */}
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
-            <ShieldAlert className="text-red-500 w-5 h-5" />
-            <h3 className="text-white font-semibold">Severity Distribution</h3>
-          </div>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data?.severities}
-                  dataKey="count"
-                  nameKey="severity"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  innerRadius={60}
-                  paddingAngle={5}
-                >
-                  {data?.severities.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* PROTOCOL BREAKDOWN (Table / Stats) */}
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl lg:col-span-2">
-          <div className="flex items-center gap-3 mb-6">
-            <Database className="text-emerald-500 w-5 h-5" />
-            <h3 className="text-white font-semibold">Protocol Analysis</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {data?.protocols.map((proto: any) => (
-              <div key={proto.protocol} className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center">
-                <div className="text-emerald-500 text-2xl font-bold">{proto.count}</div>
-                <div className="text-slate-500 text-xs font-medium uppercase tracking-widest">{proto.protocol}</div>
+          <div className="space-y-5">
+            {stats.top_attackers.map((hacker, index) => (
+              <div key={index} className="relative">
+                <div className="flex justify-between items-end mb-2">
+                  <span className="text-sm font-bold font-mono text-blue-400">{hacker.ip}</span>
+                  <span className="text-xs font-black text-slate-400">{hacker.count} Hits</span>
+                </div>
+                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-purple-600 to-red-500 rounded-full"
+                    style={{ width: `${(hacker.count / maxAttackerCount) * 100}%` }}
+                  ></div>
+                </div>
               </div>
             ))}
+            {stats.top_attackers.length === 0 && (
+              <p className="text-slate-500 text-xs italic text-center py-4">No threat actors detected yet.</p>
+            )}
+          </div>
+        </div>
+
+        {/* SEVERITY DISTRIBUTION */}
+        <div className="bg-[#0a0a0a] border border-white/5 rounded-[32px] p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-3 bg-red-500/10 rounded-xl text-red-500">
+              <ShieldAlert size={20} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black italic text-white uppercase tracking-tight">Severity Distribution</h3>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">Risk level breakdown</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {['critical', 'high', 'medium', 'low'].map((sev) => {
+              const count = stats.severity_distribution[sev] || 0;
+              const percentage = Math.round((count / totalSeverity) * 100);
+              
+              let colorClass = 'bg-slate-500';
+              if (sev === 'critical') colorClass = 'bg-red-500';
+              if (sev === 'high') colorClass = 'bg-orange-500';
+              if (sev === 'medium') colorClass = 'bg-yellow-500';
+              if (sev === 'low') colorClass = 'bg-blue-500';
+
+              return (
+                <div key={sev} className="flex items-center gap-4">
+                  <div className="w-20 text-right">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{sev}</span>
+                  </div>
+                  <div className="flex-1 h-3 bg-white/5 rounded-full overflow-hidden relative">
+                    <div 
+                      className={`h-full ${colorClass} rounded-full transition-all duration-1000`}
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                  <div className="w-12 text-left">
+                    <span className="text-xs font-bold text-white">{percentage}%</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
       </div>
     </div>
   );
-};
-
-export default Analysis;
+}

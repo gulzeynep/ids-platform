@@ -1,6 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -15,23 +13,9 @@ import Settings from './components/Settings';
 import Onboarding from './components/Onboarding';
 import SetupGuide from './components/SetupGuide';
 
-import { useAuthStore } from './lib/store';
-
-// Initialize the TanStack Query Client outside the component to prevent re-creation
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false, // Prevents excessive API calls when switching tabs
-      retry: 1,                    // Only retry failed requests once
-    },
-  },
-});
-
-// PROTECTED ROUTE (Only accessible to authenticated operatives)
+// KORUMALI ROTA (Sadece giriş yapanlar girebilir)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // Using Zustand store makes this component reactive to login/logout events
-  const token = useAuthStore((state) => state.token);
-  
+  const token = localStorage.getItem('token');
   if (!token) {
     return <Navigate to="/login" replace />;
   }
@@ -40,32 +24,30 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* PUBLIC ROUTES */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/contact" element={<Contact />} />
+    <BrowserRouter>
+      <Routes>
+        {/* HERKESE AÇIK SAYFALAR */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/contact" element={<Contact />} />
 
-          {/* PROTECTED ROUTES (WRAPPED IN LAYOUT) */}
+        {/* SADECE GİRİŞ YAPANLARA AÇIK SAYFALAR (LAYOUT İÇİNDE) */}
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="onboarding" element={<Onboarding />} />
-            <Route path="setup" element={<SetupGuide />} />
-            <Route path="overview" element={<Overview />} />
-            <Route path="analysis" element={<Analysis />} />
-            <Route path="intrusions" element={<Intrusions />} />
-            <Route path="management" element={<Management />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="settings" element={<Settings />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/setup" element={<SetupGuide />} />
+          <Route path="overview" element={<Overview />} />
+          <Route path="analysis" element={<Analysis />} />
+          <Route path="intrusions" element={<Intrusions />} />
+          <Route path="management" element={<Management />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="settings" element={<Settings />} />
           </Route>
-          
-          {/* Catch-all redirect for unknown routes could be added here */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+        
+        {/* Yanlış adrese gidilirse Overview'a at */}
+        <Route path="*" element={<Navigate to="/overview" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

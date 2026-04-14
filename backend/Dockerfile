@@ -1,30 +1,20 @@
-# Using your requested Python version
 FROM python:3.14-slim
-
-# Prevent Python from writing pyc files to disc
-ENV PYTHONDONTWRITEBYTECODE=1
-# Prevent Python from buffering stdout and stderr
-ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies required for building asyncpg and crypto libraries
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
+# Copy requirements first to leverage Docker layer caching
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
+# Copy the rest of the application code
 COPY . .
 
-# Ensure start script is executable
-RUN chmod +x start.sh
+# Copy the startup script and make it executable
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
-EXPOSE 8000
+# Set the python path
+ENV PYTHONPATH=/app
 
-CMD ["./start.sh"]
+# Execute the startup script which handles migrations AND starts Uvicorn
+CMD ["/start.sh"]

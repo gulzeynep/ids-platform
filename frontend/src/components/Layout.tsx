@@ -1,80 +1,127 @@
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, LayoutDashboard, Search, Bell, Settings, User, LogOut, Menu } from 'lucide-react';
-import { useAuthStore } from '../lib/store';
+import { useState } from 'react';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { 
+  Shield, Activity, Search, AlertTriangle, Users, 
+  LogOut, Menu, X, Mail, ChevronRight, Sliders, User as UserIcon 
+} from 'lucide-react';
 
-const Layout = () => {
-  const logout = useAuthStore((state) => state.logout);
-  const navigate = useNavigate();
+export default function Layout() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
-  const navItems = [
-    { path: '/overview', label: 'Overview', icon: LayoutDashboard },
-    { path: '/analysis', label: 'Analysis', icon: Search },
-    { path: '/intrusions', label: 'Intrusions', icon: Bell },
-    { path: '/management', label: 'Team', icon: User },
-    { path: '/settings', label: 'Settings', icon: Settings },
-  ];
+    const menuItems = [
+    { path: '/overview', name: 'Overview', icon: <Activity size={18} /> },
+    { path: '/analysis', name: 'Analysis', icon: <Search size={18} /> },
+    { path: '/intrusions', name: 'Intrusions', icon: <AlertTriangle size={18} /> },
+    { path: '/management', name: 'Management', icon: <Users size={18} /> }, // Path düzeltildi
+    { path: '/contact', name: 'Contact', icon: <Mail size={18} /> },
+    ];
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
-      {/* SIDEBAR */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 hidden md:flex flex-col">
-        <div className="p-6 flex items-center gap-3">
-          <Shield className="text-blue-500 w-8 h-8" />
-          <span className="text-lg font-bold text-white uppercase tracking-widest">W-IDS</span>
+    <div className="min-h-screen bg-[#050505] text-slate-200 font-sans">
+      
+      {/* TOP NAVBAR */}
+      <nav className="border-b border-white/5 bg-black/80 backdrop-blur-xl sticky top-0 z-[100] h-16 flex items-center px-6 justify-between">
+        <div className="flex items-center gap-4">
+            
+          {/* HAMBURGER - Sadece Mobil/Tablet ekranda görünür */}
+          <button 
+            onClick={() => setIsMenuOpen(true)}
+            className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-lg"
+          >
+            <Menu size={20} />
+          </button>
+
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/overview')}>
+            <Shield className="text-blue-500 w-6 h-6 shadow-[0_0_15px_rgba(59,130,246,0.3)]" />
+            <h1 className="font-black italic text-lg uppercase tracking-tighter">W-IDS</h1>
+          </div>
         </div>
         
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          {navItems.map((item) => (
+
+        {/* DESKTOP MENU - Sadece geniş ekranda görünür */}
+        <div className="hidden lg:flex items-center gap-1">
+          {menuItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-bold text-[11px] uppercase tracking-wider border ${
                 location.pathname === item.path 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' 
+                  : 'text-slate-500 hover:text-white hover:bg-white/5 border-transparent'
               }`}
             >
-              <item.icon className="w-5 h-5" />
-              {item.label}
+              {item.name}
             </Link>
           ))}
-        </nav>
+        </div>
 
-        <div className="p-4 border-t border-slate-800">
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout Session
+        <div className="flex items-center gap-4">
+            <Link to="/settings" className="text-slate-500 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5">
+                <Sliders size={18} />
+            </Link>
+            <Link to="/profile" className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 hover:bg-blue-500/20 transition-all shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                <UserIcon size={18} /> {/* UserIcon daha önce import ettiğimiz User ikonu */}
+            </Link>
+            <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-500 transition-colors">
+                <LogOut size={18} />
+            </button>
+            </div>
+      </nav>
+
+      {/* SIDE DRAWER (MOBILE) */}
+      {/* Karartma Arkaplanı */}
+      <div 
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setIsMenuOpen(false)}
+      />
+      
+      {/* Yandan Kayan Panel */}
+      <aside 
+        className={`fixed top-0 left-0 h-full w-72 bg-[#0a0a0a] border-r border-white/5 z-[120] transform transition-transform duration-300 ease-out shadow-2xl ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="text-blue-500 w-5 h-5" />
+            <span className="font-black italic uppercase tracking-tighter text-sm">Navigation</span>
+          </div>
+          <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-500 hover:text-white bg-white/5 rounded-full">
+            <X size={18} />
           </button>
         </div>
+
+        <nav className="p-4 space-y-2 mt-4 text-center">
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsMenuOpen(false)}
+                className={`flex items-center justify-between w-full p-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${
+                  isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {item.icon}
+                  {item.name}
+                </div>
+                {isActive && <ChevronRight size={14} />}
+              </Link>
+            );
+          })}
+        </nav>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col">
-        <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-10">
-          <div className="md:hidden"><Menu className="text-white" /></div>
-          <div className="text-slate-400 text-sm font-medium">Workspace: <span className="text-blue-400 font-mono">SEC-TERMINAL-01</span></div>
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
-              <User className="w-4 h-4 text-slate-400" />
-            </div>
-          </div>
-        </header>
-        
-        <div className="p-8">
-          <Outlet />
-        </div>
+      <main className="relative">
+        <Outlet />
       </main>
     </div>
   );
-};
-
-export default Layout;
+}

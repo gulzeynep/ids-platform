@@ -1,73 +1,121 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List
 
 from src.database import get_db
-from src.models import User
-from src.schemas import UserResponse, WorkspaceResponse
-from src.core.security import get_current_admin_user
-from src.services.admin_service import AdminService
+from src.models import User, Workspace
+from src.schemas import UserResponse, WorkspaceResponse, UserRegister
+from .auth import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/admin", tags=["Admin Panel"])
 
-def get_admin_service(db: AsyncSession = Depends(get_db)) -> AdminService:
-    return AdminService(db)
+async def require_system_admin(current_user: User = Depends(get_current_user)):
+    """Clearance check to ensure only system admins can see global platform data."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not authorized"
+        )
+    return current_user
 
 @router.get("/users", response_model=List[UserResponse])
 async def get_all_users(
-    admin_user: User = Depends(get_current_admin_user),
-    service: AdminService = Depends(get_admin_service)
+    admin_user: User = Depends(require_system_admin), 
+    db: AsyncSession = Depends(get_db)
 ):
-    """GLOBAL ADMIN: Fetch all operatives registered on the platform."""
-    return await service.get_all_users()
+    """GLOBAL ADMIN: Fetch all operatives registered on the W-IDS platform."""
+    result = await db.execute(select(User))
+    return result.scalars().all()
 
 @router.get("/workspaces", response_model=List[WorkspaceResponse])
 async def get_all_workspaces(
-    admin_user: User = Depends(get_current_admin_user), 
-    service: AdminService = Depends(get_admin_service)
+    admin_user: User = Depends(require_system_admin), 
+    db: AsyncSession = Depends(get_db)
 ):
     """GLOBAL ADMIN: Fetch all active isolated workspaces/tenants."""
-    return await service.get_all_workspaces()
+    result = await db.execute(select(Workspace))
+    return result.scalars().all()
 
 @router.get("/team", response_model=List[UserResponse])
 async def get_workspace_team(
-    current_admin: User = Depends(get_current_admin_user),
-    service: AdminService = Depends(get_admin_service)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """WORKSPACE ADMIN: Fetch all operatives in the current admin's workspace."""
-    return await service.get_workspace_team(workspace_id=current_admin.workspace_id)
-
-@router.patch("/team/{user_id}/toggle-status")
-async def toggle_operative_status(
-    user_id: int, 
-    current_admin: User = Depends(get_current_admin_user),
-    service: AdminService = Depends(get_admin_service)
-):
-    """Suspend or activate a team member's account."""
-    result = await service.toggle_operative_status(
-        user_id=user_id, 
-        workspace_id=current_admin.workspace_id
+    """List all operatives assigned to the current workspace."""
+    result = await db.execute(
+        select(User).where(User.workspace_id == current_user.workspace_id)
     )
-    if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Operative not found.")
-    return result
+    return result.scalars().all()
 
-@router.patch("/team/{user_id}/reset-password")
-async def reset_operative_password(
+@router.post("/team/add", status_code=status.HTTP_201_CREATED)
+async def add_team_member(
+    user_in: UserRegister, 
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """ADMIN ONLY: Deploy a new operative to the current workspace."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Access denied. Administrative clearance required."
+        )
+
+    # Check for existing email
+    result = await db.execute(select(User).where(User.email == user_in.email))
+    if result.scalars().first():
+        raise HTTPException(status_code=400, detail="Operative already exists.")
+
+    new_user = User(
+        email=user_in.email,
+        hashed_password=get_password_hash(user_in.password),
+        workspace_id=current_user.workspace_id,
+        role="analyst",  # New members default to Analyst
+        is_active=True
+    )
+    
+    db.add(new_user)
+    await db.commit()
+    return {"message": "New operative successfully deployed."}
+
+@router.patch("/team/{user_id}/grant-access")
+async def grant_operative_access(
     user_id: int,
-    new_password: str,
-    admin_confirm_password: str, 
-    current_admin: User = Depends(get_current_admin_user),
-    service: AdminService = Depends(get_admin_service)
+    new_role: str,
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_system_admin)
 ):
-    """Securely reset an operative's password by confirming admin credentials."""
-    success = await service.reset_operative_password(
-        user_id=user_id,
-        workspace_id=current_admin.workspace_id,
-        current_admin=current_admin,
-        new_password=new_password,
-        admin_confirm_password=admin_confirm_password
+    """Allows Admin to upgrade/downgrade an operative's clearance level."""
+    result = await db.execute(select(User).where(User.id == user_id, User.workspace_id == admin_user.workspace_id))
+    user_to_update = result.scalars().first()
+    
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="Operative not found in this workspace.")
+        
+    user_to_update.role = new_role
+    await db.commit()
+    return {"message": f"Access granted as {new_role}."}
+
+@router.patch("/team/{user_id}/toggle-access")
+async def toggle_operative_access(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Kullanıcıyı bul
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.workspace_id == current_user.workspace_id)
     )
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Operative not found.")
-    return {"message": "Password has been reset successfully."}
+    user_to_update = result.scalars().first()
+    
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="Operative not found.")
+
+    # 2. DURUMU DEĞİŞTİR (En kritik kısım)
+    user_to_update.is_active = not user_to_update.is_active
+    
+    # 3. ZORLA KAYDET
+    await db.merge(user_to_update) # Nesneyi session'a tekrar bağla
+    await db.commit() # Değişikliği kalıcı yap
+    
+    return {"message": "Success", "new_status": user_to_update.is_active}

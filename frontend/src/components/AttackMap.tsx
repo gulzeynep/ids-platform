@@ -1,84 +1,79 @@
-import React, { useMemo } from 'react';
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, Crosshair } from 'lucide-react';
-import api from '../lib/api';
+import React from "react";
+import { ComposableMap, Geographies, Geography, Marker, Line } from "react-simple-maps";
+declare module "react-simple-maps";
 
-const geoUrl = "https://raw.githubusercontent.com/lotusms/world-map-data/main/world.json";
+// Dünya haritası verisi (TopoJSON)
+const geoUrl = "https://raw.githubusercontent.com/lotusms/world-map-data/master/world.json";
 
-const AttackMap = () => {
-  // Fetch recent alerts that include location data from our new GeoIP utility
-  const { data: alerts, isLoading } = useQuery({
-    queryKey: ['map-alerts'],
-    queryFn: async () => {
-      const response = await api.get('/alerts/recent');
-      return response.data;
-    },
-    refetchInterval: 5000, // Frequent updates for the map
-  });
+interface Attack {
+  id: string;
+  from: [number, number]; // [lon, lat]
+  to: [number, number];   // Senin sunucun [lon, lat]
+  color: string;
+}
 
-  // Filter alerts that have valid coordinates (mocked or real)
-  const attackMarkers = useMemo(() => {
-    return alerts?.filter((a: any) => a.source_ip).map((a: any) => ({
-      id: a.id,
-      name: a.type,
-      // In a real scenario, the backend would provide these via GeoIP
-      // For now, we'll map them based on a helper or random logic for demo
-      coordinates: [Math.random() * 360 - 180, Math.random() * 180 - 90], 
-      severity: a.severity
-    })) || [];
-  }, [alerts]);
-
-  if (isLoading) return <Loader2 className="animate-spin text-blue-500 mx-auto mt-20" />;
+export default function AttackMap({ attacks }: { attacks: Attack[] }) {
+  // Senin sunucun varsayılan olarak Türkiye/İstanbul koordinatlarında olsun
+  const myServer: [number, number] = [28.9784, 41.0082];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl overflow-hidden">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Crosshair className="text-red-500 w-5 h-5" /> Live Attack Origin Map
-        </h3>
-        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Global Ingress Traffic</span>
+    <div className="w-full h-[500px] bg-[#0a0a0a] rounded-[40px] border border-white/5 overflow-hidden relative shadow-2xl">
+      <div className="absolute top-6 left-8 z-10">
+        <h3 className="text-white font-black italic uppercase tracking-tighter text-lg">Live Global Threat Map</h3>
+        <p className="text-[10px] text-blue-500 font-bold uppercase tracking-[0.3em]">Perimeter Node: Istanbul_01</p>
       </div>
 
-      <div className="h-[400px] w-full bg-slate-950 rounded-xl border border-slate-800/50">
-        <ComposableMap projectionConfig={{ scale: 145 }}>
-          <Geographies geography={geoUrl}>
-            {({ geographies }: { geographies: any[] }) =>
-              geographies.map((geo: any) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill="#1e293b"
-                  stroke="#0f172a"
-                  strokeWidth={0.5}
-                  style={{
-                    default: { outline: "none" },
-                    hover: { fill: "#334155", outline: "none" },
-                  }}
-                />
-              ))
-            }
-          </Geographies>
-          {attackMarkers.map(({ id, coordinates, severity }: any) => (
-            <Marker key={id} coordinates={coordinates}>
-              <circle 
-                r={severity === 'critical' ? 6 : 4} 
-                fill={severity === 'critical' ? "#ef4444" : "#3b82f6"} 
-                className="animate-pulse"
+      <ComposableMap projectionConfig={{ scale: 200 }}>
+        <Geographies geography={geoUrl}>
+          {({ geographies }) =>
+            geographies.map((geo) => (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                fill="#111"
+                stroke="#222"
+                strokeWidth={0.5}
+                style={{
+                  default: { outline: "none" },
+                  hover: { fill: "#1a1a1a", outline: "none" },
+                }}
               />
-              <circle 
-                r={severity === 'critical' ? 12 : 8} 
-                fill="none" 
-                stroke={severity === 'critical' ? "#ef4444" : "#3b82f6"} 
-                strokeWidth={1}
-                className="animate-ping opacity-25"
-              />
+            ))
+          }
+        </Geographies>
+
+        {attacks.map((attack) => (
+          <React.Fragment key={attack.id}>
+            {/* Saldırı Çizgisi (Arc) */}
+            <Line
+              from={attack.from}
+              to={myServer}
+              stroke={attack.color}
+              strokeWidth={2}
+              strokeLinecap="round"
+              className="animate-pulse"
+              style={{
+                strokeDasharray: "4, 4",
+                opacity: 0.6
+              }}
+            />
+            {/* Kaynak Marker (Saldırgan) */}
+            <Marker coordinates={attack.from}>
+              <circle r={4} fill={attack.color} className="animate-ping" />
+              <circle r={2} fill={attack.color} />
             </Marker>
-          ))}
-        </ComposableMap>
-      </div>
+          </React.Fragment>
+        ))}
+
+        {/* Hedef Marker (Senin Sunucun) */}
+        <Marker coordinates={myServer}>
+          <circle r={6} fill="#3b82f6" fillOpacity={0.3} />
+          <circle r={3} fill="#3b82f6" />
+          <text textAnchor="middle" y={-15} style={{ fontSize: "8px", fill: "#3b82f6", fontWeight: "bold" }}>
+            HQ
+          </text>
+        </Marker>
+      </ComposableMap>
     </div>
   );
-};
-
-export default AttackMap;
+}
