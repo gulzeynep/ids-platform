@@ -11,26 +11,6 @@ export default function LandingPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-red-500/5 blur-[150px] rounded-full pointer-events-none" />
 
-      {/* NAVBAR */}
-      <nav className="relative z-10 flex items-center justify-between px-8 py-6 max-w-[1400px] mx-auto border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <Shield className="text-blue-500 w-8 h-8" />
-          <h1 className="font-black italic text-xl uppercase tracking-tighter">W-IDS CORE</h1>
-        </div>
-        <div className="hidden md:flex items-center gap-8">
-        <button onClick={() => navigate('/')} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">HOME</button>
-        <button onClick={() => navigate('/contact')} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">CONTACT</button>
-      </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/login')} className="px-5 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors">
-            SIGN IN
-          </button>
-          <button onClick={() => navigate('/register')} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-black uppercase tracking-wider rounded-lg transition-colors shadow-[0_0_20px_rgba(37,99,235,0.3)]">
-            GET STARTED
-          </button>
-        </div>
-      </nav>
-
       {/* HERO BÖLÜMÜ */}
       <main className="relative z-10 max-w-[1400px] mx-auto px-8 pt-32 pb-20 flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-8">

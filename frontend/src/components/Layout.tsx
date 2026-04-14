@@ -1,127 +1,118 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { 
-  Shield, Activity, Search, AlertTriangle, Users, 
-  LogOut, Menu, X, Mail, ChevronRight, Sliders, User as UserIcon 
+    LayoutDashboard, 
+    ShieldAlert, 
+    Activity, 
+    ShieldBan, 
+    Settings, 
+    UserCircle, 
+    LogOut,
+    Menu, 
+    X
 } from 'lucide-react';
+import { useAuthStore } from '../lib/store';
 
-export default function Layout() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
+const AppLayout = () => {
+    const navigate = useNavigate();
+    const logout = useAuthStore((state) => state.logout);
+    const [isMobileOpen, setIsMobileOpen] = useState(false); 
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
-    const menuItems = [
-    { path: '/overview', name: 'Overview', icon: <Activity size={18} /> },
-    { path: '/analysis', name: 'Analysis', icon: <Search size={18} /> },
-    { path: '/intrusions', name: 'Intrusions', icon: <AlertTriangle size={18} /> },
-    { path: '/management', name: 'Management', icon: <Users size={18} /> }, // Path düzeltildi
-    { path: '/contact', name: 'Contact', icon: <Mail size={18} /> },
-    ];
+    const navLinkClass = ({ isActive }: { isActive: boolean }) => 
+        `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+            isActive ? 'bg-blue-600/10 text-blue-500 border border-blue-500/20' : 'text-neutral-400 hover:bg-neutral-900 hover:text-white'
+        }`;
 
-  return (
-    <div className="min-h-screen bg-[#050505] text-slate-200 font-sans">
-      
-      {/* TOP NAVBAR */}
-      <nav className="border-b border-white/5 bg-black/80 backdrop-blur-xl sticky top-0 z-[100] h-16 flex items-center px-6 justify-between">
-        <div className="flex items-center gap-4">
+    return (
+        <div className="min-h-screen bg-[#050505] text-neutral-200 flex font-sans selection:bg-blue-500/30">
             
-          {/* HAMBURGER - Sadece Mobil/Tablet ekranda görünür */}
-          <button 
-            onClick={() => setIsMenuOpen(true)}
-            className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-lg"
-          >
-            <Menu size={20} />
-          </button>
-
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/overview')}>
-            <Shield className="text-blue-500 w-6 h-6 shadow-[0_0_15px_rgba(59,130,246,0.3)]" />
-            <h1 className="font-black italic text-lg uppercase tracking-tighter">W-IDS</h1>
-          </div>
-        </div>
-        
-
-        {/* DESKTOP MENU - Sadece geniş ekranda görünür */}
-        <div className="hidden lg:flex items-center gap-1">
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-bold text-[11px] uppercase tracking-wider border ${
-                location.pathname === item.path 
-                  ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' 
-                  : 'text-slate-500 hover:text-white hover:bg-white/5 border-transparent'
-              }`}
-            >
-              {item.name}
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-4">
-            <Link to="/settings" className="text-slate-500 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5">
-                <Sliders size={18} />
-            </Link>
-            <Link to="/profile" className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 hover:bg-blue-500/20 transition-all shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                <UserIcon size={18} /> {/* UserIcon daha önce import ettiğimiz User ikonu */}
-            </Link>
-            <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-500 transition-colors">
-                <LogOut size={18} />
-            </button>
-            </div>
-      </nav>
-
-      {/* SIDE DRAWER (MOBILE) */}
-      {/* Karartma Arkaplanı */}
-      <div 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setIsMenuOpen(false)}
-      />
-      
-      {/* Yandan Kayan Panel */}
-      <aside 
-        className={`fixed top-0 left-0 h-full w-72 bg-[#0a0a0a] border-r border-white/5 z-[120] transform transition-transform duration-300 ease-out shadow-2xl ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="text-blue-500 w-5 h-5" />
-            <span className="font-black italic uppercase tracking-tighter text-sm">Navigation</span>
-          </div>
-          <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-500 hover:text-white bg-white/5 rounded-full">
-            <X size={18} />
-          </button>
-        </div>
-
-        <nav className="p-4 space-y-2 mt-4 text-center">
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsMenuOpen(false)}
-                className={`flex items-center justify-between w-full p-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-white/5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {item.icon}
-                  {item.name}
+            {/* Left - Sidebar*/}
+            <aside className={`bg-[#0a0a0a] border-r border-neutral-900 flex flex-col transition-transform duration-300 z-50
+                ${isMobileOpen ? 'translate-x-0 fixed inset-y-0 left-0 w-64' : '-translate-x-full fixed inset-y-0 left-0 w-64 md:relative md:translate-x-0'}`
+            }>
+                <div className="p-6 border-b border-neutral-900 flex justify-between items-center">
+                    <h1 className="text-blue-500 font-bold text-2xl tracking-wider italic flex items-center gap-2">
+                        <ShieldAlert className="w-6 h-6" /> W-IDS
+                    </h1>
+                    {/* x icon for mobile */}
+                    <button className="md:hidden text-neutral-400" onClick={() => setIsMobileOpen(false)}>
+                        <X className="w-6 h-6" />
+                    </button>
                 </div>
-                {isActive && <ChevronRight size={14} />}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
 
-      <main className="relative">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
+                {/* Main Menu */}
+                <nav className="flex-1 px-4 py-6 space-y-2">
+                    <p className="px-4 text-xs font-semibold text-neutral-600 uppercase tracking-wider mb-2">Analytics</p>
+                    <NavLink to="/dashboard" className={navLinkClass}>
+                        <LayoutDashboard className="w-5 h-5" />
+                        Overview
+                    </NavLink>
+                    <NavLink to="/intelligence" className={navLinkClass}>
+                        <Activity className="w-5 h-5" />
+                        Intelligence
+                    </NavLink>
+
+                    <p className="px-4 text-xs font-semibold text-neutral-600 uppercase tracking-wider mt-8 mb-2">Operations</p>
+                    <NavLink to="/intrusions" className={navLinkClass}>
+                        <ShieldAlert className="w-5 h-5" />
+                        Intrusions
+                    </NavLink>
+                    <NavLink to="/defense" className={navLinkClass}>
+                        <ShieldBan className="w-5 h-5" />
+                        Defense
+                    </NavLink>
+                </nav>
+
+                {/* Bottom Menu (Settings and Logout) */}
+                <div className="p-4 border-t border-neutral-900 space-y-2">
+                    <NavLink to="/management" className={navLinkClass}>
+                        <UserCircle className="w-5 h-5" />
+                        Management
+                    </NavLink>
+                    <NavLink to="/settings" className={navLinkClass}>
+                        <Settings className="w-5 h-5" />
+                        Settings
+                    </NavLink>
+                    <button 
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-neutral-400 hover:bg-red-950/30 hover:text-red-500 transition-colors"
+                    >
+                        <LogOut className="w-5 h-5" />
+                        Disconnect
+                    </button>
+                </div>
+            </aside>
+
+            {/* background dimming for when menu is open */}
+            {isMobileOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    onClick={() => setIsMobileOpen(false)}
+                />
+            )}
+
+            {/* Mobile Header (for small screens)*/}
+            <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0a0a] border-b border-neutral-900 flex items-center justify-between px-4 z-30">
+                <h1 className="text-blue-500 font-bold text-xl italic flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5" /> W-IDS
+                </h1>
+                <button onClick={() => setIsMobileOpen(true)}>
+                    <Menu className="w-6 h-6 text-neutral-400 hover:text-white" />
+                </button>
+            </div>
+
+            {/* Main Content Area */}
+            <main className="flex-1 md:p-8 p-4 mt-16 md:mt-0 overflow-x-hidden">
+                <Outlet />
+            </main>
+
+        </div>
+    );
+};
+
+export default AppLayout;

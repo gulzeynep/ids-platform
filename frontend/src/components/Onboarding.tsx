@@ -1,188 +1,131 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useNavigate } from 'react-router-dom';
-import { Building, User, Target, Loader2, CheckCircle2, Briefcase, GraduationCap, Code, TestTube, Edit3 } from 'lucide-react';
+import { useAuthStore } from '../lib/store';
 import api from '../lib/api';
 
-export default function Onboarding() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  
-  // UI States
-  const [hasCompany, setHasCompany] = useState(true);
-  const [soloRole, setSoloRole] = useState('student'); // default solo role
-  const [customRole, setCustomRole] = useState('');
-  const [workspaceName, setWorkspaceName] = useState('');
-  
-  const [formData, setFormData] = useState({
-    full_name: '',
-    company_name: '',
-    plan: 'startup'
-  });
+const onboardingSchema = z.object({
+    full_name: z.string().min(2, "Full name is required"),
+    company_name: z.string().min(2, "Workspace/Company name is required"),
+    user_persona: z.enum(["student", "solo_dev", "corporate"]),
+    plan: z.string()
+});
 
-  const handleSetupComplete = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      // Determine the exact persona/role to send to the database
-      const finalRole = hasCompany ? 'corporate' : (soloRole === 'other' ? customRole : soloRole);
-      const finalCompany = hasCompany ? formData.company_name : `${finalRole.toUpperCase()} WORKSPACE`;
+type OnboardingFormValues = z.infer<typeof onboardingSchema>;
 
-      const finalPayload = {
-        full_name: formData.full_name,
-        company_name: finalCompany,
-        plan: formData.plan,
-        user_persona: finalRole // Send this to backend so you know EXACTLY who is using your app!
-      };
+const Onboarding = () => {
+    const navigate = useNavigate();
+    const { token, role, setAuth } = useAuthStore();
+    const [serverError, setServerError] = useState<string | null>(null);
+    const [apiKey, setApiKey] = useState<string | null>(null);
 
-      await api.put('/auth/profile', finalPayload); 
-      navigate('/setup');
-      
-    } catch (err) {
-      console.error("Setup failed:", err);
-    } finally {
-      setLoading(false);
+    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<OnboardingFormValues>({
+        resolver: zodResolver(onboardingSchema),
+        defaultValues: { plan: "enterprise" }
+    });
+
+    const onSubmit = async (data: OnboardingFormValues) => {
+        setServerError(null);
+        try {
+            const response = await api.post('/auth/onboard', data);
+            
+            // backend successful -> API Key 
+            setApiKey(response.data.sensor_api_key);
+            
+            // Zustand store update
+            if (token && role) {
+                setAuth(token, true, role);
+            }
+            
+        } catch (error: any) {
+            setServerError(error.response?.data?.detail || "Failed to initialize workspace.");
+        }
+    };
+
+    if (apiKey) {
+        return (
+            <div className="flex justify-center items-center min-h-screen bg-black">
+                <div className="w-full max-w-lg p-8 bg-[#0a0a0a] border border-green-900/50 rounded-xl shadow-2xl text-center">
+                    <div className="w-16 h-16 bg-green-950 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">✓</div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Workspace Initialized</h2>
+                    <p className="text-neutral-400 mb-6">Your sensor integration key is ready. Please copy this key to your W-IDS Python Sensor environment variables.</p>
+                    
+                    <div className="bg-black p-4 rounded-lg border border-neutral-800 font-mono text-sm text-blue-400 break-all mb-8 select-all">
+                        {apiKey}
+                    </div>
+                    
+                    <button 
+                        onClick={() => navigate('/dashboard')}
+                        className="w-full bg-white text-black hover:bg-neutral-200 font-bold py-3 rounded-lg transition-colors"
+                    >
+                        Enter Command Center
+                    </button>
+                </div>
+            </div>
+        );
     }
-  };
 
-  return (
-    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl animate-in fade-in zoom-in-95 duration-500">
-        
-        <div className="text-center mb-12">
-          <div className="w-16 h-16 bg-blue-600/20 border border-blue-500/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
-             <CheckCircle2 className="text-blue-500" size={32} />
-          </div>
-          <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">Identity Verified</h2>
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-[0.4em] mt-3">Configure your perimeter defenses</p>
+    return (
+        <div className="flex justify-center items-center min-h-screen bg-black">
+            <div className="w-full max-w-md p-8 bg-[#0a0a0a] border border-neutral-800 rounded-xl shadow-2xl">
+                <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-white tracking-wide">Finalize Setup</h2>
+                    <p className="text-sm text-neutral-500 mt-2">Configure your isolated workspace</p>
+                </div>
+
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    {serverError && (
+                        <div className="p-3 bg-red-950/50 border border-red-900/50 rounded text-red-500 text-sm">
+                            {serverError}
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-neutral-400 mb-2">Full Name</label>
+                        <input 
+                            {...register('full_name')}
+                            className="w-full px-4 py-2.5 bg-[#111] border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                            placeholder="Jane Doe"
+                        />
+                        {errors.full_name && <p className="text-red-500 text-xs mt-1.5">{errors.full_name.message}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-neutral-400 mb-2">Workspace Name</label>
+                        <input 
+                            {...register('company_name')}
+                            className="w-full px-4 py-2.5 bg-[#111] border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                            placeholder="Acme Corp"
+                        />
+                        {errors.company_name && <p className="text-red-500 text-xs mt-1.5">{errors.company_name.message}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-neutral-400 mb-2">Persona</label>
+                        <select 
+                            {...register('user_persona')}
+                            className="w-full px-4 py-2.5 bg-[#111] border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-blue-500 appearance-none"
+                        >
+                            <option value="corporate">Corporate / Enterprise</option>
+                            <option value="solo_dev">Solo Developer</option>
+                            <option value="student">Student / Researcher</option>
+                        </select>
+                        {errors.user_persona && <p className="text-red-500 text-xs mt-1.5">{errors.user_persona.message}</p>}
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg mt-6"
+                    >
+                        {isSubmitting ? "Deploying..." : "Initialize Workspace"}
+                    </button>
+                </form>
+            </div>
         </div>
+    );
+};
 
-        <form onSubmit={handleSetupComplete} className="bg-[#0a0a0a] border border-white/5 rounded-[40px] p-10 shadow-2xl space-y-8">
-          
-          {/* OPERATIVE NAME */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <User size={12}/> Operative Name
-            </label>
-            <input 
-              type="text" 
-              required 
-              placeholder="John Doe"
-              className="w-full bg-black border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-blue-500/50 transition-colors" 
-              onChange={e => setFormData({...formData, full_name: e.target.value})} 
-            />
-          </div>
-
-          {/* DYNAMIC ORGANIZATION / PERSONA SECTION */}
-          <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl transition-all duration-300">
-            {hasCompany ? (
-              // COMPANY INPUT
-              <div className="space-y-3 animate-in fade-in">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Building size={12}/> Organization Name
-                  </label>
-                  <button type="button" onClick={() => setHasCompany(false)} className="text-[9px] text-blue-500 hover:text-white font-bold uppercase tracking-widest transition-colors">
-                    Don't have a company?
-                  </button>
-                </div>
-                <input 
-                  type="text" 
-                  required={hasCompany}
-                  placeholder="Acme Corp"
-                  className="w-full bg-black border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-blue-500/50 transition-colors" 
-                  onChange={e => setFormData({...formData, company_name: e.target.value})} 
-                />
-              </div>
-            ) : (
-              // PERSONA SELECTOR (When they don't have a company)
-              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Briefcase size={12}/> Who are you?
-                  </label>
-                  <button type="button" onClick={() => setHasCompany(true)} className="text-[9px] text-blue-500 hover:text-white font-bold uppercase tracking-widest transition-colors">
-                    I have a company
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <PersonaButton icon={<GraduationCap size={16}/>} label="Student" value="student" current={soloRole} setRole={setSoloRole} />
-                  <PersonaButton icon={<Code size={16}/>} label="Solo Dev" value="solo_dev" current={soloRole} setRole={setSoloRole} />
-                  <PersonaButton icon={<TestTube size={16}/>} label="Researcher" value="researcher" current={soloRole} setRole={setSoloRole} />
-                  <PersonaButton icon={<Edit3 size={16}/>} label="Other" value="other" current={soloRole} setRole={setSoloRole} />
-                </div>
-
-                {/* SHOW CUSTOM INPUT IF 'OTHER' IS SELECTED */}
-                {soloRole === 'other' && (
-                  <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                    <input 
-                      type="text" 
-                      required={soloRole === 'other'}
-                      placeholder="Please specify your role..."
-                      className="w-full bg-black border border-blue-500/30 rounded-xl p-3 text-sm text-white outline-none focus:border-blue-500 transition-colors" 
-                      onChange={e => setCustomRole(e.target.value)} 
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Workspace / Team Name</label>
-            <input 
-              type="text" 
-              value={workspaceName} 
-              onChange={(e) => setWorkspaceName(e.target.value)}
-              placeholder="e.g. Alpha Security Hub"
-              className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-3 text-white focus:border-blue-500"
-            />
-          </div>
-          </div>
-
-          {/* PLAN SELECTION */}
-          <div className="space-y-4">
-             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Target size={12}/> Security Plan
-              </label>
-             <div className="grid grid-cols-2 gap-4">
-                <div 
-                  onClick={() => setFormData({...formData, plan: 'startup'})}
-                  className={`p-5 rounded-2xl border cursor-pointer transition-all ${formData.plan === 'startup' ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-black border-white/10 text-slate-500 hover:border-white/20'}`}
-                >
-                   <h4 className="text-xs font-black uppercase mb-1">Standard Node</h4>
-                   <p className="text-[9px] uppercase tracking-widest opacity-70">Basic IDS & Traffic logs</p>
-                </div>
-                <div 
-                  onClick={() => setFormData({...formData, plan: 'enterprise'})}
-                  className={`p-5 rounded-2xl border cursor-pointer transition-all ${formData.plan === 'enterprise' ? 'bg-purple-600/10 border-purple-500 text-purple-400' : 'bg-black border-white/10 text-slate-500 hover:border-white/20'}`}
-                >
-                   <h4 className="text-xs font-black uppercase mb-1">Advanced Core</h4>
-                   <p className="text-[9px] uppercase tracking-widest opacity-70">Deep packet ML & GeoIP</p>
-                </div>
-             </div>
-          </div>
-
-          <button disabled={loading} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.2em] transition-all mt-8 shadow-[0_0_30px_rgba(37,99,235,0.2)] disabled:opacity-50">
-            {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Generate API Key"}
-          </button>
-        </form>
-
-      </div>
-    </div>
-  );
-}
-
-// Helper Component for Persona Buttons
-function PersonaButton({ icon, label, value, current, setRole }: any) {
-  const isActive = current === value;
-  return (
-    <div 
-      onClick={() => setRole(value)}
-      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-black border-white/10 text-slate-400 hover:border-white/30'}`}
-    >
-      {icon}
-      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
-    </div>
-  );
-}
+export default Onboarding;
