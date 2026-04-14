@@ -1,266 +1,228 @@
-import { useEffect, useState, useCallback } from 'react';
-import { AlertOctagon, X, Info, FileText, Globe, 
-  Terminal, Clock, ShieldAlert, Building, ShieldCheck,
-  FileEdit, Download } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Flag, Star, ShieldCheck, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../lib/api';
 
+// Interface Definitions
 interface Alert {
-  id: number;
-  type: string;
-  severity: string;
-  source_ip: string;
-  status: string;
-  timestamp: string;
+    id: number;
+    type: string;
+    severity: string;
+    source_ip: string;
+    destination_ip: string;
+    protocol: string;
+    status: string;
+    is_flagged: boolean;
+    is_saved: boolean;
+    timestamp: string;
 }
 
-export default function Intrusions() {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [activeTab, setActiveTab] = useState<'new' | 'reviewed'>('new');
-  const [selectedAlert, setSelectedAlert] = useState<any>(null); 
-  const [note, setNote] = useState(""); 
-  const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
+const Intrusions = () => {
+    const queryClient = useQueryClient();
 
-  const fetchAlerts = useCallback(async () => {
-    try {
-      const res = await api.get(`/alerts?status=${activeTab}&severity=${severityFilter}`);
-      setAlerts(res.data);
-    } catch (error) {
-      console.error("Intrusions fetch error:", error);
-    }
-  }, [activeTab, severityFilter]);
+    // Advanced Filtering & Pagination States
+    const [status, setStatus] = useState<string>('new');
+    const [severity, setSeverity] = useState<string>('all');
+    const [isFlagged, setIsFlagged] = useState<boolean | null>(null);
+    const [isSaved, setIsSaved] = useState<boolean | null>(null);
+    const [page, setPage] = useState<number>(0);
+    const limit = 50;
 
-  useEffect(() => {
-    fetchAlerts();
-  }, [fetchAlerts]);
-  
-  const openDetail = async (id: number) => {
-    try {
-      const res = await api.get(`/alerts/${id}`);
-      setSelectedAlert(res.data);
-      setNote(res.data.notes || "");
-    } catch (error) {
-      console.error("Detail fetch error", error);
-    }
-  };
+    // React Query: Intelligent Data Fetching & Caching
+    const { data: alerts, isLoading, isError } = useQuery({
+        queryKey: ['alerts', status, severity, isFlagged, isSaved, page],
+        queryFn: async () => {
+            const params = new URLSearchParams();
+            if (status !== 'all') params.append('status', status);
+            if (severity !== 'all') params.append('severity', severity);
+            if (isFlagged !== null) params.append('is_flagged', String(isFlagged));
+            if (isSaved !== null) params.append('is_saved', String(isSaved));
+            params.append('limit', String(limit));
+            params.append('offset', String(page * limit));
 
-  const handleTriage = async (id: number, newStatus: string) => {
-    try {
-      await api.patch(`/alerts/${id}/triage`, {
-        status: newStatus,
-        notes: note
-      });
-      setSelectedAlert(null);
-      fetchAlerts();
-    } catch (error) {
-      console.error("Triage update failed", error);
-    }
-  };
+            const response = await api.get('/alerts/', { params });
+            return response.data as Alert[];
+        }
+    });
 
+    // Universal Triage Engine (Backend exclude_unset=True integration)
+    const triageMutation = useMutation({
+        mutationFn: async ({ id, data }: { id: number, data: any }) => {
+            await api.patch(`/alerts/${id}/triage`, data);
+        },
+        onSuccess: () => {
+            // Silently refresh the datatable without loading screens
+            queryClient.invalidateQueries({ queryKey: ['alerts'] });
+        }
+    });
 
-  return (
-    <div className="max-w-[1200px] mx-auto p-6 animate-in fade-in duration-500">
-      
-      {/* --- HEADER & TAB CONTROL --- */}
-      <div className="mb-8 border-b border-white/5 pb-6 flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-black italic tracking-tighter text-red-500 uppercase">Intrusion Management</h2>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Live Threat Triage & Mitigation</p>
-        </div>
+    // Action Handlers
+    const toggleFlag = (id: number, current: boolean) => triageMutation.mutate({ id, data: { is_flagged: !current } });
+    const toggleSave = (id: number, current: boolean) => triageMutation.mutate({ id, data: { is_saved: !current } });
+    const toggleStatus = (id: number, current: string) => {
+        const newStatus = current === 'new' ? 'reviewed' : 'new';
+        triageMutation.mutate({ id, data: { status: newStatus } });
+    };
 
-        <div className="flex flex-wrap items-center gap-4">
-        {/* SEVERITY FILTER DROPDOWN */}
-        <select 
-          value={severityFilter}
-          onChange={(e) => setSeverityFilter(e.target.value as any)}
-          className="bg-[#0a0a0a] text-slate-300 text-[10px] font-black uppercase tracking-widest border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 cursor-pointer">
-          <option value="all">All Severities</option>
-          <option value="critical">Critical Only</option>
-          <option value="high">High Risk</option>
-          <option value="medium">Medium Risk</option>
-          <option value="low">Low Risk</option>
-        </select>
-        </div>
-        
-        <div className="flex gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/5 backdrop-blur-md">
-          <button 
-            onClick={() => setActiveTab('new')}
-            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === 'new' 
-              ? 'bg-red-500/20 text-red-500 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.1)]' 
-              : 'text-slate-500 hover:text-white'
-            }`}
-          >
-            Pending Analysis
-          </button>
-          <button 
-            onClick={() => setActiveTab('reviewed')}
-            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === 'reviewed' 
-              ? 'bg-green-500/20 text-green-500 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.1)]' 
-              : 'text-slate-500 hover:text-white'
-            }`}
-          >
-            Resolved Archive
-          </button>
-        </div>
-      </div>
+    // UI Helper: Strict Corporate Severity Colors
+    const getSeverityColor = (sev: string) => {
+        switch(sev.toLowerCase()) {
+            case 'critical': return 'text-red-500 bg-red-500/10 border-red-500/20';
+            case 'high': return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+            case 'medium': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
+            default: return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+        }
+    };
 
-      {/* --- ALERTS LIST --- */}
-      <div className="grid gap-3">
-        {alerts.map((alert) => (
-          <div 
-            key={alert.id} 
-            onClick={() => openDetail(alert.id)}
-            className="group p-5 bg-[#0a0a0a] border border-white/5 rounded-[24px] flex items-center justify-between hover:border-white/20 hover:bg-white/[0.02] transition-all cursor-pointer hover:translate-x-1"
-          >
-            <div className="flex items-center gap-5">
-              <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${
-                alert.severity === 'critical' ? 'bg-red-500/10 text-red-500' : 'bg-orange-500/10 text-orange-500'
-              }`}>
-                <AlertOctagon size={24} />
-              </div>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h3 className="font-black text-white italic uppercase tracking-tight text-lg">{alert.type}</h3>
-                  <span className={`text-[8px] font-black px-2 py-0.5 rounded border uppercase ${
-                    alert.severity === 'critical' ? 'border-red-500/30 text-red-500' : 'border-orange-500/30 text-orange-500'
-                  }`}>
-                    {alert.severity}
-                  </span>
-                </div>
-                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5 flex items-center gap-2">
-                  Origin: <span className="text-blue-400 font-mono">{alert.source_ip}</span> 
-                  <span className="text-white/10">|</span>
-                  <Clock size={10}/> {new Date(alert.timestamp).toLocaleString()}
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-               <div className="text-right mr-4 hidden md:block">
-                  <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Status</p>
-                  <p className={`text-[10px] font-bold uppercase ${alert.status === 'new' ? 'text-red-400' : 'text-green-400'}`}>
-                    {alert.status === 'new' ? 'Unresolved' : 'Mitigated'}
-                  </p>
-               </div>
-               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-500 group-hover:bg-blue-500/20 group-hover:text-blue-400 transition-all">
-                  <Info size={16} />
-               </div>
-            </div>
-          </div>
-        ))}
-
-        {alerts.length === 0 && (
-          <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[40px]">
-            <p className="text-slate-600 font-black uppercase tracking-[0.2em] italic text-sm">Sector Clear. No threats detected.</p>
-          </div>
-        )}
-      </div>
-
-      {/* --- INTELLIGENCE DETAIL MODAL (POPUP) --- */}
-      {selectedAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in zoom-in duration-300">
-          <div className="bg-[#050505] border border-white/10 rounded-[40px] w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] flex flex-col">
-            
-            {/* Modal Header */}
-            <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
-              <div className="flex items-center gap-4">
-                <div className={`p-4 rounded-2xl ${selectedAlert.severity === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-orange-500/20 text-orange-500'}`}>
-                  <ShieldAlert size={32} />
-                </div>
+    return (
+        <div className="space-y-6">
+            {/* Header Section */}
+            <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-2xl font-black italic text-white uppercase tracking-tighter">{selectedAlert.type}</h3>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Incident ID: #{selectedAlert.id}</span>
-                    <span className="w-1 h-1 bg-white/20 rounded-full"></span>
-                    <span className="text-[9px] text-blue-500 font-black uppercase tracking-widest">Vector: {selectedAlert.protocol || 'HTTP/TCP'}</span>
-                  </div>
+                    <h2 className="text-2xl font-bold text-white tracking-wide">Intrusion Events</h2>
+                    <p className="text-sm text-neutral-500">Monitor and triage incoming security threats</p>
                 </div>
-              </div>
-              <button onClick={() => setSelectedAlert(null)} className="p-3 hover:bg-white/5 rounded-full text-slate-500 transition-colors">
-                <X size={24}/>
-              </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-8">
-              {/* Network Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                <DetailBox label="Attacker IP" value={selectedAlert.source_ip} icon={<Globe size={12}/>} />
-                <DetailBox label="Target Server" value={selectedAlert.destination_ip} icon={<Building size={12}/>} />
-                <DetailBox label="Detected Action" value={selectedAlert.action || 'LOGGED'} icon={<ShieldCheck size={12}/>} />
-              </div>
-
-              {/* Payload Inspector */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Terminal size={14} className="text-blue-500"/> Malicious Payload Inspector
-                  </label>
-                  <span className="text-[8px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded font-black uppercase">UTF-8 Encoded</span>
-                </div>
-                <div className="relative group">
-                  <pre className="p-6 bg-black border border-white/5 rounded-3xl text-xs font-mono text-blue-400/90 leading-relaxed overflow-x-auto shadow-inner">
-                    {selectedAlert.payload_preview || "No raw payload data captured for this incident."}
-                  </pre>
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-white"><FileText size={14}/></button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Analyst Notebook */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <FileEdit size={14} className="text-orange-500"/> Analyst Investigation Notes
-                </label>
-                <textarea 
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Describe the threat context, remediation steps, or why this was flagged..."
-                  className="w-full h-32 bg-white/[0.02] border border-white/5 rounded-[24px] p-5 text-sm text-slate-300 focus:outline-none focus:border-blue-500/40 transition-all placeholder:text-slate-700"
-                />
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-8 bg-white/[0.01] border-t border-white/5 flex justify-between items-center">
-              <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors">
-                <Download size={14}/> Export Intelligence Report
-              </button>
-              
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => handleTriage(selectedAlert.id, 'false_positive')}
-                  className="px-8 py-3 bg-white/5 hover:bg-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all"
+            {/* Filter Command Bar */}
+            <div className="flex flex-wrap gap-4 p-4 bg-[#0a0a0a] border border-neutral-900 rounded-xl">
+                <select 
+                    value={status} 
+                    onChange={(e) => { setStatus(e.target.value); setPage(0); }}
+                    className="bg-[#111] border border-neutral-800 text-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                 >
-                  Mark False Positive
-                </button>
-                <button 
-                  onClick={() => handleTriage(selectedAlert.id, 'reviewed')}
-                  className="px-8 py-3 bg-green-500 text-black text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-green-400 transition-all shadow-[0_0_30px_rgba(34,197,94,0.2)]"
+                    <option value="new">Active Threats (New)</option>
+                    <option value="reviewed">Resolved (Reviewed)</option>
+                    <option value="all">All Events</option>
+                </select>
+
+                <select 
+                    value={severity} 
+                    onChange={(e) => { setSeverity(e.target.value); setPage(0); }}
+                    className="bg-[#111] border border-neutral-800 text-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                 >
-                  Verify & Resolve
+                    <option value="all">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+
+                <button 
+                    onClick={() => { setIsFlagged(isFlagged ? null : true); setPage(0); }}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${isFlagged ? 'bg-red-500/10 border-red-500/50 text-red-500' : 'bg-[#111] border-neutral-800 text-neutral-400 hover:text-white'}`}
+                >
+                    <Flag className="w-4 h-4" /> Flagged
                 </button>
-              </div>
+
+                <button 
+                    onClick={() => { setIsSaved(isSaved ? null : true); setPage(0); }}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${isSaved ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-[#111] border-neutral-800 text-neutral-400 hover:text-white'}`}
+                >
+                    <Star className="w-4 h-4" /> Saved
+                </button>
             </div>
 
-          </div>
+            {/* Datatable Wrapper */}
+            <div className="bg-[#0a0a0a] border border-neutral-900 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-neutral-900 bg-[#111]/50 text-xs uppercase tracking-wider text-neutral-500">
+                                <th className="px-6 py-4 font-medium">Timestamp</th>
+                                <th className="px-6 py-4 font-medium">Event Type</th>
+                                <th className="px-6 py-4 font-medium">Severity</th>
+                                <th className="px-6 py-4 font-medium">Source IP</th>
+                                <th className="px-6 py-4 font-medium text-right">Triage Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-900">
+                            {isLoading ? (
+                                <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">Scanning neural databanks...</td></tr>
+                            ) : isError ? (
+                                <tr><td colSpan={5} className="px-6 py-8 text-center text-red-500">Failed to retrieve intelligence data.</td></tr>
+                            ) : alerts?.length === 0 ? (
+                                <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No security events found.</td></tr>
+                            ) : (
+                                alerts?.map((alert) => (
+                                    <tr key={alert.id} className="hover:bg-[#111]/50 transition-colors">
+                                        <td className="px-6 py-4 text-sm text-neutral-400 font-mono">
+                                            {new Date(alert.timestamp).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-neutral-200">{alert.type}</div>
+                                            <div className="text-xs text-neutral-500 mt-0.5">{alert.protocol}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2.5 py-1 rounded border text-xs font-medium uppercase tracking-wider ${getSeverityColor(alert.severity)}`}>
+                                                {alert.severity}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-mono text-neutral-300">
+                                            {alert.source_ip}
+                                        </td>
+                                        <td className="px-6 py-4 flex items-center justify-end gap-3">
+                                            <button 
+                                                onClick={() => toggleFlag(alert.id, alert.is_flagged)}
+                                                className={`p-1.5 rounded-md transition-colors ${alert.is_flagged ? 'bg-red-500/20 text-red-500' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                                title="Toggle Flag"
+                                            >
+                                                <Flag className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                onClick={() => toggleSave(alert.id, alert.is_saved)}
+                                                className={`p-1.5 rounded-md transition-colors ${alert.is_saved ? 'bg-yellow-500/20 text-yellow-500' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                                title="Save/Star"
+                                            >
+                                                <Star className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                onClick={() => toggleStatus(alert.id, alert.status)}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                                                    alert.status === 'reviewed' 
+                                                    ? 'bg-neutral-900 border-neutral-700 text-neutral-400 hover:text-white' 
+                                                    : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20'
+                                                }`}
+                                            >
+                                                {alert.status === 'reviewed' ? (
+                                                    <><Clock className="w-3.5 h-3.5" /> Re-open</>
+                                                ) : (
+                                                    <><ShieldCheck className="w-3.5 h-3.5" /> Resolve</>
+                                                )}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {/* Pagination Framework */}
+                <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-900 bg-[#0a0a0a]">
+                    <div className="text-xs text-neutral-500 font-mono">
+                        Showing records {page * limit + (alerts?.length ? 1 : 0)} to {page * limit + (alerts?.length || 0)}
+                    </div>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            disabled={page === 0 || isLoading}
+                            className="p-1.5 border border-neutral-800 rounded text-neutral-400 hover:text-white hover:bg-neutral-900 disabled:opacity-50 transition-colors"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <button 
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={alerts?.length !== limit || isLoading}
+                            className="p-1.5 border border-neutral-800 rounded text-neutral-400 hover:text-white hover:bg-neutral-900 disabled:opacity-50 transition-colors"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-      )}
-    </div>
-  );
-}
+    );
+};
 
-// --- HELPER COMPONENT ---
-function DetailBox({ label, value, icon }: { label: string, value: string, icon: any }) {
-  return (
-    <div className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl group hover:border-white/10 transition-all">
-      <div className="flex items-center gap-2 text-slate-500 mb-2">
-        {icon}
-        <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
-      </div>
-      <p className="text-sm font-bold text-white font-mono truncate">{value}</p>
-    </div>
-  );
-}
+export default Intrusions;
