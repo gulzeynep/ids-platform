@@ -3,7 +3,6 @@ from typing import Dict, List
 
 class ConnectionManager:
     def __init__(self):
-        # Hangi şirket ID'sinde hangi WebSocket bağlantıları (kullanıcılar) açık onu tutarız
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, company_id: int):
@@ -16,7 +15,6 @@ class ConnectionManager:
         if company_id in self.active_connections:
             if websocket in self.active_connections[company_id]:
                 self.active_connections[company_id].remove(websocket)
-            # Eğer şirketteki son analist de çıkış yaptıysa listeyi temizle
             if not self.active_connections[company_id]:
                 del self.active_connections[company_id]
 
@@ -26,5 +24,4 @@ class ConnectionManager:
             for connection in self.active_connections[company_id]:
                 await connection.send_json(message)
 
-# Tüm projenin kullanacağı tek bir yönetici nesnesi oluşturuyoruz
 manager = ConnectionManager()

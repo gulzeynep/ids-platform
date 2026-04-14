@@ -1,7 +1,5 @@
-import time 
 import json 
 import asyncio
-
 from src.core.queue import redis_client
 from src.database import AsyncSessionLocal
 from src.models import Alert
@@ -11,7 +9,7 @@ async def process_alerts():
     logger.info("Starting alert processing worker, listening to queue...")
     while True:
         try:
-            messages = redis_client.xread({"alert_stream": "0-0"}, count=1, block=5000)
+            messages = await redis_client.xread({"alert_stream": "0-0"}, count=1, block=5000)
             if messages: 
                 for stream, msgs in messages:
                     for msg_id, data in msgs:
@@ -22,14 +20,12 @@ async def process_alerts():
                             db.add(new_alert)
                             await db.commit()
 
-                        redis_client.xdel("alert_streams", msg_id)
+                        await redis_client.xdel("alert_stream", msg_id)
                         logger.info(f"Processed alert: {payload['type']}")
 
         except Exception as e:
             logger.error(f"Worker error: {e}")
-            time.sleep(5)
+            await asyncio.sleep(5) 
 
 if __name__ == "__main__":
     asyncio.run(process_alerts())
-
-
