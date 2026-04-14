@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api import auth, alerts, admin, ws, users
+from src.api import auth, alerts, admin, ws, users, defense
 
 app = FastAPI(title="W-IDS Core")
 
@@ -17,3 +17,4 @@ app.include_router(alerts.router)
 app.include_router(admin.router)
 app.include_router(ws.router)
 app.include_router(users.router )
+app.include_router(defense.router )
