@@ -2,12 +2,9 @@ from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 
-# ==========================================
-# AUTH & USER SCHEMAS
-# ==========================================
-
+# Auth and User Schemas
 class UserRegister(BaseModel):
-    """Step 1: Just Email and Password"""
+    """Just Email and Password"""
     email: EmailStr
     password: str
 
@@ -19,7 +16,7 @@ class UserRegister(BaseModel):
 class UserProfileUpdate(BaseModel):
     """Onboarding Setup"""
     full_name: str
-    company_name: str # Maps to Workspace Name
+    company_name: str 
     plan: str
     user_persona: str
 
@@ -35,10 +32,7 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# ==========================================
-# WORKSPACE SCHEMAS
-# ==========================================
-
+# Workspcae Schemas
 class WorkspaceResponse(BaseModel):
     id: int
     name: str
@@ -49,10 +43,7 @@ class WorkspaceResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# ==========================================
-# ALERT SCHEMAS
-# ==========================================
-
+# Alert Schemas
 class AlertCreate(BaseModel):
     """Used by the Python Sensor to send data to the backend"""
     type: str
@@ -75,7 +66,7 @@ class AlertCreate(BaseModel):
         return cleaned
 
 class AlertResponse(BaseModel):
-    """Used by the React Frontend to display alerts"""
+    """to display alerts"""
     id: int
     type: str
     severity: str
@@ -86,13 +77,36 @@ class AlertResponse(BaseModel):
     protocol: str
     action: str
     status: str
+    notes: Optional[str] = None
     payload_preview: Optional[str]
+    
+    is_flagged: bool
+    is_saved: bool
+    
     timestamp: datetime
     workspace_id: int
-
     class Config:
         from_attributes = True
 
 class AlertUpdateStatus(BaseModel):
     """Used by Analysts to update the status of an alert"""
-    status: str # new, reviewing, reviewed, false_positive
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    is_flagged: Optional[bool] = None
+    is_saved: Optional[bool] = None 
+
+# Defense and Blacklist Schemas
+class BlacklistCreate(BaseModel):
+    ip_address: str
+    reason: Optional[str] = "Malicious activity detected by analyst"
+
+class BlacklistResponse(BaseModel):
+    id: int
+    ip_address: str
+    reason: Optional[str]
+    created_by: Optional[int]
+    timestamp: datetime
+    workspace_id: int
+
+    class Config:
+        from_attributes = True
