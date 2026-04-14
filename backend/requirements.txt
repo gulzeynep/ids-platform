@@ -1,18 +1,19 @@
 #api
-fastapi[standard]
-uvicorn[standard]
-asyncpg
-python-multipart
-fastapi-mail
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+asyncpg==0.29.0
+python-multipart==0.0.9
+fastapi-mail==1.4.1
 
-#database and datap pipline 
-SQLAlchemy 
-aiosqlite
-alembic
-redis
+#database and data pipline 
+SQLAlchemy==2.0.29
+aiosqlite==0.20.0
+alembic==1.13.1
+redis==5.0.3
+
 #auth
-python-jose[cryptography]
-passlib[bcrypt] 
+python-jose[cryptography]==3.3.0
+bcrypt==4.1.2
 
 #simulation
-requests
+requests==2.31.0

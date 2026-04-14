@@ -1,20 +1,17 @@
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy requirements first to leverage Docker layer caching
+RUN apt-get update && apt-get install -y gcc python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
 COPY . .
-
-# Copy the startup script and make it executable
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# Set the python path
 ENV PYTHONPATH=/app
 
-# Execute the startup script which handles migrations AND starts Uvicorn
 CMD ["/start.sh"]
