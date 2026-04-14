@@ -6,7 +6,7 @@ from .api.alerts import ingest, management, stats, security as alert_security
 from .api.analytics import dashboard
 from .api import auth, admin, users
 
-app = FastAPI(title=settings.PROJECT_NAME)
+app = FastAPI(title="W-IDS Platform")
 
 origins = [
     "http://localhost:5173",

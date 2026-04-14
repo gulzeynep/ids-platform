@@ -78,15 +78,13 @@ services:
     command: python src/worker.py 
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=http://localhost:8000 # API calls from client browser
+    build: ./frontend
     container_name: ids_frontend
-    restart: always
     ports:
-      - "5173:80" # Map host 5173 to Nginx port 80
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     networks:
       - wids-network
 
