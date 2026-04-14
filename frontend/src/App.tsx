@@ -1,51 +1,86 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { type ReactNode } from 'react';
+// Layouts
+import PublicLayout from './components/PublicLayout'; // Landing, Login 
+import AppLayout from './components/Layout'; // Sidebar and Dashboard menu
+// Public Pages 
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Register from './components/Register';
-import Layout from './components/Layout';
-import Overview from './components/Overview';
-import Analysis from './components/Analysis';
-import Intrusions from './components/Intrusions';
-import Profile from './components/Profile';
 import Contact from './components/Contact';
-import Management from './components/Management';
-import Settings from './components/Settings';
+// Private Pages
 import Onboarding from './components/Onboarding';
-import SetupGuide from './components/SetupGuide';
+import Overview from './components/Overview'; // Dashboard
+import Intrusions from './components/Intrusions';
+import Analysis from './components/Analysis'; // Intelligence
+import Defense from './components/Defense'; // IP Blacklist
+import Settings from './components/Settings';
+import Profile from './components/Profile';
+import AdminPanel from './components/Management'; // Management 
+// Global State
+import { useAuthStore } from './lib/store';
 
-// KORUMALI ROTA (Sadece giriş yapanlar girebilir)
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const token = localStorage.getItem('token');
-  if (!token) {
+//Protected Route
+const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+    const { isAuthenticated, hasWorkspace } = useAuthStore();
+    const location = useLocation();
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  return <>{children}</>;
+
+  if (isAuthenticated && !hasWorkspace && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return children;
 };
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* HERKESE AÇIK SAYFALAR */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/contact" element={<Contact />} />
-
-        {/* SADECE GİRİŞ YAPANLARA AÇIK SAYFALAR (LAYOUT İÇİNDE) */}
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/setup" element={<SetupGuide />} />
-          <Route path="overview" element={<Overview />} />
-          <Route path="analysis" element={<Analysis />} />
-          <Route path="intrusions" element={<Intrusions />} />
-          <Route path="management" element={<Management />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<Settings />} />
-          </Route>
         
-        {/* Yanlış adrese gidilirse Overview'a at */}
-        <Route path="*" element={<Navigate to="/overview" replace />} />
+        {/* PUBLIC ROUTES */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/contact" element={<Contact />} />
+        </Route>
+
+        {/* ONBOARDING */}
+        <Route 
+          path="/onboarding" 
+          element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* PRIVATE ROUTES */}
+        <Route 
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* IF LOGGED IN -> DASHBOARD */}
+          <Route path="/dashboard" element={<Overview />} />
+          <Route path="/intrusions" element={<Intrusions />} />
+          <Route path="/intelligence" element={<Analysis />} />
+          <Route path="/defense" element={<Defense />} />
+          
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/management" element={<AdminPanel />} />
+        </Route>
+
+        {/* 404 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   );
