@@ -17,7 +17,7 @@ class UserRegister(BaseModel):
         return v.strip().lower()
 
 class UserProfileUpdate(BaseModel):
-    """Step 2: Onboarding Setup"""
+    """Onboarding Setup"""
     full_name: str
     company_name: str # Maps to Workspace Name
     plan: str
