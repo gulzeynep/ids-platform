@@ -5,39 +5,49 @@ from ...database import get_db
 from ...models import Alert, User
 from ..auth import get_current_user
 
-router = APIRouter(prefix="/stats") 
+router = APIRouter(prefix="/stats", tags=["Alert Statistics"]) 
 
-@router.get("/overview")
-async def get_alert_stats(
+@router.get("/dashboard")
+async def get_dashboard_metrics(
     db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user)
-):    
-    """Calculates live metrics for the Overview Dashboard."""
-    total_query = await db.execute(
-        select(func.count(Alert.id)).where(
-            Alert.workspace_id == current_user.workspace_id, 
+):
+    """overview cards ve system security status"""
+    ws_id = current_user.workspace_id
+    
+    total_q = await db.execute(
+        select(func.count(Alert.id))
+        .where(
+            Alert.workspace_id == ws_id, 
             Alert.status == "new"
             )
         )
-    critical_query = await db.execute(
-        select(func.count(Alert.id)).where(
-            Alert.workspace_id == current_user.workspace_id, 
+    critical_q = await db.execute(
+        select(func.count(Alert.id))
+        .where(
+            Alert.workspace_id == ws_id, 
             Alert.severity == "critical", 
             Alert.status == "new"
             )
         )
-    resolved_query = await db.execute(
-        select(func.count(Alert.id)).where(
-            Alert.workspace_id == current_user.workspace_id, 
+    resolved_q = await db.execute(
+        select(func.count(Alert.id))
+        .where(
+            Alert.workspace_id == ws_id, 
             Alert.status == "reviewed"
             )
         )
 
+    total_active = total_q.scalar() or 0
+    critical_active = critical_q.scalar() or 0
+    total_resolved = resolved_q.scalar() or 0
+
     return {
-        "active_alerts": total_query.scalar() or 0,
-        "critical_threats": critical_query.scalar() or 0,
-        "resolved_alerts": resolved_query.scalar() or 0,
-        "active_sensors": 1
+        "active_alerts": total_active,
+        "critical_threats": critical_active,
+        "resolved_alerts": total_resolved,
+        "active_sensors": 1,
+        "status": "Compromised" if critical_active > 0 else "Secure"
     }
 
 @router.get("/analysis")
@@ -45,7 +55,7 @@ async def get_analysis_stats(
     db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):
-    """Generates intelligence metrics for the Analysis Dashboard."""
+    """intelligence metrics """
     ip_query = await db.execute(
         select(Alert.source_ip, func.count(Alert.id).label("attack_count"))
         .where(Alert.workspace_id == current_user.workspace_id)
