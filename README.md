@@ -1,3 +1,4 @@
+
 # W-IDS (Web-Intrusion Detection System) Core Platform 🛡️
 
 Bu proje, ağ üzerindeki siber tehditleri (SQL Injection, Brute Force vb.) gerçek zamanlı olarak algılayan, çoklu şirket (Multi-tenant) destekli, Rol Bazlı Erişim Kontrolü (RBAC) içeren tam teşekküllü bir siber güvenlik izleme platformudur.
@@ -102,5 +103,11 @@ Vite bazen Docker içinde anlık yenilemeyi (HMR) kaçırabilir. Sayfayı Ctrl +
 ***
 
 
-
+<img width="783" height="1417" alt="Screenshot_20-4-2026_16393_localhost" src="https://github.com/user-attachments/assets/1681a573-cac7-4ec8-b64b-7891f8fa011e" />
+<img width="783" height="821" alt="Screenshot_20-4-2026_163917_localhost" src="https://github.com/user-attachments/assets/20d252e9-6959-41f4-8898-3671e613910d" />
+<img width="783" height="821" alt="Screenshot_20-4-2026_163926_localhost" src="https://github.com/user-attachments/assets/bb3d6545-525e-44d4-81a1-729f065c3f73" />
+<img width="783" height="852" alt="Screenshot_20-4-2026_163934_localhost" src="https://github.com/user-attachments/assets/c5abf537-ecbd-4e22-b03a-b473e85c32e7" />
+<img width="783" height="821" alt="Screenshot_20-4-2026_163941_localhost" src="https://github.com/user-attachments/assets/aa4fca13-12c1-495a-ba41-d98f8f9c301b" />
+<img width="783" height="1094" alt="Screenshot_20-4-2026_163951_localhost" src="https://github.com/user-attachments/assets/e380d168-d8f1-46a2-88ad-b02d2a4d19ea" />
+<img width="783" height="821" alt="Screenshot_20-4-2026_163959_localhost" src="https://github.com/user-attachments/assets/958b0002-2051-43ff-89dc-aec12587fdc3" />
 
