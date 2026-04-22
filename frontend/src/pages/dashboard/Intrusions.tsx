@@ -13,13 +13,13 @@ export const Intrusions = () => {
   const [page, setPage] = useState(0);
   const limit = 50;
 
-  // React Query ile verileri çekme
+
   const { data: alerts, isLoading, isError } = useQuery({
     queryKey: alertKeys.list(filters, page),
     queryFn: () => alertsApi.getAlerts(filters, page, limit),
   });
 
-  // Triage (Sınıflandırma) işlemi için mutation
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) =>
       alertsApi.updateAlert(id, data),
@@ -43,7 +43,7 @@ export const Intrusions = () => {
         <p className="text-sm text-neutral-500">Monitor and triage incoming network threats</p>
       </header>
 
-      {/* Filtreleme Çubuğu - Kendi UI Bileşenlerimizle */}
+      {/* Filtre  */}
       <Card className="p-4 flex flex-wrap gap-4 items-center border-neutral-800 bg-[#0a0a0a]">
         <div className="relative flex-1 min-w-[250px]">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
@@ -125,7 +125,7 @@ export const Intrusions = () => {
           </table>
         </div>
 
-        {/* Sayfalama (Pagination) */}
+        {/* Sayfalama */}
         <div className="p-4 border-t border-neutral-900 flex justify-between items-center bg-[#0a0a0a]">
           <span className="text-xs text-neutral-600 font-mono">
             Showing {alerts?.length || 0} records

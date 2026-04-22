@@ -9,7 +9,6 @@ export const Management = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
 
-  // Siyah ekranı engelleyen koruma
   if (!user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -29,7 +28,6 @@ export const Management = () => {
         <div>
           <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight">Workspace Control</h2>
           <p className="text-[10px] text-neutral-500 font-mono tracking-tighter">
-            {/* ?. kullanımı hayat kurtarır */}
             NODE_ID: {user?.id?.substring(0, 8) || 'N/A'} | AUTH_LVL: {user?.role?.toUpperCase() || 'UNKNOWN'}
           </p>
         </div>

@@ -1,4 +1,3 @@
-// src/stores/auth.store.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -24,7 +23,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       isAuthenticated: false,
-      hasWorkspace: true, // Kayıtla beraber workspace oluştuğu için varsayılan true
+      hasWorkspace: true, 
       
       setAuth: (token, user, hasWorkspace) => 
         set({ token, user, isAuthenticated: true, hasWorkspace }),

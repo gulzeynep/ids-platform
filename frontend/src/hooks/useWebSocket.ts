@@ -1,4 +1,3 @@
-// src/hooks/useWebSocket.ts
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useAlertsStore } from '../stores/alerts.store';

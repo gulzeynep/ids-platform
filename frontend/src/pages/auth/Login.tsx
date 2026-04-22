@@ -1,4 +1,3 @@
-// src/pages/auth/Login.tsx
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,7 +28,6 @@ export const Login = () => {
     const onSubmit = async (data: LoginFormValues) => {
         setServerError(null);
         try {
-            // FastAPI OAuth2 expects form-urlencoded data
             const formData = new URLSearchParams();
             formData.append('username', data.email);
             formData.append('password', data.password);
@@ -40,7 +38,6 @@ export const Login = () => {
 
             const token = response.data.access_token;
             
-            // Fetch user profile to check workspace status
             const profileRes = await apiClient.get('/auth/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -48,12 +45,10 @@ export const Login = () => {
             const hasWorkspace = profileRes.data.workspace_id !== null;
             const role = profileRes.data.role;
 
-            // Save to Zustand global state
             setAuth(token, hasWorkspace, role);
             
             toast.success('Authentication successful. Welcome back.');
             
-            // Redirect based on workspace status
             if (hasWorkspace) {
                 navigate('/dashboard');
             } else {

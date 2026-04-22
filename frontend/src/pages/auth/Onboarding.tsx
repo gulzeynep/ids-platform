@@ -1,4 +1,3 @@
-// src/pages/auth/Onboarding.tsx
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -33,16 +32,13 @@ export const Onboarding = () => {
     const onSubmit = async (data: OnboardingFormValues) => {
         setServerError(null);
         try {
-            // Note: Update this endpoint based on your actual FastAPI route
             const response = await apiClient.post('/auth/onboard', {
                 ...data,
                 plan: "enterprise" 
             });
             
-            // Backend returns the sensor API key upon successful workspace creation
             setApiKey(response.data.sensor_api_key);
             
-            // Update Zustand store to reflect workspace exists
             if (token && role) {
                 setAuth(token, true, role);
             }
@@ -56,7 +52,6 @@ export const Onboarding = () => {
         }
     };
 
-    // If API Key is generated, show the success screen
     if (apiKey) {
         return (
             <div className="w-full max-w-lg p-8 bg-[#0a0a0a] border border-green-900/50 rounded-xl shadow-2xl text-center">
@@ -84,7 +79,6 @@ export const Onboarding = () => {
         );
     }
 
-    // Default form screen
     return (
         <div className="w-full max-w-md p-8 bg-[#0a0a0a] border border-neutral-900 rounded-xl shadow-2xl">
             <div className="mb-8">

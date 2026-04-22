@@ -1,4 +1,3 @@
-// src/components/ui/Card.tsx
 import { type HTMLAttributes, forwardRef } from 'react';
 
 export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(

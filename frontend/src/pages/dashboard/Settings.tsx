@@ -1,4 +1,3 @@
-// src/pages/dashboard/Settings.tsx
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { ShieldCheck, BellRing, MonitorSmartphone } from 'lucide-react';

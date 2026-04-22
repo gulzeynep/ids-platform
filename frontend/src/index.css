@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* SOC Teması için global arka plan */
+
 body {
   background-color: #050505;
   color: #e5e5e5;

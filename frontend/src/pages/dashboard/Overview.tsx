@@ -9,12 +9,12 @@ import { useNavigate } from 'react-router-dom';
 
 export const Overview = () => {
     const navigate = useNavigate();
-    const { realtimeAlerts } = useAlertsStore(); // WebSocket'ten gelen canlı veri
+    const { realtimeAlerts } = useAlertsStore(); 
 
     const { data: stats, isLoading, isError } = useQuery({
         queryKey: alertKeys.stats(),
         queryFn: () => alertsApi.getAlertStats(),
-        refetchInterval: 3000, // Canlı hissi için 3 saniyede bir çekiyoruz
+        refetchInterval: 3000, 
     });
 
     const isCompromised = stats && (stats.critical_threats > 0 || stats.active_alerts > 15);
@@ -22,7 +22,7 @@ export const Overview = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* 1. Canlı Sistem Durum Barı */}
+            {/*  Canlı Sistem Durum Barı */}
             <div className={`p-6 rounded-2xl border flex items-center justify-between transition-all duration-1000 ${statusColor}`}>
                 <div className="flex items-center gap-6">
                     <div className="relative">
@@ -50,7 +50,7 @@ export const Overview = () => {
                 </div>
             </div>
 
-            {/* 2. Operasyonel Kartlar */}
+            {/*  Operasyonel Kartlar */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="bg-[#0a0a0a] border-neutral-900">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -92,7 +92,7 @@ export const Overview = () => {
                 </Card>
             </div>
 
-            {/* 3. Canlı Akış Paneli (WebSocket Feed) */}
+            {/*  Canlı Akış Paneli (WebSocket Feed) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <Card className="lg:col-span-2 border-neutral-900 bg-[#0a0a0a]">
                     <CardHeader className="border-b border-neutral-900 pb-4">
@@ -127,7 +127,7 @@ export const Overview = () => {
                     </CardContent>
                 </Card>
 
-                {/* Yan Panel: Quick Response */}
+                {/* Yan Panel*/}
                 <Card className="border-neutral-900 bg-blue-500/[0.02]">
                     <CardHeader>
                         <CardTitle className="text-sm">Response Readiness</CardTitle>

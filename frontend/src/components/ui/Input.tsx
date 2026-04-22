@@ -1,4 +1,3 @@
-// src/components/ui/Input.tsx
 import { type InputHTMLAttributes, forwardRef } from 'react';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {

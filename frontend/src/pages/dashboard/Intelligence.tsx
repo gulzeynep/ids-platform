@@ -4,7 +4,7 @@ import apiClient from '../../api/client';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 
-// İstatistikler için tip tanımı (Daha sonra types/index.ts'e taşıyabiliriz)
+
 interface IntelligenceStats {
     top_attack_types: { type: string; count: number }[];
     top_malicious_ips: { ip: string; country: string; count: number }[];
@@ -19,7 +19,7 @@ export const Intelligence = () => {
             const response = await apiClient.get('/alerts/intelligence-summary');
             return response.data as IntelligenceStats;
         },
-        refetchInterval: 30000 // Intelligence verisi 30 saniyede bir güncellense yeterli
+        refetchInterval: 30000 
     });
 
     return (
@@ -77,7 +77,7 @@ export const Intelligence = () => {
                                     <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden">
                                         <div 
                                             className="h-full bg-blue-600 transition-all duration-1000" 
-                                            style={{ width: `${(item.count / 1000) * 100}%` }} // Örn: 1000 üzerinden oran
+                                            style={{ width: `${(item.count / 1000) * 100}%` }} 
                                         />
                                     </div>
                                 </div>

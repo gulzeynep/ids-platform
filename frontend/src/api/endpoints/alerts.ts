@@ -6,14 +6,9 @@ import type {
   AlertStats
 } from '../../types';
 
-// ============================================================================
-// Alert Endpoints
-// ============================================================================
 
 export const alertsApi = {
-  /**
-   * Get paginated list of alerts with filters
-   */
+  
   getAlerts: async (
     filters: AlertFilters = {},
     page = 0,
@@ -21,7 +16,7 @@ export const alertsApi = {
   ): Promise<Alert[]> => {
     const params = new URLSearchParams();
     
-    // Add filters
+    
     if (filters.status && filters.status !== 'all') {
       params.append('status', filters.status);
     }
@@ -51,9 +46,7 @@ export const alertsApi = {
     return response.data;
   },
 
-  /**
-   * Update alert triage status
-   */
+
   updateAlert: async (id: number, data: AlertUpdateDto): Promise<Alert> => {
     const response = await apiClient.patch(`/alerts/${id}/triage`, data);
     return response.data;
@@ -67,9 +60,6 @@ export const alertsApi = {
   }
 };
 
-// ============================================================================
-// React Query Keys (for cache management)
-// ============================================================================
 
 export const alertKeys = {
   all: ['alerts'] as const,

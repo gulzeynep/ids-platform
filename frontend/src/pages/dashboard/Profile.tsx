@@ -1,4 +1,3 @@
-// src/pages/dashboard/Profile.tsx
 import { useAuthStore } from '../../stores/auth.store';
 import { Card, CardContent } from '../../components/ui/Card';
 import { User, Shield, Fingerprint, Mail, Hash } from 'lucide-react';
@@ -6,7 +5,6 @@ import { User, Shield, Fingerprint, Mail, Hash } from 'lucide-react';
 export const Profile = () => {
   const { user } = useAuthStore();
 
-  // SİYAH EKRAN KORUMASI: User yüklenene kadar boş dönme, yükleniyor göster
   if (!user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -64,12 +62,12 @@ export const Profile = () => {
               <Fingerprint size={16} /> Security Clearance
             </h4>
             <p className="text-xs text-neutral-500 leading-relaxed font-medium">
-              Bu hesap <span className="text-white italic">{user?.role?.toUpperCase()}</span> operasyonları için yetkilendirilmiştir. 
-              Katman 7 denetimi ve tehdit istihbaratı erişimi aktiftir.
+              This account is authorized<span className="text-white italic">{user?.role?.toUpperCase()}</span> for this operation. 
+              Layer 7 encryption is active.
             </p>
             <div className="pt-6 flex items-center gap-2">
               <Shield size={14} className="text-green-500" />
-              <span className="text-[10px] text-green-500/80 font-bold uppercase tracking-tighter">Session Secured via SSL/TLS 1.3</span>
+              <span className="text-[10px] text-green-500/80 font-bold uppercase tracking-tighter">Session Secured via SSL/TLS 1.3</span> //is it tho ? look at it later
             </div>
           </CardContent>
         </Card>
