@@ -1,10 +1,12 @@
+// src/hooks/useWebSocket.ts
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { useAlertsStore, useAuthStore} from '../stores/alerts.store';
+import { useAlertsStore } from '../stores/alerts.store';
+import { useAuthStore } from '../stores/auth.store'; 
 import type { WebSocketMessage } from '../types';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws';
-const RECONNECT_INTERVAL = 3000; // 3 seconds
+const RECONNECT_INTERVAL = 3000; 
 const MAX_RECONNECT_ATTEMPTS = 5;
 
 interface UseWebSocketOptions {
@@ -23,22 +25,27 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     onDisconnect,
     onError,
   } = options;
-  const { token } = useAuthStore.getState();
+
+  // Refs
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
-  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);  const { addRealtimeAlert } = useAlertsStore();
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  
+  // Stores
+  const { addRealtimeAlert } = useAlertsStore();
+  const token = useAuthStore((state) => state.token); 
+
   const connect = useCallback(() => {
-    if (!enabled) return;
+    if (!enabled || !token) return; 
     
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      // You should append your auth token here if needed by your FastAPI backend
       const urlWithAuth = `${WS_URL}?token=${token}`;
       ws.current = new WebSocket(urlWithAuth);
 
       ws.current.onopen = () => {
-        console.log('WebSocket Connected');
+        console.log('SOC Connection: Established');
         reconnectAttempts.current = 0;
         onConnect?.();
       };
@@ -51,31 +58,26 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             addRealtimeAlert({ ...message.data, is_new: true });
             
             if (message.data.severity === 'critical' || message.data.severity === 'high') {
-              toast.error(`Critical Threat Detected!`, {
-                description: `IP: ${message.data.source_ip} | Type: ${message.data.type}`,
-                duration: 5000,
-              });
-            } else {
-              toast.warning(`Suspicious Activity`, {
-                description: `Type: ${message.data.type}`,
-                duration: 3000,
+              toast.error(`CRITICAL THREAT DETECTED`, {
+                description: `Type: ${message.data.type} | Source: ${message.data.source_ip}`,
+                duration: 6000,
               });
             }
           }
-          
           onMessage?.(message);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          console.error('WS Data Parse Error:', error);
         }
       };
 
       ws.current.onclose = () => {
-        console.log('WebSocket Disconnected');
+        console.warn('SOC Connection: Terminated');
         onDisconnect?.();
         
         if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
           reconnectTimeout.current = setTimeout(() => {
             reconnectAttempts.current += 1;
+            console.log(`Retrying connection... (${reconnectAttempts.current})`);
             connect();
           }, RECONNECT_INTERVAL);
         }
@@ -88,13 +90,10 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     } catch (error) {
       console.error('WebSocket connection error:', error);
     }
-  }, [enabled, onConnect, onDisconnect, onError, onMessage, addRealtimeAlert]);
+  }, [enabled, token, onConnect, onDisconnect, onError, onMessage, addRealtimeAlert]);
 
   const disconnect = useCallback(() => {
-    if (reconnectTimeout.current) {
-      clearTimeout(reconnectTimeout.current);
-    }
-    
+    if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
     if (ws.current) {
       ws.current.close();
       ws.current = null;
@@ -102,10 +101,8 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   }, []);
 
   const send = useCallback((message: any) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+    if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(message));
-    } else {
-      console.warn('WebSocket is not connected');
     }
   }, []);
 
@@ -116,8 +113,6 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   return {
     send,
-    disconnect,
-    reconnect: connect,
     isConnected: ws.current?.readyState === WebSocket.OPEN,
   };
 };

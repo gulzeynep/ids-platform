@@ -12,6 +12,7 @@ import { PublicLayout } from './components/layout/PublicLayout';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { Onboarding } from './pages/auth/Onboarding';
+import { Intelligence } from './pages/dashboard/Intelligence';
 import { Overview } from './pages/dashboard/Overview';
 import { Intrusions } from './pages/dashboard/Intrusions';
 import { Defense } from './pages/dashboard/Defense';
@@ -68,6 +69,7 @@ export default function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Overview />} />
+          <Route path="intelligence" element={<Intelligence />} />
           <Route path="intrusions" element={<Intrusions />} />
           <Route path="defense" element={<Defense />} />
           <Route path="management" element={<Management />} />

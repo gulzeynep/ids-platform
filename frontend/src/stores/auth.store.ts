@@ -1,36 +1,37 @@
+// src/stores/auth.store.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+interface User {
+  id: string;
+  email: string;
+  role: 'admin' | 'analyst';
+}
+
 interface AuthState {
   token: string | null;
-  role: string | null;
+  user: User | null;
   isAuthenticated: boolean;
   hasWorkspace: boolean;
   
-  setAuth: (token: string, hasWorkspace: boolean, role: string) => void;
+  setAuth: (token: string, user: User, hasWorkspace: boolean) => void;
   logout: () => void;
-  setWorkspaceStatus: (status: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
-      role: null,
+      user: null,
       isAuthenticated: false,
-      hasWorkspace: false,
+      hasWorkspace: true, // Kayıtla beraber workspace oluştuğu için varsayılan true
       
-      setAuth: (token, hasWorkspace, role) => 
-        set({ isAuthenticated: true, hasWorkspace, token, role }),
+      setAuth: (token, user, hasWorkspace) => 
+        set({ token, user, isAuthenticated: true, hasWorkspace }),
         
       logout: () => 
-        set({ isAuthenticated: false, hasWorkspace: false, token: null, role: null }),
-        
-      setWorkspaceStatus: (status) => 
-        set({ hasWorkspace: status }),
+        set({ token: null, user: null, isAuthenticated: false, hasWorkspace: false }),
     }),
-    {
-      name: 'wids-auth-storage', 
-    }
+    { name: 'wids-auth-storage' }
   )
 );
