@@ -59,11 +59,12 @@ export const alertsApi = {
     return response.data;
   },
 
-  getAlertStats: async (timeRange?: string): Promise<AlertStats> => {
-    const params = timeRange ? { time_range: timeRange } : {};
-    const response = await apiClient.get('/alerts/stats', { params });
+  getAlertStats: async (timeRange: string = '24h') => {
+    const response = await apiClient.get('/alerts/stats', { 
+      params: { time_range: timeRange } 
+    });
     return response.data;
-  },
+  }
 };
 
 // ============================================================================
