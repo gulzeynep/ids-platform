@@ -66,3 +66,13 @@ services:
 
 volumes:
   postgres_data:
+
+  snort3:
+    image: cisco/snort3
+    container_name: secure-engine
+    volumes:
+      - ./snort/rules:/etc/snort/rules
+      - ./snort/etc:/etc/snort/etc
+      - ./snort/logs:/var/log/snort
+    network_mode: "service:backend" # Backend trafiğini izlemesi için ÇOK KRİTİK
+    command: ["snort", "-c", "/etc/snort/etc/snort.lua", "-i", "eth0", "-A", "alert_fast"]
