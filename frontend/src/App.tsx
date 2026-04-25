@@ -1,88 +1,65 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { type ReactNode } from 'react';
-// Layouts
-import PublicLayout from './components/PublicLayout'; // Landing, Login 
-import AppLayout from './components/Layout'; // Sidebar and Dashboard menu
-// Public Pages 
-import LandingPage from './components/LandingPage';
-import Login from './components/Login';
-import Register from './components/Register';
-import Contact from './components/Contact';
-// Private Pages
-import Onboarding from './components/Onboarding';
-import Overview from './components/Overview'; // Dashboard
-import Intrusions from './components/Intrusions';
-import Analysis from './components/Analysis'; // Intelligence
-import Defense from './components/Defense'; // IP Blacklist
-import Settings from './components/Settings';
-import Profile from './components/Profile';
-import AdminPanel from './components/Management'; // Management 
-// Global State
-import { useAuthStore } from './lib/store';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 
-//Protected Route
-const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-    const { isAuthenticated, hasWorkspace } = useAuthStore();
-    const location = useLocation();
+import { AppLayout } from './components/layout/AppLayout';
+import { PublicLayout } from './components/layout/PublicLayout';
+import { Login } from './pages/auth/Login';
+import { Register } from './pages/auth/Register';
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+import { Intelligence } from './pages/dashboard/Intelligence';
+import { Overview } from './pages/dashboard/Overview';
+import { Intrusions } from './pages/dashboard/Intrusions';
+import { Defense } from './pages/dashboard/Defense';
 
-  if (isAuthenticated && !hasWorkspace && location.pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" replace />;
-  }
+import { Management } from './pages/dashboard/Management';
+import { Settings } from './pages/dashboard/Settings';
+import { Notifications } from './pages/dashboard/Notifications';
+import { Profile } from './pages/dashboard/Profile';
 
-  return children;
+import { useAuthStore } from './stores/auth.store';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        
-        {/* PUBLIC ROUTES */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/contact" element={<Contact />} />
-        </Route>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Toaster theme="dark" position="top-right" richColors />
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+          </Route>
 
-        {/* ONBOARDING */}
-        <Route 
-          path="/onboarding" 
-          element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-          } 
-        />
-
-        {/* PRIVATE ROUTES */}
-        <Route 
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        >
-          {/* IF LOGGED IN -> DASHBOARD */}
-          <Route path="/dashboard" element={<Overview />} />
-          <Route path="/intrusions" element={<Intrusions />} />
-          <Route path="/intelligence" element={<Analysis />} />
-          <Route path="/defense" element={<Defense />} />
-          
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/management" element={<AdminPanel />} />
-        </Route>
-
-        {/* 404 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-
-      </Routes>
-    </BrowserRouter>
+          <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Overview />} />
+            <Route path="intelligence" element={<Intelligence />} />
+            <Route path="intrusions" element={<Intrusions />} />
+            <Route path="defense" element={<Defense />} />
+            <Route path="management" element={<Management />} />
+            <Route path="settings" element={<Settings />} /> 
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 
