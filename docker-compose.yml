@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
       POSTGRES_DB: ids_db
     ports:
       - "5434:5432"
@@ -31,14 +31,15 @@ services:
 
   backend:
     build:
-      context: ./backend      
-      dockerfile: Dockerfile  
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: ids_backend
     restart: always
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app     
+      - ./backend:/app
+      - ./snort/logs:/var/log/snort
     env_file:
       - .env
     depends_on:
@@ -49,13 +50,14 @@ services:
 
   worker:
     build:
-      context: ./backend      
+      context: ./backend
       dockerfile: Dockerfile
     container_name: ids_worker
     restart: always
-    command: python src/worker.py 
+    command: python src/worker.py
     volumes:
       - ./backend:/app
+      - ./snort/logs:/var/log/snort
     env_file:
       - .env
     depends_on:
@@ -64,15 +66,27 @@ services:
       redis:
         condition: service_healthy
 
-volumes:
-  postgres_data:
-
   snort3:
-    image: cisco/snort3
+    build:
+      context: .
+      dockerfile: Dockerfile.snort
     container_name: secure-engine
+    restart: always
+    network_mode: "service:backend"
+    stdin_open: true
+    tty: true
     volumes:
-      - ./snort/rules:/etc/snort/rules
       - ./snort/etc:/etc/snort/etc
+      - ./snort/rules:/etc/snort/rules
       - ./snort/logs:/var/log/snort
-    network_mode: "service:backend" # Backend trafiğini izlemesi için ÇOK KRİTİK
-    command: ["snort", "-c", "/etc/snort/etc/snort.lua", "-i", "eth0", "-A", "alert_fast"]
+    working_dir: /etc/snort/etc
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    depends_on:
+      - backend
+    # Çakışmayı önlemek için baştaki "snort" kelimesi silindi
+    command: ["-c", "snort.lua", "-i", "eth0", "-l", "/var/log/snort", "-k", "none"]
+
+volumes:
+  postgres_data: {}

@@ -36,3 +36,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .npm/
+
+# Snort Logs
+snort/logs/*
+!snort/logs/.gitkeep
+
+# Official Rules (Opsiyonel: Eğer repoyu hafif tutmak istersen)
+# snort/rules/official/*
+
+# Docker Environment
+.env
