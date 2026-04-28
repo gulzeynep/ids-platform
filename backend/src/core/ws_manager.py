@@ -19,7 +19,6 @@ class ConnectionManager:
                 del self.active_connections[company_id]
 
     async def broadcast_to_company(self, message: dict, company_id: int):
-        # Sadece ilgili şirketin açık ekranlarına alarmı fırlat!
         if company_id in self.active_connections:
             for connection in self.active_connections[company_id]:
                 await connection.send_json(message)

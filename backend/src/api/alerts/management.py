@@ -7,7 +7,7 @@ from datetime import datetime
 from ...database import get_db
 from ...models import Alert, User
 from ...schemas import AlertResponse, AlertUpdateStatus
-from ..auth import get_current_user
+from core.security import get_current_user
 
 router = APIRouter()
 

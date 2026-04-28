@@ -6,7 +6,7 @@ from typing import List
 from ..database import get_db
 from ..models import BlacklistedIP, User
 from ..schemas import BlacklistCreate, BlacklistResponse
-from .auth import get_current_user
+from core.security import get_current_user
 from ..core.queue import redis_client
 
 router = APIRouter(prefix="/defense", tags=["Defense Operations"])

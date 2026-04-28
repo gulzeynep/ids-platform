@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from ...database import get_db
 from ...models import Alert, User
-from ..auth import get_current_user
+from core.security import get_current_user
 
 router = APIRouter(prefix="/stats", tags=["Alert Statistics"]) 
 

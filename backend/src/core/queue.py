@@ -1,10 +1,11 @@
 import json 
-import os 
 import redis.asyncio as redis 
 from src.core.logger import logger
 
-REDIS_HOST = os.getenv("REDIS_HOST", "redis")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+from config import Settings
+
+REDIS_HOST = Settings.REDIS_HOST
+REDIS_PORT = Settings.REDIS_PORT
 
 # async client 
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)

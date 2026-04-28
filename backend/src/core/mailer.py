@@ -1,13 +1,14 @@
 import os
 from datetime import datetime
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from config import Settings
 
 conf = ConnectionConfig(
-    MAIL_USERNAME = os.getenv("SMTP_USER", "security@wids-core.io"),
-    MAIL_PASSWORD = os.getenv("SMTP_PASS", "password"),
-    MAIL_FROM = "security@wids-core.io",
-    MAIL_PORT = 587,
-    MAIL_SERVER = "smtp.gmail.com",
+    MAIL_USERNAME = Settings.SMTP_USER,
+    MAIL_PASSWORD = Settings.SMTP_PASS,
+    MAIL_FROM = Settings.SMTP_FROM,
+    MAIL_PORT = Settings.SMTP_PORT,
+    MAIL_SERVER = Settings.SMTP_SERVER,
     MAIL_STARTTLS = True,
     MAIL_SSL_TLS = False,
     USE_CREDENTIALS = True
@@ -16,7 +17,7 @@ conf = ConnectionConfig(
 fastmail = FastMail(conf)
 
 async def send_security_alert(email: str, alert_type: str, severity: str, source_ip: str):
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    frontend_url = Settings.FRONTEND_URL
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     html_content = f"""
