@@ -93,7 +93,7 @@ class BlacklistedIP(Base):
     __tablename__ = "blacklisted_ips"
 
     id = Column(Integer, primary_key=True, index=True)
-    ip_address = Column(String, index=True, nullable=False)
+    ip_address = Column(String, unique=True, index=True, nullable=False)
     reason = Column(String, nullable=True)
     created_by = Column(Integer, nullable=True) # Which analyst blocked it
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
