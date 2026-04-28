@@ -13,42 +13,16 @@ from ..database import get_db
 from ..models import User, Workspace
 from ..schemas import UserRegister, UserResponse, UserProfileUpdate
 from ..core.security import (
-    get_password_hash, verify_password, create_access_token, 
-    ACCESS_TOKEN_EXPIRE_MINUTES, oauth2_scheme, SECRET_KEY, ALGORITHM
+    get_password_hash, 
+    verify_password, 
+    create_access_token, 
+    get_current_user
 )
+from config import Settings
 
 router = APIRouter()
 
-async def get_current_user(token: str = Depends(oauth2_scheme), 
-                           db: AsyncSession = Depends(get_db)) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
-    
-    if user is None:
-        raise credentials_exception
-        
-    # user status check 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been suspended by the administrator."
-        )
-        
-    return user
-
+ACCESS_TOKEN_EXPIRE_MINUTES = Settings. ACCESS_TOKEN_EXPIRE_MINUTES
 
 #  REGISTRATION 
 @router.post("/register", status_code=status.HTTP_201_CREATED)

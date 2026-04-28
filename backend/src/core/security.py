@@ -1,5 +1,5 @@
 import os
-import bcrypt # Doğrudan bcrypt kullanıyoruz
+import bcrypt 
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -11,20 +11,19 @@ from sqlalchemy import select
 from ..database import get_db
 from ..models import User
 
+from config import Settings
+
 # --- CONFIG ---
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = Settings.SECRET_KEY
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is required!")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 
+ALGORITHM = Settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = Settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# --- REWORKED FUNCTIONS (No Passlib) ---
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Checks if the provided password matches the hashed password in DB."""
-    # bcrypt veriyi 'bytes' olarak bekler
     return bcrypt.checkpw(
         plain_password.encode('utf-8'), 
         hashed_password.encode('utf-8')
@@ -37,7 +36,7 @@ def get_password_hash(password: str) -> str:
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed.decode('utf-8')
 
-# --- JWT FUNCTIONS (Same as before) ---
+# --- JWT FUNCTIONS  ---
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -45,7 +44,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
+async def get_current_user(token: str = Depends(oauth2_scheme), 
+                           db: AsyncSession = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials.",
@@ -54,10 +54,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        if email is None: raise credentials_exception
-    except JWTError: raise credentials_exception
-    
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalars().first()
-    if user is None: raise credentials_exception
+    
+    if user is None:
+        raise credentials_exception
+        
+    # user status check 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been suspended by the administrator."
+        )
+        
     return user
