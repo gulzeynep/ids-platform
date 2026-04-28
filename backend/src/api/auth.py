@@ -2,25 +2,23 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from slowapi import Limiter 
+from slowapi.util import get_remote_address
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
-from jose import JWTError, jwt
 
 from ..database import get_db
 from ..models import User, Workspace
 from ..schemas import UserRegister, UserResponse, UserProfileUpdate
-from ..core.security import (
-    get_password_hash, 
-    verify_password, 
-    create_access_token, 
-    get_current_user
-)
+from ..core.security import ( get_password_hash, verify_password, create_access_token, get_current_user)
 from config import Settings
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 ACCESS_TOKEN_EXPIRE_MINUTES = Settings. ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -45,7 +43,9 @@ async def register_user(
 
 # LOGIN (TOKEN GENERATION)
 @router.post("/token") 
+@limiter.limit("5/minute")
 async def login_for_access_token(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(), 
     db: AsyncSession = Depends(get_db)
 ):
