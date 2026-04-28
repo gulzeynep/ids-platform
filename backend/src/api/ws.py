@@ -8,12 +8,12 @@ from ..core.ws_manager import manager
 from ..database import get_db
 from ..models import User
 
-from config import Settings
+from config import settings
 
 router = APIRouter(prefix="/ws", tags=["WebSockets"])
 
-SECRET_KEY = Settings.SECRET_KEY
-ALGORITHM = Settings.ALGORITHM
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 
 @router.websocket("/stream")
 async def websocket_endpoint(

@@ -11,14 +11,14 @@ from sqlalchemy import select
 from ..database import get_db
 from ..models import User
 
-from config import Settings
+from config import settings
 
 # --- CONFIG ---
-SECRET_KEY = Settings.SECRET_KEY
+SECRET_KEY = settings.SECRET_KEY
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is required!")
-ALGORITHM = Settings.ALGORITHM
-ACCESS_TOKEN_EXPIRE_MINUTES = Settings.ACCESS_TOKEN_EXPIRE_MINUTES
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
