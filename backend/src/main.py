@@ -6,8 +6,8 @@ app = FastAPI(title="W-IDS Core")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "http://localhost:5173"],
-    allow_credentials=True,
+    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_credentials=True, #origins = * and credentials = true cant be used at the same time
     allow_methods=["*"],
     allow_headers=["*"],
 )
