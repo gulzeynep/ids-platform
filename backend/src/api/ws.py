@@ -1,7 +1,8 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jose import jwt, JWTError
+import json
 
 from ..core.ws_manager import manager
 from ..database import get_db
@@ -17,13 +18,20 @@ ALGORITHM = Settings.ALGORITHM
 @router.websocket("/stream")
 async def websocket_endpoint(
     websocket: WebSocket, 
-    token: str = Query(...), 
     db: AsyncSession = Depends(get_db)
 ):
     await websocket.accept()
 
     try:
+        auth_message = await websocket.receive_text()
+        auth_data = json.loads(auth_message)
+        token = auth_data.get("token")
+        
+        if not token:
+            await websocket.close(code=1008)
+
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        
         email: str = payload.get("sub")
         if not email:
             await websocket.close(code=1008) # 1008: Policy Violation
@@ -44,7 +52,7 @@ async def websocket_endpoint(
 
         while True: 
             await websocket.receive_text()
-            
+
     except JWTError:
         await websocket.close(code=1008)
     except WebSocketDisconnect:
