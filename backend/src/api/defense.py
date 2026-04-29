@@ -11,6 +11,19 @@ from src.core.queue import redis_client
 
 router = APIRouter(prefix="/defense", tags=["Defense Operations"])
 
+@router.get("/blacklist", response_model=List[BlacklistResponse])
+async def get_blacklist(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Fetches the list of currently blacklisted IPs for the workspace."""
+    result = await db.execute(
+        select(BlacklistedIP).where(
+            BlacklistedIP.workspace_id == current_user.workspace_id
+        ).order_by(BlacklistedIP.timestamp.desc())
+    )
+    return result.scalars().all()
+
 @router.post("/blacklist", response_model=BlacklistResponse, status_code=status.HTTP_201_CREATED)
 async def add_to_blacklist(
     data: BlacklistCreate,
