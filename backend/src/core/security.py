@@ -11,7 +11,7 @@ from sqlalchemy import select
 from ..database import get_db
 from ..models import User
 
-from config import settings
+from ...config import settings
 
 # --- CONFIG ---
 SECRET_KEY = settings.SECRET_KEY

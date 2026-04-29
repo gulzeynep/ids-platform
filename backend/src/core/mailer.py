@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
-from config import settings
+from ...config import settings
 
 conf = ConnectionConfig(
     MAIL_USERNAME = settings.SMTP_USER,

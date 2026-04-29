@@ -1,8 +1,7 @@
 import json 
 import redis.asyncio as redis 
-from src.core.logger import logger
-
-from config import settings
+from ..core.logger import logger
+from ...config import settings
 
 REDIS_HOST = settings.REDIS_HOST
 REDIS_PORT = settings.REDIS_PORT

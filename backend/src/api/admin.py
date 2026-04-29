@@ -3,10 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 
-from src.database import get_db
-from src.models import User, Workspace
-from src.schemas import UserResponse, WorkspaceResponse, UserRegister
-from core.security import get_current_user, get_password_hash
+from ..database import get_db
+from ..models import User, Workspace
+from ..schemas import UserResponse, WorkspaceResponse, UserRegister
+from ..core.security import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/admin", tags=["Admin Panel"])
 

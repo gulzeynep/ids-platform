@@ -3,10 +3,8 @@ services:
     image: postgres:16
     container_name: ids_postgres
     restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ids_db
+    env_file:
+      - ./backend/.env
     ports:
       - "5434:5432"
     volumes:
@@ -40,7 +38,9 @@ services:
     volumes:
       - ./backend:/app     
     env_file:
-      - .env
+      - ./backend/.env
+    environment:
+      - PYTHONPATH=/app
     depends_on:
       db:
         condition: service_healthy
@@ -57,7 +57,9 @@ services:
     volumes:
       - ./backend:/app
     env_file:
-      - .env
+      - ./backend/.env
+    environment:
+      - PYTHONPATH=/app
     depends_on:
       db:
         condition: service_healthy
