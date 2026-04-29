@@ -1,9 +1,9 @@
 import json 
 import asyncio
-from .core.queue import redis_client
-from .database import AsyncSessionLocal
-from .models import Alert
-from .core.logger import logger
+from src.core.queue import redis_client
+from src.database import AsyncSessionLocal
+from src.models import Alert
+from src.core.logger import logger
 
 async def process_alerts():
     logger.info("Starting alert processing worker, listening to queue...")

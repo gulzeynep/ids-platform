@@ -4,9 +4,9 @@ from sqlalchemy import select
 from jose import jwt, JWTError
 import json
 
-from ..core.ws_manager import manager
-from ..database import get_db
-from ..models import User
+from src.core.ws_manager import manager
+from src.database import get_db
+from src.models import User
 
 from config import settings
 

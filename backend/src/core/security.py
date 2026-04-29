@@ -8,8 +8,8 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from ..database import get_db
-from ..models import User
+from src.database import get_db
+from src.models import User
 
 from config import settings
 

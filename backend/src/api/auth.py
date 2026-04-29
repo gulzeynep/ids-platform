@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 
-from ..database import get_db
-from ..models import User, Workspace
-from ..schemas import UserRegister, UserResponse, UserProfileUpdate
-from ..core.security import ( get_password_hash, verify_password, create_access_token, get_current_user)
+from src.database import get_db
+from src.models import User, Workspace
+from src.schemas import UserRegister, UserResponse, UserProfileUpdate
+from src.core.security import ( get_password_hash, verify_password, create_access_token, get_current_user)
 from config import settings
 
 router = APIRouter()

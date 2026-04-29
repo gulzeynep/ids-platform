@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api import auth, alerts, admin, ws, users, defense
-from .api.auth import limiter
+from src.api.auth import limiter
 
 app = FastAPI(title="W-IDS Core")
 app.state.limiter = limiter

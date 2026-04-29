@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, Header, status, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from ...database import get_db
-from ...models import Workspace
-from ...schemas import AlertCreate
-from ...core.queue import add_to_queue, redis_client
+from src.database import get_db
+from src.models import Workspace
+from src.schemas import AlertCreate
+from src.core.queue import add_to_queue, redis_client
 
 router = APIRouter()
 

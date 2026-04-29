@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
-from ...database import get_db
-from ...models import Alert, User
-from ...core.security import get_current_user
+from src.database import get_db
+from src.models import Alert, User
+from src.core.security import get_current_user
 
 router = APIRouter(prefix="/stats", tags=["Alert Statistics"]) 
 

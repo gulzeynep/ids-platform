@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from .ingest import router as ingest_router
-from .management import router as management_router
-from .stats import router as stats_router
+from src.api.alerts.ingest import router as ingest_router
+from src.api.alerts.management import router as management_router
+from src.api.alerts.stats import router as stats_router
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
