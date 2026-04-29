@@ -28,7 +28,7 @@ export const Management = () => {
         <div>
           <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight">Workspace Control</h2>
           <p className="text-[10px] text-neutral-500 font-mono tracking-tighter">
-            NODE_ID: {user?.id?.substring(0, 8) || 'N/A'} | AUTH_LVL: {user?.role?.toUpperCase() || 'UNKNOWN'}
+            NODE_ID: {user?.id ? String(user.id).substring(0, 8) : 'N/A'} | AUTH_LVL: {user?.role?.toUpperCase() || 'UNKNOWN'}
           </p>
         </div>
         {isAdmin && (
