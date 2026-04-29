@@ -20,7 +20,7 @@ type OnboardingFormValues = z.infer<typeof onboardingSchema>;
 
 export const Onboarding = () => {
     const navigate = useNavigate();
-    const { token, role, setAuth } = useAuthStore();
+    const { token, setAuth } = useAuthStore();
     const [serverError, setServerError] = useState<string | null>(null);
     const [apiKey, setApiKey] = useState<string | null>(null);
 
@@ -30,20 +30,16 @@ export const Onboarding = () => {
     });
 
     const onSubmit = async (data: OnboardingFormValues) => {
-        setServerError(null);
         try {
-            const response = await apiClient.post('/auth/onboard', {
-                ...data,
-                plan: "enterprise" 
-            });
+            const response = await apiClient.post('/auth/onboard', data);
+            
+            const userResponse = await apiClient.get('/auth/me');
+            const updatedUser = userResponse.data;
+
+            setAuth(token!, updatedUser, true);
             
             setApiKey(response.data.sensor_api_key);
-            
-            if (token && role) {
-                setAuth(token, true, role);
-            }
-            
-            toast.success('Workspace initialized successfully!');
+            toast.success("Workspace initialized securely.");
             
         } catch (error: any) {
             const errorMsg = error.response?.data?.detail || "Failed to initialize workspace.";

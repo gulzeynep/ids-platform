@@ -32,33 +32,29 @@ export const Login = () => {
             formData.append('username', data.email);
             formData.append('password', data.password);
 
-            const response = await apiClient.post('/auth/token', formData, {
+            const tokenResponse = await apiClient.post('/auth/token', formData, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
+            const token = tokenResponse.data.access_token;
 
-            const token = response.data.access_token;
-            
-            const profileRes = await apiClient.get('/auth/me', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            useAuthStore.setState({ token });
 
-            const hasWorkspace = profileRes.data.workspace_id !== null;
-            const role = profileRes.data.role;
+            const userResponse = await apiClient.get('/auth/me');
+            const user = userResponse.data;
 
-            setAuth(token, hasWorkspace, role);
-            
-            toast.success('Authentication successful. Welcome back.');
-            
-            if (hasWorkspace) {
-                navigate('/dashboard');
-            } else {
+            const hasWorkspace = !!user.workspace_id;
+            setAuth(token, user, hasWorkspace);
+
+            toast.success("Authentication successful");
+
+            if (!hasWorkspace) {
                 navigate('/onboarding');
+            } else {
+                navigate('/dashboard');
             }
-            
-        } catch (error: any) {
-            const errorMsg = error.response?.data?.detail || "Authentication failed. Please check your credentials.";
-            setServerError(errorMsg);
-            toast.error(errorMsg);
+        } catch (error) {
+            setServerError("Invalid credentials or server error.");
+            console.error(error);
         }
     };
 
