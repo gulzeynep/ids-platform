@@ -100,6 +100,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const disconnect = useCallback(() => {
     if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
     if (ws.current) {
+      ws.current.onclose = null; 
+      ws.current.onerror = null;
+      ws.current.onmessage = null;
+      ws.current.onopen = null;
+      
       ws.current.close();
       ws.current = null;
     }
