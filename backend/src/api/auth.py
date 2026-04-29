@@ -15,7 +15,7 @@ from ..database import get_db
 from ..models import User, Workspace
 from ..schemas import UserRegister, UserResponse, UserProfileUpdate
 from ..core.security import ( get_password_hash, verify_password, create_access_token, get_current_user)
-from ...config import settings
+from config import settings
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
