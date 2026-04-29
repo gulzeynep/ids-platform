@@ -95,7 +95,7 @@ class AlertResponse(BaseModel):
     payload_preview: Optional[str]
     
     is_flagged: bool = False
-    is_saved: bool = fal
+    is_saved: bool = False
     
     timestamp: datetime
     workspace_id: int
