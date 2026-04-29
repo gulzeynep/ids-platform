@@ -4,7 +4,11 @@ import { persist } from 'zustand/middleware';
 interface User {
   id: string;
   email: string;
+  full_name?: string;
   role: 'admin' | 'analyst';
+  workspace_id?: number | null;
+  user_persona?: string;
+  is_active?: boolean;
 }
 
 interface AuthState {
