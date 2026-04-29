@@ -8,6 +8,7 @@ interface AlertsState {
   realtimeAlerts: RealtimeAlert[];
   selectedAlert: Alert | null;
   filters: AlertFilters;
+  isWsConnected: boolean;
   
   // Actions
   setAlerts: (alerts: Alert[]) => void;
@@ -19,6 +20,7 @@ interface AlertsState {
   setFilters: (filters: Partial<AlertFilters>) => void;
   resetFilters: () => void;
   clearRealtimeAlerts: () => void;
+  setWsConnected: (status: boolean) => void;
 }
 
 const defaultFilters: AlertFilters = {
@@ -37,8 +39,8 @@ export const useAlertsStore = create<AlertsState>()(
       realtimeAlerts: [],
       selectedAlert: null,
       filters: defaultFilters,
-      
-      // Actions
+      isWsConnected: false,
+
       setAlerts: (alerts) => set({ alerts }),
       
       addAlert: (alert) => set((state) => ({
@@ -73,6 +75,8 @@ export const useAlertsStore = create<AlertsState>()(
       resetFilters: () => set({ filters: defaultFilters }),
       
       clearRealtimeAlerts: () => set({ realtimeAlerts: [] }),
+
+      setWsConnected: (status) => set({ isWsConnected: status }),
     }),
     { name: 'alerts-store' }
   )

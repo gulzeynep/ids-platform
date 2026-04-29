@@ -31,7 +31,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   
   // Stores
-  const { addRealtimeAlert } = useAlertsStore();
+  const { addRealtimeAlert, setWsConnected } = useAlertsStore();
   const token = useAuthStore((state) => state.token); 
 
   const connect = useCallback(() => {
@@ -40,12 +40,12 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      const urlWithAuth = `${WS_URL}?token=${token}`;
-      ws.current = new WebSocket(urlWithAuth);
+      ws.current = new WebSocket(`${WS_URL}?token=${token}`);
 
       ws.current.onopen = () => {
         console.log('SOC Connection: Established');
         reconnectAttempts.current = 0;
+        setWsConnected(true); 
         onConnect?.();
       };
 
@@ -71,6 +71,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
       ws.current.onclose = () => {
         console.warn('SOC Connection: Terminated');
+        setWsConnected(false);
         onDisconnect?.();
         
         if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
@@ -83,6 +84,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       };
 
       ws.current.onerror = (error) => {
+        setWsConnected(false); 
         onError?.(error);
       };
 
