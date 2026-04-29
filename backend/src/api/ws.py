@@ -7,20 +7,18 @@ import json
 from src.core.ws_manager import manager
 from src.database import get_db
 from src.models import User
-
-from config import settings
+from config import settings 
 
 router = APIRouter(prefix="/ws", tags=["WebSockets"])
 
-SECRET_KEY = settings.SECRET_KEY
-ALGORITHM = settings.ALGORITHM
-
-@router.websocket("/stream")
+@router.websocket("")
 async def websocket_endpoint(
     websocket: WebSocket, 
     db: AsyncSession = Depends(get_db)
 ):
     await websocket.accept()
+    
+    workspace_id = None 
 
     try:
         auth_message = await websocket.receive_text()
@@ -29,12 +27,13 @@ async def websocket_endpoint(
         
         if not token:
             await websocket.close(code=1008)
+            return
 
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
+        
         if not email:
-            await websocket.close(code=1008) # 1008: Policy Violation
+            await websocket.close(code=1008) 
             return
 
         result = await db.execute(select(User).where(User.email == email))
@@ -45,15 +44,16 @@ async def websocket_endpoint(
             return
 
         workspace_id = user.workspace_id
-
-        if workspace_id not in manager.active_connections:
-            manager.active_connections[workspace_id] = []
-        manager.active_connections[workspace_id].append(websocket)
+        await manager.connect(websocket, workspace_id)
 
         while True: 
-            await websocket.receive_text()
+            data = await websocket.receive_text()
 
     except JWTError:
         await websocket.close(code=1008)
     except WebSocketDisconnect:
-        manager.disconnect(websocket, workspace_id)
+        if workspace_id:
+            manager.disconnect(websocket, workspace_id)
+    except Exception as e:
+        if workspace_id:
+            manager.disconnect(websocket, workspace_id)
