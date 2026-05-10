@@ -25,7 +25,10 @@ HOME_NET = '172.18.0.0/16'
 
 -- set up the external network addresses.
 -- (leave as "any" in most situations)
-EXTERNAL_NET = '!$HOME_NET'
+-- In this Docker reverse-proxy topology Snort sees the proxied leg as
+-- container-to-container traffic, so the source can also be inside HOME_NET.
+-- Keep official $EXTERNAL_NET -> $HOME_NET web signatures effective.
+EXTERNAL_NET = 'any'
 
 
 include 'snort_defaults.lua'

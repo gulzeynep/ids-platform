@@ -37,6 +37,7 @@ services:
       dockerfile: Dockerfile
     container_name: ids_backend
     restart: always
+    command: /bin/bash ./start.sh
     expose:
       - "8000"
     volumes:
@@ -87,7 +88,7 @@ services:
       dockerfile: Dockerfile.snort
     container_name: secure-engine
     restart: always
-    network_mode: host
+    network_mode: "service:reverse-proxy"
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -100,16 +101,16 @@ services:
     environment:
       - INTERFACE=eth0
     command:
-    - sh
-    - -c
-    - |
-      ip link set eth0 promisc on || true
-      /usr/local/bin/snort \
-        -c /etc/snort/etc/snort.lua \
-        -i eth0 \
-        -l /var/log/snort \
-        -k none \
-        -A alert_json
+      - sh
+      - -c
+      - |
+        /usr/local/bin/snort \
+          -c /etc/snort/etc/snort.lua \
+          -i eth0 \
+          -l /var/log/snort \
+          -k none \
+          -A alert_json \
+          --daq pcap
     depends_on:
       - reverse-proxy
 
@@ -119,7 +120,7 @@ services:
       dockerfile: Dockerfile
     container_name: ids_snort_bridge
     restart: always
-    command: python snort_bridge.py
+    command: python -u snort_bridge.py
     volumes:
       - ./backend:/app
       - ./snort/logs:/var/log/snort:ro

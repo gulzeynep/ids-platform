@@ -10,7 +10,7 @@ import asyncio
 
 SNORT_LOG = "/var/log/snort/alert_json.txt"
 BACKEND   = "http://ids_backend:8000"
-API_KEY   = os.environ.get("API_KEY", "")
+API_KEY   = os.environ.get("SNORT_API_KEY") or os.environ.get("API_KEY", "")
 
 PRIORITY_MAP = {1: "critical", 2: "high", 3: "medium", 4: "low"}
 
