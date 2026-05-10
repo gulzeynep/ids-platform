@@ -18,3 +18,5 @@ bcrypt==4.1.2
 
 #simulation
 requests==2.31.0
+httpx
+asyncio

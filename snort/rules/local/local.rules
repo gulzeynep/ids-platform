@@ -1,0 +1,7 @@
+# 1. Genel kuralları en alta taşı veya başlarına # koyarak pasif yap (Test için)
+alert tcp any any -> any any (msg:"TRAFIK VAR"; sid:1000003; rev:1;)
+
+# 2. HTTP katmanına güvenmeyen, doğrudan metin arayan kurallar ekle:
+alert tcp any any -> any 8000 (msg:"ZARARLI: Path Traversal Denemesi"; content:"etc/passwd";  sid:1000010; rev:1;)
+alert tcp any any -> any 8000 (msg:"ZARARLI: XSS Denemesi"; content:"<script>";  sid:1000011; rev:1;)
+alert tcp any any -> any 8000 (msg:"ZARARLI: Skipfish Tarama"; content:"Skipfish";  sid:1000012; rev:1;)
