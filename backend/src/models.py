@@ -48,30 +48,33 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True, index=True)
-    
+
     # Threat Classification
-    type = Column(String, nullable=False) 
-    severity = Column(String, nullable=False) 
-    
+    type = Column(String, nullable=False)
+    severity = Column(String, nullable=False)
+
     # Network Details
     source_ip = Column(String, nullable=False)
-    destination_ip = Column(String, nullable=False) 
-    source_port = Column(Integer, nullable=True) 
+    destination_ip = Column(String, nullable=False)
+    source_port = Column(Integer, nullable=True)
     destination_port = Column(Integer, nullable=True)
-    protocol = Column(String, default="TCP") # TCP, UDP, ICMP, HTTP
-    
-    payload_preview = Column(Text, nullable=True) 
-    
+    protocol = Column(String, default="TCP")
+
+    payload_preview = Column(Text, nullable=True)
+
     # Status & Management
-    action = Column(String, default="logged") # blocked, allowed, logged
-    status = Column(String, default="new") # reviewing, reviewed, false_positive
-    notes = Column(Text, nullable=True) 
+    action = Column(String, default="logged")
+    status = Column(String, default="new")
+    notes = Column(Text, nullable=True)
+
+    # ── ADD THESE TWO MISSING COLUMNS ──────────────
+    is_flagged = Column(Boolean, default=False)   # analyst flagged for review
+    is_saved = Column(Boolean, default=False)     # analyst saved for reference
+    # ───────────────────────────────────────────────
 
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    # Data Isolation 
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
-    
-    # Relationships
+
     workspace = relationship("Workspace", back_populates="alerts")
 
 class Notification(Base):
@@ -100,3 +103,18 @@ class BlacklistedIP(Base):
     
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
     workspace = relationship("Workspace", back_populates="blacklisted_ips")
+
+class MonitoredWebsite(Base):
+    """Websites that are routed through the IDS reverse proxy"""
+    __tablename__ = "monitored_websites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, index=True, nullable=False) # e.g., example.com
+    target_ip = Column(String, nullable=False) # e.g., 192.168.1.50
+    target_port = Column(Integer, default=80, nullable=False) # e.g., 80, 443, 8080
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
+    # Relationships
+    workspace = relationship("Workspace")

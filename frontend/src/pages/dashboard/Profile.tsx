@@ -1,11 +1,36 @@
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
 import { Card, CardContent } from '../../components/ui/Card';
 import { User, Shield, Fingerprint, Mail, Hash } from 'lucide-react';
+import { WebsitePanel } from './WebsitePanel';
+import apiClient from '../../api/client';
 
 export const Profile = () => {
-  const { user } = useAuthStore();
+  const { user, token, setAuth, logout } = useAuthStore();
+  const navigate = useNavigate();
 
-  if (!user) {
+  useEffect(() => {
+    const fetchProfile = async () => {
+      // If user is missing or corrupted (boolean instead of object), try to fetch it
+      if (!user || typeof user !== 'object') {
+        try {
+          const res = await apiClient.get('/auth/me');
+          const hasWorkspace = res.data.workspace_id !== null;
+          if (token) {
+            setAuth(token, res.data, hasWorkspace);
+          }
+        } catch (error) {
+          // If fetch fails, the token might be invalid, force logout
+          logout();
+          navigate('/login');
+        }
+      }
+    };
+    fetchProfile();
+  }, [user, token, setAuth, logout, navigate]);
+
+  if (!user || typeof user !== 'object') {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-pulse font-mono text-blue-500">ACCESSING_ENCRYPTED_PROFILE...</div>
@@ -72,6 +97,8 @@ export const Profile = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <WebsitePanel />
     </div>
   );
 };

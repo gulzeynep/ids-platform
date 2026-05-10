@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:16
@@ -35,8 +37,8 @@ services:
       dockerfile: Dockerfile
     container_name: ids_backend
     restart: always
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - ./backend:/app
       - ./snort/logs:/var/log/snort
@@ -66,27 +68,65 @@ services:
       redis:
         condition: service_healthy
 
-  snort3:
+
+
+  reverse-proxy:
+    image: nginx:latest
+    container_name: ids-gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - backend
+
+  secure-engine:
     build:
       context: .
       dockerfile: Dockerfile.snort
     container_name: secure-engine
     restart: always
-    network_mode: "service:backend"
-    stdin_open: true
-    tty: true
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
     volumes:
       - ./snort/etc:/etc/snort/etc
       - ./snort/rules:/etc/snort/rules
       - ./snort/logs:/var/log/snort
     working_dir: /etc/snort/etc
-    cap_add:
-      - NET_ADMIN
-      - SYS_NICE
+    environment:
+      - INTERFACE=eth0
+    command:
+    - sh
+    - -c
+    - |
+      ip link set eth0 promisc on || true
+      /usr/local/bin/snort \
+        -c /etc/snort/etc/snort.lua \
+        -i eth0 \
+        -l /var/log/snort \
+        -k none \
+        -A alert_json
+    depends_on:
+      - reverse-proxy
+
+  snort-bridge:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ids_snort_bridge
+    restart: always
+    command: python snort_bridge.py
+    volumes:
+      - ./backend:/app
+      - ./snort/logs:/var/log/snort:ro
+    env_file:
+      - .env
     depends_on:
       - backend
-    # Çakışmayı önlemek için baştaki "snort" kelimesi silindi
-    command: ["-c", "snort.lua", "-i", "eth0", "-l", "/var/log/snort", "-k", "none"]
 
 volumes:
-  postgres_data: {}
+  postgres_data:

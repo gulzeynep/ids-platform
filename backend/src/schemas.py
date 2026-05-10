@@ -110,3 +110,21 @@ class BlacklistResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Monitored Website Schemas
+class MonitoredWebsiteCreate(BaseModel):
+    domain: str
+    target_ip: str
+    target_port: Optional[int] = 80
+
+class MonitoredWebsiteResponse(BaseModel):
+    id: int
+    domain: str
+    target_ip: str
+    target_port: int
+    is_active: bool
+    created_at: datetime
+    workspace_id: int
+
+    class Config:
+        from_attributes = True

@@ -20,9 +20,9 @@
  
 -- Path to your rules files (this can be a relative path)
 
-RULE_PATH = '../rules'
-BUILTIN_RULE_PATH = '../builtin_rules'
-PLUGIN_RULE_PATH = '../so_rules'
+RULE_PATH = '/etc/snort/rules'
+BUILTIN_RULE_PATH = '/etc/snort/builtin_rules'
+PLUGIN_RULE_PATH = '/etc/snort/so_rules'
 
 -- If you are using reputation preprocessor set these
 WHITE_LIST_PATH = '../lists'
@@ -385,60 +385,44 @@ default_wizard =
 {
     spells =
     {
-        { service = 'ftp', proto = 'tcp', client_first = false,
-          to_client = { '220*FTP', '220*FileZilla' } },
+        { service = 'ftp', proto = 'tcp', to_client = { '220*FTP', '220*FileZilla' } },
 
-        { service = 'http', proto = 'tcp', client_first = true,
-          to_server = http_methods, to_client = { 'HTTP/' } },
+        { service = 'http', proto = 'tcp', to_server = http_methods, to_client = { 'HTTP/' } },
 
-        { service = 'imap', proto = 'tcp', client_first = false,
-          to_client = { '** OK', '** BYE', '** PREAUTH' } },
+        { service = 'imap', proto = 'tcp', to_client = { '** OK', '** BYE', '** PREAUTH' } },
 
-        { service = 'pop3', proto = 'tcp', client_first = false,
-          to_client = { '+OK', '-ERR' } },
+        { service = 'pop3', proto = 'tcp', to_client = { '+OK', '-ERR' } },
 
-        { service = 'sip', client_first = true,
-          to_server = sip_methods, to_client = { 'SIP/' } },
+        { service = 'sip', to_server = sip_methods, to_client = { 'SIP/' } },
 
-        { service = 'smtp', proto = 'tcp', client_first = true,
-          to_server = { 'HELO', 'EHLO' },
+        { service = 'smtp', proto = 'tcp', to_server = { 'HELO', 'EHLO' },
           to_client = { '220*SMTP', '220*MAIL' } },
 
-        { service = 'ssh', proto = 'tcp', client_first = true,
-          to_server = { '*SSH' }, to_client = { '*SSH' } },
+        { service = 'ssh', proto = 'tcp', to_server = { '*SSH' }, to_client = { '*SSH' } },
 
-        { service = 'dce_http_server', proto = 'tcp', client_first = false,
-          to_client = { 'ncacn_http' } },
+        { service = 'dce_http_server', proto = 'tcp', to_client = { 'ncacn_http' } },
 
-        { service = 'dce_http_proxy', proto = 'tcp', client_first = true,
-          to_server = { 'RPC_CONNECT' } },
+        { service = 'dce_http_proxy', proto = 'tcp', to_server = { 'RPC_CONNECT' } },
 
     },
     hexes =
     {
-        { service = 'dnp3', proto = 'tcp', client_first = true,
-          to_server = { '|05 64|' }, to_client = { '|05 64|' } },
+        { service = 'dnp3', proto = 'tcp', to_server = { '|05 64|' }, to_client = { '|05 64|' } },
 
-        { service = 'netflow', proto = 'udp',  client_first = true,
-          to_server = netflow_versions },
+        { service = 'netflow', proto = 'udp',  to_server = netflow_versions },
 
-        { service = 'http2', proto = 'tcp', client_first = true,
-          to_server = { '|50 52 49 20 2a 20 48 54 54 50 2f 32 2e 30 0d 0a 0d 0a 53 4d 0d 0a 0d 0a|' } },
+        { service = 'http2', proto = 'tcp', to_server = { '|50 52 49 20 2a 20 48 54 54 50 2f 32 2e 30 0d 0a 0d 0a 53 4d 0d 0a 0d 0a|' } },
 
 --[[
-        { service = 'modbus', proto = 'tcp', client_first = true,
-          to_server = { '??|0 0|' } },
+        { service = 'modbus', proto = 'tcp', to_server = { '??|0 0|' } },
 
-        { service = 'rpc', proto = 'tcp', client_first = true,
-          to_server = { '????|0 0 0 0 0 0 0 1|' },
+        { service = 'rpc', proto = 'tcp', to_server = { '????|0 0 0 0 0 0 0 1|' },
           to_client = { '????|0 0 0 0 0 0 0 1|' } },
 --]]
 
-        { service = 'ssl', proto = 'tcp', client_first = true,
-          to_server = { '|16 03|' }, to_client = { '|16 03|' } },
+        { service = 'ssl', proto = 'tcp', to_server = { '|16 03|' }, to_client = { '|16 03|' } },
 
-        { service = 'telnet', proto = 'tcp', client_first = true,
-          to_server = telnet_commands, to_client = telnet_commands },
+        { service = 'telnet', proto = 'tcp', to_server = telnet_commands, to_client = telnet_commands },
     },
 
     curses = {'dce_udp', 'dce_tcp', 'dce_smb'}

@@ -21,11 +21,12 @@
 
 -- HOME_NET and EXTERNAL_NET must be set now
 -- setup the network addresses you are protecting
-HOME_NET = 'any'
+HOME_NET = '172.18.0.0/16'
 
 -- set up the external network addresses.
 -- (leave as "any" in most situations)
-EXTERNAL_NET = 'any'
+EXTERNAL_NET = '!$HOME_NET'
+
 
 include 'snort_defaults.lua'
 include 'file_magic.lua'
@@ -75,11 +76,7 @@ dce_http_server = { }
 
 -- see snort_defaults.lua for default_*
 gtp_inspect = default_gtp
-port_scan = { 
-    scan_type = "all",
-    detect_ack_scans = true,
-    watch_net = "any"
-}
+-- port_scan = {}
 smtp = default_smtp
 
 ftp_server = default_ftp_server
@@ -108,7 +105,7 @@ ftp_data = { }
 -- 3. configure bindings
 -- -------------------------------------------------------------------------
 --
--- wizard = {
+wizard = default_wizard
 
 
 binder = {
@@ -118,10 +115,12 @@ binder = {
     { when = { proto = 'tcp', ports = '111', role='server' }, use = { type = 'rpc_decode' } },
     { when = { proto = 'tcp', ports = '502', role='server' }, use = { type = 'modbus' } },
     { when = { proto = 'tcp', ports = '2123 2152 3386', role='server' }, use = { type = 'gtp_inspect' } },
+    { when = { proto = 'tcp', ports = '80 8080 8000 8888 443 8443', role='server' }, use = { type = 'http_inspect' } },
 
     { when = { proto = 'tcp', service = 'dcerpc' }, use = { type = 'dce_tcp' } },
     { when = { proto = 'udp', service = 'dcerpc' }, use = { type = 'dce_udp' } },
     { when = { proto = 'udp', service = 'netflow' }, use = { type = 'netflow' } },
+    { when = { proto = 'udp', ports = '53', role='server' },  use = { type = 'dns' } },
 
     { when = { service = 'netbios-ssn' },      use = { type = 'dce_smb' } },
     { when = { service = 'dce_http_server' },  use = { type = 'dce_http_server' } },
@@ -147,9 +146,6 @@ binder = {
    -- { use = { type = 'wizard' } }
 }
 
-alert_fast = {
-    file = true
-}
 -- -------------------------------------------------------------------------
 -- 4. configure performance
 -- -------------------------------------------------------------------------
@@ -180,76 +176,75 @@ ips =
     -- RULE_PATH is typically set in snort_defaults.lua
     rules = [[
 
-        include $RULE_PATH/official/snort3-app-detect.rules
-        include $RULE_PATH/official/snort3-browser-chrome.rules
-        include $RULE_PATH/official/snort3-browser-firefox.rules
-        include $RULE_PATH/official/snort3-browser-ie.rules
-        include $RULE_PATH/official/snort3-browser-other.rules
-        include $RULE_PATH/official/snort3-browser-plugins.rules
-        include $RULE_PATH/official/snort3-browser-webkit.rules
-        include $RULE_PATH/official/snort3-content-replace.rules
-        include $RULE_PATH/official/snort3-exploit-kit.rules
-        include $RULE_PATH/official/snort3-file-executable.rules
-        include $RULE_PATH/official/snort3-file-flash.rules
-        include $RULE_PATH/official/snort3-file-identify.rules
-        include $RULE_PATH/official/snort3-file-image.rules
-        include $RULE_PATH/official/snort3-file-multimedia.rules
-        include $RULE_PATH/official/snort3-file-office.rules
-        include $RULE_PATH/official/snort3-file-other.rules
-        include $RULE_PATH/official/snort3-file-pdf.rules
-        include $RULE_PATH/official/snort3-indicator-compromise.rules
-        include $RULE_PATH/official/snort3-indicator-obfuscation.rules
-        include $RULE_PATH/official/snort3-indicator-scan.rules
-        include $RULE_PATH/official/snort3-indicator-shellcode.rules
-        include $RULE_PATH/official/snort3-malware-backdoor.rules
-        include $RULE_PATH/official/snort3-malware-cnc.rules
-        include $RULE_PATH/official/snort3-malware-other.rules
-        include $RULE_PATH/official/snort3-malware-tools.rules
-        include $RULE_PATH/official/snort3-netbios.rules
-        include $RULE_PATH/official/snort3-os-linux.rules
-        include $RULE_PATH/official/snort3-os-mobile.rules
-        include $RULE_PATH/official/snort3-os-other.rules
-        include $RULE_PATH/official/snort3-os-solaris.rules
-        include $RULE_PATH/official/snort3-os-windows.rules
-        include $RULE_PATH/official/snort3-policy-multimedia.rules
-        include $RULE_PATH/official/snort3-policy-other.rules
-        include $RULE_PATH/official/snort3-policy-social.rules
-        include $RULE_PATH/official/snort3-policy-spam.rules
-        include $RULE_PATH/official/snort3-protocol-dns.rules
-        include $RULE_PATH/official/snort3-protocol-finger.rules
-        include $RULE_PATH/official/snort3-protocol-ftp.rules
-        include $RULE_PATH/official/snort3-protocol-icmp.rules
-        include $RULE_PATH/official/snort3-protocol-imap.rules
-        include $RULE_PATH/official/snort3-protocol-nntp.rules
-        include $RULE_PATH/official/snort3-protocol-other.rules
-        include $RULE_PATH/official/snort3-protocol-pop.rules
-        include $RULE_PATH/official/snort3-protocol-rpc.rules
-        include $RULE_PATH/official/snort3-protocol-scada.rules
-        include $RULE_PATH/official/snort3-protocol-services.rules
-        include $RULE_PATH/official/snort3-protocol-snmp.rules
-        include $RULE_PATH/official/snort3-protocol-telnet.rules
-        include $RULE_PATH/official/snort3-protocol-tftp.rules
-        include $RULE_PATH/official/snort3-protocol-voip.rules
-        include $RULE_PATH/official/snort3-pua-adware.rules
-        include $RULE_PATH/official/snort3-pua-other.rules
-        include $RULE_PATH/official/snort3-pua-p2p.rules
-        include $RULE_PATH/official/snort3-pua-toolbars.rules
-        include $RULE_PATH/official/snort3-server-apache.rules
-        include $RULE_PATH/official/snort3-server-iis.rules
-        include $RULE_PATH/official/snort3-server-mail.rules
-        include $RULE_PATH/official/snort3-server-mssql.rules
-        include $RULE_PATH/official/snort3-server-mysql.rules
-        include $RULE_PATH/official/snort3-server-oracle.rules
-        include $RULE_PATH/official/snort3-server-other.rules
-        include $RULE_PATH/official/snort3-server-samba.rules
-        include $RULE_PATH/official/snort3-server-webapp.rules
-        include $RULE_PATH/official/snort3-sql.rules
-        include $RULE_PATH/official/snort3-x11.rules
-        include /etc/snort/rules/local/local.rules
+        include /etc/snort/rules/official/snort3-app-detect.rules
+        include /etc/snort/rules/official/snort3-browser-chrome.rules
+        include /etc/snort/rules/official/snort3-browser-firefox.rules
+        include /etc/snort/rules/official/snort3-browser-ie.rules
+        include /etc/snort/rules/official/snort3-browser-other.rules
+        include /etc/snort/rules/official/snort3-browser-plugins.rules
+        include /etc/snort/rules/official/snort3-browser-webkit.rules
+        include /etc/snort/rules/official/snort3-content-replace.rules
+        include /etc/snort/rules/official/snort3-exploit-kit.rules
+        include /etc/snort/rules/official/snort3-file-executable.rules
+        include /etc/snort/rules/official/snort3-file-flash.rules
+        include /etc/snort/rules/official/snort3-file-identify.rules
+        include /etc/snort/rules/official/snort3-file-image.rules
+        include /etc/snort/rules/official/snort3-file-multimedia.rules
+        include /etc/snort/rules/official/snort3-file-office.rules
+        include /etc/snort/rules/official/snort3-file-other.rules
+        include /etc/snort/rules/official/snort3-file-pdf.rules
+        include /etc/snort/rules/official/snort3-indicator-compromise.rules
+        include /etc/snort/rules/official/snort3-indicator-obfuscation.rules
+        include /etc/snort/rules/official/snort3-indicator-scan.rules
+        include /etc/snort/rules/official/snort3-indicator-shellcode.rules
+        include /etc/snort/rules/official/snort3-malware-backdoor.rules
+        include /etc/snort/rules/official/snort3-malware-cnc.rules
+        include /etc/snort/rules/official/snort3-malware-other.rules
+        include /etc/snort/rules/official/snort3-malware-tools.rules
+        include /etc/snort/rules/official/snort3-netbios.rules
+        include /etc/snort/rules/official/snort3-os-linux.rules
+        include /etc/snort/rules/official/snort3-os-mobile.rules
+        include /etc/snort/rules/official/snort3-os-other.rules
+        include /etc/snort/rules/official/snort3-os-solaris.rules
+        include /etc/snort/rules/official/snort3-os-windows.rules
+        include /etc/snort/rules/official/snort3-policy-multimedia.rules
+        include /etc/snort/rules/official/snort3-policy-other.rules
+        include /etc/snort/rules/official/snort3-policy-social.rules
+        include /etc/snort/rules/official/snort3-policy-spam.rules
+        include /etc/snort/rules/official/snort3-protocol-dns.rules
+        include /etc/snort/rules/official/snort3-protocol-finger.rules
+        include /etc/snort/rules/official/snort3-protocol-ftp.rules
+        include /etc/snort/rules/official/snort3-protocol-icmp.rules
+        include /etc/snort/rules/official/snort3-protocol-imap.rules
+        include /etc/snort/rules/official/snort3-protocol-nntp.rules
+        include /etc/snort/rules/official/snort3-protocol-other.rules
+        include /etc/snort/rules/official/snort3-protocol-pop.rules
+        include /etc/snort/rules/official/snort3-protocol-rpc.rules
+        include /etc/snort/rules/official/snort3-protocol-scada.rules
+        include /etc/snort/rules/official/snort3-protocol-services.rules
+        include /etc/snort/rules/official/snort3-protocol-snmp.rules
+        include /etc/snort/rules/official/snort3-protocol-telnet.rules
+        include /etc/snort/rules/official/snort3-protocol-tftp.rules
+        include /etc/snort/rules/official/snort3-protocol-voip.rules
+        include /etc/snort/rules/official/snort3-pua-adware.rules
+        include /etc/snort/rules/official/snort3-pua-other.rules
+        include /etc/snort/rules/official/snort3-pua-p2p.rules
+        include /etc/snort/rules/official/snort3-pua-toolbars.rules
+        include /etc/snort/rules/official/snort3-server-apache.rules
+        include /etc/snort/rules/official/snort3-server-iis.rules
+        include /etc/snort/rules/official/snort3-server-mail.rules
+        include /etc/snort/rules/official/snort3-server-mssql.rules
+        include /etc/snort/rules/official/snort3-server-mysql.rules
+        include /etc/snort/rules/official/snort3-server-oracle.rules
+        include /etc/snort/rules/official/snort3-server-other.rules
+        include /etc/snort/rules/official/snort3-server-samba.rules
+        include /etc/snort/rules/official/snort3-server-webapp.rules
+        include /etc/snort/rules/official/snort3-sql.rules
+        include /etc/snort/rules/official/snort3-x11.rules
 
     ]],
     mode = 'tap',
-    variables = default_variables
+    variables = default_variables,
 }
 
 rewrite = { }
@@ -305,6 +300,15 @@ rate_filter =
 -- 7. configure outputs
 -- -------------------------------------------------------------------------
 
+alert_fast = {
+    file = true
+}
+
+alert_json = {
+    file = true,
+    limit = 100,
+    fields = 'seconds action msg priority b64_data class src_ap dst_ap proto sid gid rev service',
+}
 -- event logging
 -- you can enable with defaults from the command line with -A <alert_type>
 -- uncomment below to set non-default configs

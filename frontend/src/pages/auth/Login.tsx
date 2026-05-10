@@ -43,9 +43,8 @@ export const Login = () => {
             });
 
             const hasWorkspace = profileRes.data.workspace_id !== null;
-            const role = profileRes.data.role;
 
-            setAuth(token, hasWorkspace, role);
+            setAuth(token, profileRes.data, hasWorkspace);
             
             toast.success('Authentication successful. Welcome back.');
             

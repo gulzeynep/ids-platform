@@ -20,7 +20,7 @@ type OnboardingFormValues = z.infer<typeof onboardingSchema>;
 
 export const Onboarding = () => {
     const navigate = useNavigate();
-    const { token, role, setAuth } = useAuthStore();
+    const { token, user, setAuth } = useAuthStore();
     const [serverError, setServerError] = useState<string | null>(null);
     const [apiKey, setApiKey] = useState<string | null>(null);
 
@@ -39,8 +39,8 @@ export const Onboarding = () => {
             
             setApiKey(response.data.sensor_api_key);
             
-            if (token && role) {
-                setAuth(token, true, role);
+            if (token && user) {
+                setAuth(token, user, true);
             }
             
             toast.success('Workspace initialized successfully!');

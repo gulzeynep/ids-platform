@@ -57,10 +57,9 @@ export const Register = () => {
             });
 
             const hasWorkspace = profileRes.data.workspace_id !== null;
-            const role = profileRes.data.role;
 
             // 4. Save to global state
-            setAuth(token, hasWorkspace, role);
+            setAuth(token, profileRes.data, hasWorkspace);
             
             // 5. Critical redirect directly to onboarding
             navigate('/onboarding');
