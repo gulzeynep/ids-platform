@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from src.database import get_db
 from src.models import User, Workspace
-from src.schemas import UserRegister, UserResponse, UserProfileUpdate
+from src.schemas import UserRegister, UserResponse, UserProfileUpdate, PasswordChangeRequest
 from src.core.security import ( get_password_hash, verify_password, create_access_token, get_current_user)
 from config import settings
 
@@ -162,3 +162,31 @@ async def update_my_profile(
         
     await db.commit()
     return {"status": "Profile updated successfully."}
+
+@router.patch("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    passwords: PasswordChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Allows an operative to securely update their access credentials."""
+    
+    # 1. Verify the current password
+    if not verify_password(passwords.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Incorrect current password."
+        )
+    
+    # 2. Prevent reusing the same password
+    if passwords.current_password == passwords.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="New password cannot be identical to the current one."
+        )
+        
+    # 3. Hash and store the new password
+    current_user.hashed_password = get_password_hash(passwords.new_password)
+    await db.commit()
+    
+    return {"message": "Security credentials updated successfully."}

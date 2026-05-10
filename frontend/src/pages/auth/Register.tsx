@@ -8,10 +8,7 @@ import apiClient from '../../api/client';
 import { useAuthStore } from '../../stores/auth.store';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import axios from 'axios';
 import.meta.env
-
-const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const registerSchema = z.object({
     email: z.string().email({ message: "Invalid email address" }),
