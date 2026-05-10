@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Flag, Star, ShieldCheck, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Flag, ShieldCheck, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { alertsApi, alertKeys } from '../../api/endpoints/alerts';
 import { useAlertsStore } from '../../stores/alerts.store';
 import { Card } from '../../components/ui/Card';
@@ -14,7 +14,7 @@ export const Intrusions = () => {
   const limit = 50;
 
 
-  const { data: alerts, isLoading, isError } = useQuery({
+  const { data: alerts, isLoading } = useQuery({
     queryKey: alertKeys.list(filters, page),
     queryFn: () => alertsApi.getAlerts(filters, page, limit),
   });

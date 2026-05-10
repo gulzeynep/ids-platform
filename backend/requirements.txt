@@ -4,6 +4,8 @@ uvicorn[standard]==0.29.0
 asyncpg==0.29.0
 python-multipart==0.0.9
 fastapi-mail==1.4.1
+slowapi
+httpx
 
 #database and data pipline 
 SQLAlchemy==2.0.29
@@ -17,5 +19,3 @@ bcrypt==4.1.2
 
 #simulation
 requests==2.31.0
-httpx
-asyncio

@@ -25,13 +25,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     onError,
   } = options;
 
-  // Refs
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   
-  // Stores
-  const { addRealtimeAlert } = useAlertsStore();
+  const { addRealtimeAlert, setWsConnected } = useAlertsStore();
   const token = useAuthStore((state) => state.token); 
 
   const connect = useCallback(() => {
@@ -40,12 +38,18 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      const urlWithAuth = `${WS_URL}?token=${token}`;
-      ws.current = new WebSocket(urlWithAuth);
+      ws.current = new WebSocket(WS_URL);
 
       ws.current.onopen = () => {
         console.log('SOC Connection: Established');
         reconnectAttempts.current = 0;
+        setWsConnected(true); 
+        
+        ws.current?.send(JSON.stringify({ 
+            type: "auth", 
+            token: token 
+        }));
+
         onConnect?.();
       };
 
@@ -71,6 +75,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
       ws.current.onclose = () => {
         console.warn('SOC Connection: Terminated');
+        setWsConnected(false);
         onDisconnect?.();
         
         if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
@@ -83,6 +88,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       };
 
       ws.current.onerror = (error) => {
+        setWsConnected(false); 
         onError?.(error);
       };
 
@@ -94,6 +100,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const disconnect = useCallback(() => {
     if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
     if (ws.current) {
+      ws.current.onclose = null; 
+      ws.current.onerror = null;
+      ws.current.onmessage = null;
+      ws.current.onopen = null;
+      
       ws.current.close();
       ws.current = null;
     }

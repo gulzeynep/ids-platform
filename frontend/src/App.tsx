@@ -7,6 +7,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
+import { Onboarding } from './pages/auth/Onboarding';
 
 import { Intelligence } from './pages/dashboard/Intelligence';
 import { Overview } from './pages/dashboard/Overview';
@@ -43,6 +44,7 @@ function App() {
           <Route element={<PublicLayout />}>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/onboarding" element={<Onboarding />} />
           </Route>
 
           <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

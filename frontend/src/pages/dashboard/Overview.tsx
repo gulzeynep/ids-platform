@@ -11,7 +11,7 @@ export const Overview = () => {
     const navigate = useNavigate();
     const { realtimeAlerts } = useAlertsStore(); 
 
-    const { data: stats, isLoading, isError } = useQuery({
+    const { data: stats, isLoading } = useQuery({
         queryKey: alertKeys.stats(),
         queryFn: () => alertsApi.getAlertStats(),
         refetchInterval: 3000, 
@@ -36,16 +36,6 @@ export const Overview = () => {
                         <p className="text-sm opacity-80 font-mono">
                             {isCompromised ? "> Alert: Critical anomalies detected in edge sensors." : "> Status: All clusters operating within baseline parameters."}
                         </p>
-                    </div>
-                </div>
-                <div className="hidden lg:flex items-center gap-8 px-6 border-l border-current/20">
-                    <div className="text-center">
-                        <p className="text-[10px] uppercase opacity-50">Active Sensors</p>
-                        <p className="font-mono font-bold">04/04</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-[10px] uppercase opacity-50">Latency</p>
-                        <p className="font-mono font-bold text-blue-400">24ms</p>
                     </div>
                 </div>
             </div>

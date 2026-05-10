@@ -3,13 +3,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 
-from ..database import get_db
-from ..models import BlacklistedIP, User
-from ..schemas import BlacklistCreate, BlacklistResponse
-from .auth import get_current_user
-from ..core.queue import redis_client
+from src.database import get_db
+from src.models import BlacklistedIP, User
+from src.schemas import BlacklistCreate, BlacklistResponse
+from src.core.security import get_current_user
+from src.core.queue import redis_client
 
 router = APIRouter(prefix="/defense", tags=["Defense Operations"])
+
+@router.get("/blacklist", response_model=List[BlacklistResponse])
+async def get_blacklist(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Fetches the list of currently blacklisted IPs for the workspace."""
+    result = await db.execute(
+        select(BlacklistedIP).where(
+            BlacklistedIP.workspace_id == current_user.workspace_id
+        ).order_by(BlacklistedIP.timestamp.desc())
+    )
+    return result.scalars().all()
 
 @router.post("/blacklist", response_model=BlacklistResponse, status_code=status.HTTP_201_CREATED)
 async def add_to_blacklist(

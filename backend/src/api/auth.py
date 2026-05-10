@@ -2,53 +2,25 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from slowapi import Limiter 
+from slowapi.util import get_remote_address
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
-from jose import JWTError, jwt
 
-from ..database import get_db
-from ..models import User, Workspace
-from ..schemas import UserRegister, UserResponse, UserProfileUpdate
-from ..core.security import (
-    get_password_hash, verify_password, create_access_token, 
-    ACCESS_TOKEN_EXPIRE_MINUTES, oauth2_scheme, SECRET_KEY, ALGORITHM
-)
+from src.database import get_db
+from src.models import User, Workspace
+from src.schemas import UserRegister, UserResponse, UserProfileUpdate, PasswordChangeRequest
+from src.core.security import ( get_password_hash, verify_password, create_access_token, get_current_user)
+from config import settings
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
-async def get_current_user(token: str = Depends(oauth2_scheme), 
-                           db: AsyncSession = Depends(get_db)) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
-    
-    if user is None:
-        raise credentials_exception
-        
-    # user status check 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been suspended by the administrator."
-        )
-        
-    return user
-
+ACCESS_TOKEN_EXPIRE_MINUTES = settings. ACCESS_TOKEN_EXPIRE_MINUTES
 
 #  REGISTRATION 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -71,7 +43,9 @@ async def register_user(
 
 # LOGIN (TOKEN GENERATION)
 @router.post("/token") 
+@limiter.limit("5/minute")
 async def login_for_access_token(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(), 
     db: AsyncSession = Depends(get_db)
 ):
@@ -188,3 +162,31 @@ async def update_my_profile(
         
     await db.commit()
     return {"status": "Profile updated successfully."}
+
+@router.patch("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    passwords: PasswordChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Allows an operative to securely update their access credentials."""
+    
+    # 1. Verify the current password
+    if not verify_password(passwords.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Incorrect current password."
+        )
+    
+    # 2. Prevent reusing the same password
+    if passwords.current_password == passwords.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="New password cannot be identical to the current one."
+        )
+        
+    # 3. Hash and store the new password
+    current_user.hashed_password = get_password_hash(passwords.new_password)
+    await db.commit()
+    
+    return {"message": "Security credentials updated successfully."}

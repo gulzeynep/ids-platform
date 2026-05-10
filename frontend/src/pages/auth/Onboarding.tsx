@@ -13,14 +13,14 @@ import { CheckCircle2 } from 'lucide-react';
 const onboardingSchema = z.object({
     full_name: z.string().min(2, "Full name is required"),
     company_name: z.string().min(2, "Workspace/Company name is required"),
-    user_persona: z.enum(["student", "solo_dev", "corporate"])
+    user_persona: z.enum(["student", "solo_dev", "corporate"]),
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>;
 
 export const Onboarding = () => {
     const navigate = useNavigate();
-    const { token, user, setAuth } = useAuthStore();
+    const { token, setAuth } = useAuthStore();
     const [serverError, setServerError] = useState<string | null>(null);
     const [apiKey, setApiKey] = useState<string | null>(null);
 
@@ -30,25 +30,27 @@ export const Onboarding = () => {
     });
 
     const onSubmit = async (data: OnboardingFormValues) => {
-        setServerError(null);
         try {
-            const response = await apiClient.post('/auth/onboard', {
+            const payload = {
                 ...data,
-                plan: "enterprise" 
-            });
+                plan: "free"
+            };
+            const response = await apiClient.post('/auth/onboard', payload);
+            
+            const userResponse = await apiClient.get('/auth/me');
+            const updatedUser = userResponse.data;
+
+            setAuth(token!, updatedUser, true);
             
             setApiKey(response.data.sensor_api_key);
-            
-            if (token && user) {
-                setAuth(token, user, true);
-            }
-            
-            toast.success('Workspace initialized successfully!');
+            toast.success("Workspace initialized securely.");
             
         } catch (error: any) {
-            const errorMsg = error.response?.data?.detail || "Failed to initialize workspace.";
-            setServerError(errorMsg);
-            toast.error(errorMsg);
+            const message = error.response?.data?.detail || "Failed to initialize workspace.";
+            const safeMessage = typeof message === 'object' ? JSON.stringify(message) : message;
+            
+            setServerError(safeMessage);
+            toast.error(safeMessage);
         }
     };
 

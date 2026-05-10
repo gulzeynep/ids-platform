@@ -6,7 +6,7 @@ from typing import List
 from src.database import get_db
 from src.models import User, Workspace
 from src.schemas import UserResponse, WorkspaceResponse, UserRegister
-from .auth import get_current_user, get_password_hash
+from src.core.security import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/admin", tags=["Admin Panel"])
 

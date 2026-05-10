@@ -2,8 +2,7 @@ import apiClient from '../client';
 import type { 
   Alert, 
   AlertUpdateDto, 
-  AlertFilters,
-  AlertStats
+  AlertFilters
 } from '../../types';
 
 
@@ -52,10 +51,8 @@ export const alertsApi = {
     return response.data;
   },
 
-  getAlertStats: async (timeRange: string = '24h') => {
-    const response = await apiClient.get('/alerts/stats', { 
-      params: { time_range: timeRange } 
-    });
+  getAlertStats: async () => {
+    const response = await apiClient.get('/alerts/stats/dashboard'); 
     return response.data;
   }
 };

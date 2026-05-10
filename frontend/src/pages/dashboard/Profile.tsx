@@ -1,36 +1,50 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import apiClient from '../../api/client';
 import { useAuthStore } from '../../stores/auth.store';
 import { Card, CardContent } from '../../components/ui/Card';
-import { User, Shield, Fingerprint, Mail, Hash } from 'lucide-react';
-import { WebsitePanel } from './WebsitePanel';
-import apiClient from '../../api/client';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { User, Shield, Fingerprint, Mail, Hash, Key } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const Profile = () => {
-  const { user, token, setAuth, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { user } = useAuthStore();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      // If user is missing or corrupted (boolean instead of object), try to fetch it
-      if (!user || typeof user !== 'object') {
-        try {
-          const res = await apiClient.get('/auth/me');
-          const hasWorkspace = res.data.workspace_id !== null;
-          if (token) {
-            setAuth(token, res.data, hasWorkspace);
-          }
-        } catch (error) {
-          // If fetch fails, the token might be invalid, force logout
-          logout();
-          navigate('/login');
-        }
-      }
-    };
-    fetchProfile();
-  }, [user, token, setAuth, logout, navigate]);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  if (!user || typeof user !== 'object') {
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      return apiClient.patch('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+    },
+    onSuccess: () => {
+      toast.success("Security credentials updated successfully.");
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (error: any) => {
+      const errorMsg = error.response?.data?.detail || "Failed to update password.";
+      toast.error(typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg);
+    }
+  });
+
+  const handleUpdate = () => {
+    if (newPassword !== confirmPassword) {
+      return toast.error("New passwords do not match.");
+    }
+    if (newPassword.length < 8) {
+      return toast.error("New password must be at least 8 characters.");
+    }
+    changePasswordMutation.mutate();
+  };
+
+  if (!user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-pulse font-mono text-blue-500">ACCESSING_ENCRYPTED_PROFILE...</div>
@@ -39,7 +53,9 @@ export const Profile = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      
+      {/* HEADER BANNER */}
       <div className="flex items-end gap-6 p-8 rounded-[2.5rem] bg-gradient-to-t from-blue-500/10 to-transparent border border-white/5 shadow-2xl">
         <div className="w-24 h-24 rounded-3xl bg-neutral-900 border border-white/10 flex items-center justify-center shadow-inner group">
           <User className="w-12 h-12 text-blue-500 group-hover:scale-110 transition-transform" />
@@ -58,6 +74,8 @@ export const Profile = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* IDENTITY CARD */}
         <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] overflow-hidden">
           <CardContent className="p-8 space-y-6">
             <div className="flex items-center gap-4 group">
@@ -81,24 +99,87 @@ export const Profile = () => {
           </CardContent>
         </Card>
 
+        {/* CLEARANCE CARD (Fake data removed) */}
         <Card className="bg-white/[0.02] border-white/5 rounded-[2rem]">
           <CardContent className="p-8 space-y-4">
             <h4 className="text-xs font-bold text-blue-500 uppercase tracking-[0.2em] flex items-center gap-2">
               <Fingerprint size={16} /> Security Clearance
             </h4>
             <p className="text-xs text-neutral-500 leading-relaxed font-medium">
-              This account is authorized<span className="text-white italic">{user?.role?.toUpperCase()}</span> for this operation. 
-              Layer 7 encryption is active.
+              This account is authorized as <span className="text-white italic">{user?.role?.toUpperCase()}</span>. Access to the command center and system overrides are strictly monitored and logged.
             </p>
             <div className="pt-6 flex items-center gap-2">
               <Shield size={14} className="text-green-500" />
-              <span className="text-[10px] text-green-500/80 font-bold uppercase tracking-tighter">Session Secured via SSL/TLS 1.3</span> //is it tho ? look at it later
+              <span className="text-[10px] text-green-500/80 font-bold uppercase tracking-tighter">Active Authenticated Session</span> 
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* NEW: CREDENTIAL MANAGEMENT CARD */}
+      <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] overflow-hidden">
+        <CardContent className="p-8 space-y-6">
+          <h4 className="text-xs font-bold text-blue-500 uppercase tracking-[0.2em] flex items-center gap-2 mb-4">
+            <Key size={16} /> Credential Management
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] text-neutral-500 uppercase font-bold mb-2 block">Current Password</label>
+                <Input 
+                  type="password" 
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="bg-black/40 border-white/10 text-white text-sm h-11" 
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-neutral-500 uppercase font-bold mb-2 block">New Password</label>
+                <Input 
+                  type="password" 
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="bg-black/40 border-white/10 text-white text-sm h-11" 
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-neutral-500 uppercase font-bold mb-2 block">Confirm New Password</label>
+                <Input 
+                  type="password" 
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-black/40 border-white/10 text-white text-sm h-11" 
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-col justify-between bg-black/40 border border-neutral-800 rounded-2xl p-6">
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-blue-500" /> Security Requirements
+                </h4>
+                <ul className="text-xs text-neutral-500 space-y-2 list-disc list-inside font-medium">
+                  <li>Minimum 8 characters length</li>
+                  <li>At least one uppercase letter</li>
+                  <li>At least one numeric digit</li>
+                  <li>At least one special character (!@#$%)</li>
+                </ul>
+              </div>
+              <Button 
+                variant="primary" 
+                className="w-full bg-blue-600 mt-6 h-11" 
+                onClick={handleUpdate}
+                isLoading={changePasswordMutation.isPending}
+                disabled={!currentPassword || !newPassword || !confirmPassword}
+              >
+                Update Credentials
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
-      <WebsitePanel />
     </div>
   );
 };

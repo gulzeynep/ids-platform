@@ -4,10 +4,10 @@ from sqlalchemy import select, and_
 from typing import List, Optional
 from datetime import datetime
 
-from ...database import get_db
-from ...models import Alert, User
-from ...schemas import AlertResponse, AlertUpdateStatus
-from ..auth import get_current_user
+from src.database import get_db
+from src.models import Alert, User
+from src.schemas import AlertResponse, AlertUpdateStatus
+from src.core.security import get_current_user
 
 router = APIRouter()
 

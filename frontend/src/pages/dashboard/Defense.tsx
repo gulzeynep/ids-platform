@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldBan, Plus, Trash2, Globe, ShieldCheck } from 'lucide-react';
+import { ShieldBan, Plus, Globe, ShieldCheck } from 'lucide-react';
 import apiClient from '../../api/client';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
