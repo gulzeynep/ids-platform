@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from src.database import get_db
@@ -9,7 +9,6 @@ router = APIRouter(prefix="/stats", tags=["Alert Statistics"])
 
 @router.get("/dashboard")
 async def get_dashboard_metrics(
-    time_range: str = Query("24h"), 
     db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):
@@ -53,7 +52,6 @@ async def get_dashboard_metrics(
 
 @router.get("/analysis")
 async def get_analysis_stats(
-    time_range: str = Query("24h"), 
     db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api import auth, alerts, admin, ws, users, defense, websites
+from src.api import auth, alerts, admin, ws, users, defense
 
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -22,6 +22,5 @@ app.include_router(auth.router, prefix="/auth")
 app.include_router(alerts.router)
 app.include_router(admin.router)
 app.include_router(ws.router)
-app.include_router(users.router)
-app.include_router(defense.router)
-app.include_router(websites.router)
+app.include_router(users.router )
+app.include_router(defense.router )
