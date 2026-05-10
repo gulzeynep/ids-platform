@@ -13,7 +13,7 @@ import { CheckCircle2 } from 'lucide-react';
 const onboardingSchema = z.object({
     full_name: z.string().min(2, "Full name is required"),
     company_name: z.string().min(2, "Workspace/Company name is required"),
-    user_persona: z.enum(["student", "solo_dev", "corporate"])
+    user_persona: z.enum(["student", "solo_dev", "corporate"]),
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>;
@@ -31,7 +31,11 @@ export const Onboarding = () => {
 
     const onSubmit = async (data: OnboardingFormValues) => {
         try {
-            const response = await apiClient.post('/auth/onboard', data);
+            const payload = {
+                ...data,
+                plan: "free"
+            };
+            const response = await apiClient.post('/auth/onboard', payload);
             
             const userResponse = await apiClient.get('/auth/me');
             const updatedUser = userResponse.data;
@@ -42,9 +46,11 @@ export const Onboarding = () => {
             toast.success("Workspace initialized securely.");
             
         } catch (error: any) {
-            const errorMsg = error.response?.data?.detail || "Failed to initialize workspace.";
-            setServerError(errorMsg);
-            toast.error(errorMsg);
+            const message = error.response?.data?.detail || "Failed to initialize workspace.";
+            const safeMessage = typeof message === 'object' ? JSON.stringify(message) : message;
+            
+            setServerError(safeMessage);
+            toast.error(safeMessage);
         }
     };
 

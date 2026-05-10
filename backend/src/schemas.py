@@ -26,7 +26,7 @@ class UserRegister(BaseModel):
             raise ValueError("Password must contain at least one digit.")
         if not re.search(r"[!@#$%^&*()-+_.]", v):
             raise ValueError("Password must contain at least one special character.")
-
+        return v
 class UserProfileUpdate(BaseModel):
     """Onboarding Setup"""
     full_name: str

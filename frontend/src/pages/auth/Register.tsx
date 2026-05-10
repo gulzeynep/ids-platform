@@ -8,6 +8,10 @@ import apiClient from '../../api/client';
 import { useAuthStore } from '../../stores/auth.store';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import axios from 'axios';
+import.meta.env
+
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const registerSchema = z.object({
     email: z.string().email({ message: "Invalid email address" }),
@@ -30,9 +34,9 @@ export const Register = () => {
     });
 
     const onSubmit = async (data: RegisterFormValues) => {
+        useAuthStore.getState().logout();
         setServerError(null);
         try {
-            // 1. Register the user
             await apiClient.post('/auth/register', {
                 email: data.email,
                 password: data.password
@@ -40,7 +44,6 @@ export const Register = () => {
             
             toast.success('Clearance granted. Initializing session...');
 
-            // 2. Auto-login immediately after registration
             const formData = new URLSearchParams();
             formData.append('username', data.email);
             formData.append('password', data.password);
@@ -51,18 +54,15 @@ export const Register = () => {
 
             const token = response.data.access_token;
             
-            // 3. Get user profile and workspace status
-            const profileRes = await apiClient.get('/auth/me', {
+            const profileRes = await apiClient.get(`/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            const hasWorkspace = profileRes.data.workspace_id !== null;
-            const role = profileRes.data.role;
+            const userObj = profileRes.data;
+            const hasWorkspace = userObj.workspace_id !== null;
 
-            // 4. Save to global state
-            setAuth(token, hasWorkspace, role);
+            setAuth(token, userObj, hasWorkspace);
             
-            // 5. Critical redirect directly to onboarding
             navigate('/onboarding');
             
         } catch (error: any) {
