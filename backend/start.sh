@@ -11,9 +11,6 @@ echo "Applying Database Migrations..."
 # This is the magic command that creates your tables automatically!
 alembic upgrade head
 
-echo "Seeding default Workspace for the Snort bridge..."
-python seed_workspace.py
-
 echo "Starting FastAPI Server..."
 # Execute the main API server
 exec uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
