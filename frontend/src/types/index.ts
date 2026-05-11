@@ -20,6 +20,7 @@ export type Protocol = 'TCP' | 'UDP' | 'HTTP' | 'HTTPS' | 'ICMP';
 export interface Alert {
   id: number;
   type: string;
+  title?: string;
   severity: AlertSeverity;
   source_ip: string;
   destination_ip: string;

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, computed_field, field_validator
 from typing import Optional
 from datetime import datetime
 import re 
@@ -102,6 +102,7 @@ class AlertResponse(BaseModel):
     """to display alerts"""
     id: int
     type: str
+    title: str = ""
     severity: str
     source_ip: str
     destination_ip: str
@@ -118,8 +119,49 @@ class AlertResponse(BaseModel):
     
     timestamp: datetime
     workspace_id: int
+
+    @computed_field
+    @property
+    def display_title(self) -> str:
+        return build_alert_title(self.severity, self.payload_preview, self.type)
+
     class Config:
         from_attributes = True
+
+
+def build_alert_title(severity: str, payload_preview: Optional[str], fallback: str) -> str:
+    if not payload_preview:
+        return f"{severity.title()}: {fallback}"
+
+    raw_msg = payload_preview
+    if payload_preview.startswith("[") and "]" in payload_preview:
+        raw_msg = payload_preview[1:payload_preview.index("]")]
+
+    normalized = raw_msg.replace("LOCAL-OFFICIAL-", "").strip()
+    lowered = normalized.lower()
+
+    if "shadow" in lowered or "/etc/shadow" in lowered:
+        name = "Shadow File Access"
+    elif "passwd" in lowered:
+        name = "Password File Access"
+    elif "http request by ipv4" in lowered:
+        name = "Direct IP HTTP Request"
+    elif "union select" in lowered or "sql" in lowered:
+        name = "SQL Injection Probe"
+    elif "script tag" in lowered or "cross-site" in lowered or "xss" in lowered:
+        name = "Cross-Site Scripting Attempt"
+    elif "acunetix" in lowered:
+        name = "Acunetix Scanner Probe"
+    elif ".env" in lowered or "environment file" in lowered:
+        name = "Environment File Disclosure"
+    elif "wp-config" in lowered:
+        name = "WordPress Config Disclosure"
+    elif "jndi" in lowered or "log4shell" in lowered:
+        name = "Log4Shell JNDI Probe"
+    else:
+        name = normalized
+
+    return f"{severity.title()}: {name}"
 
 class AlertUpdateStatus(BaseModel):
     """Used by Analysts to update the status of an alert"""
@@ -140,6 +182,42 @@ class BlacklistResponse(BaseModel):
     created_by: Optional[int]
     timestamp: datetime
     workspace_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class MonitoredWebsiteCreate(BaseModel):
+    domain: str
+    target_ip: str
+    target_port: int
+    scheme: str = "http"
+
+    @field_validator('domain')
+    @classmethod
+    def normalize_domain(cls, v: str) -> str:
+        return v.strip().lower().replace("https://", "").replace("http://", "").strip("/")
+
+    @field_validator('scheme')
+    @classmethod
+    def validate_scheme(cls, v: str) -> str:
+        cleaned = v.strip().lower()
+        if cleaned not in {"http", "https"}:
+            raise ValueError("scheme must be http or https")
+        return cleaned
+
+
+class MonitoredWebsiteResponse(BaseModel):
+    id: int
+    domain: str
+    target_ip: str
+    target_port: int
+    scheme: str
+    is_active: bool
+    created_at: datetime
+    workspace_id: int
+    proxy_url: str
+    dns_target: str
 
     class Config:
         from_attributes = True

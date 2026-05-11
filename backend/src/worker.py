@@ -6,6 +6,7 @@ from src.core.queue import redis_client
 from src.core.ws_manager import manager
 from src.database import AsyncSessionLocal
 from src.models import Alert
+from src.schemas import build_alert_title
 
 
 async def process_alerts():
@@ -30,6 +31,7 @@ async def process_alerts():
                     alert_data = {
                         "id": new_alert.id,
                         "type": new_alert.type,
+                        "title": build_alert_title(new_alert.severity, new_alert.payload_preview, new_alert.type),
                         "severity": new_alert.severity,
                         "source_ip": new_alert.source_ip,
                         "destination_ip": new_alert.destination_ip,

@@ -19,7 +19,7 @@ def classify(msg: str) -> str:
     if any(k in m for k in ["sql", "union select", "xp_cmd"]): return "SQL Injection"
     if any(k in m for k in ["xss", "script", "cross-site"]):   return "XSS"
     if any(k in m for k in ["scan", "nmap", "nikto", "probe"]): return "Port Scan"
-    if any(k in m for k in ["traversal", "passwd", "../"]):      return "Path Traversal"
+    if any(k in m for k in ["traversal", "passwd", "shadow", "../"]): return "Path Traversal"
     if any(k in m for k in ["shellcode", "exploit", "overflow"]): return "Exploit Attempt"
     if any(k in m for k in ["malware", "backdoor", "cnc"]):      return "Malware"
     if any(k in m for k in ["brute", "login fail"]):             return "Brute Force"

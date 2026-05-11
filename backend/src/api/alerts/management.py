@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, or_
 from typing import List, Optional
 from datetime import datetime
 
@@ -8,8 +8,15 @@ from src.database import get_db
 from src.models import Alert, User
 from src.schemas import AlertResponse, AlertUpdateStatus
 from src.core.security import get_current_user
+from src.schemas import build_alert_title
 
 router = APIRouter()
+
+
+def serialize_alert(alert: Alert) -> AlertResponse:
+    response = AlertResponse.model_validate(alert)
+    response.title = build_alert_title(alert.severity, alert.payload_preview, alert.type)
+    return response
 
 @router.get("/", response_model=List[AlertResponse])
 async def get_workspace_alerts(
@@ -17,6 +24,7 @@ async def get_workspace_alerts(
     severity: Optional[str] = "all",
     is_saved: Optional[bool] = None,
     is_flagged: Optional[bool] = None,
+    search: Optional[str] = None,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     limit: int = Query(50, ge=1, le=100),
@@ -35,13 +43,23 @@ async def get_workspace_alerts(
         query = query.where(Alert.is_saved == is_saved)
     if is_flagged is not None:
         query = query.where(Alert.is_flagged == is_flagged)
+    if search:
+        like = f"%{search}%"
+        query = query.where(
+            or_(
+                Alert.type.ilike(like),
+                Alert.source_ip.ilike(like),
+                Alert.destination_ip.ilike(like),
+                Alert.payload_preview.ilike(like),
+            )
+        )
     if start_time:
         query = query.where(Alert.timestamp >= start_time)
     if end_time:
         query = query.where(Alert.timestamp <= end_time)
 
     result = await db.execute(query.order_by(Alert.timestamp.desc()).offset(offset).limit(limit))
-    return result.scalars().all()
+    return [serialize_alert(alert) for alert in result.scalars().all()]
 
 @router.get("/{alert_id}", response_model=AlertResponse)
 async def get_alert_detail(
@@ -59,7 +77,7 @@ async def get_alert_detail(
     alert = result.scalars().first()
     if not alert:
         raise HTTPException(status_code=404, detail="Intelligence record not found.")
-    return alert
+    return serialize_alert(alert)
 
 @router.patch("/{alert_id}/triage")
 async def update_alert_triage(

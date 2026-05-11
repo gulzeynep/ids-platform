@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { getAlertTitle } from '../../utils/alertTitles';
 
 export const Overview = () => {
     const navigate = useNavigate();
@@ -106,7 +107,7 @@ export const Overview = () => {
                                     <div className="flex items-center gap-4">
                                         <span className={`w-2 h-2 rounded-full ${alert.severity === 'critical' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} />
                                         <div>
-                                            <p className="text-xs text-neutral-300 font-bold uppercase">{alert.type}</p>
+                                            <p className="text-xs text-neutral-300 font-bold uppercase">{getAlertTitle(alert)}</p>
                                             <p className="text-[10px] text-neutral-600 italic">SRC: {alert.source_ip}</p>
                                         </div>
                                     </div>

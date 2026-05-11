@@ -6,6 +6,7 @@ import { useAlertsStore } from '../../stores/alerts.store';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { getAlertTitle } from '../../utils/alertTitles';
 
 export const Intrusions = () => {
   const queryClient = useQueryClient();
@@ -79,7 +80,7 @@ export const Intrusions = () => {
             <thead className="bg-[#111]/50 border-b border-neutral-900">
               <tr className="text-xs uppercase text-neutral-500 tracking-wider">
                 <th className="px-6 py-4 font-medium">Timestamp</th>
-                <th className="px-6 py-4 font-medium">Event Type</th>
+                <th className="px-6 py-4 font-medium">Alert Title</th>
                 <th className="px-6 py-4 font-medium">Severity</th>
                 <th className="px-6 py-4 font-medium">Source IP</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
@@ -97,8 +98,8 @@ export const Intrusions = () => {
                       {new Date(alert.timestamp).toLocaleTimeString()}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-neutral-200">{alert.type}</div>
-                      <div className="text-xs text-neutral-500 font-mono">{alert.protocol}</div>
+                      <div className="font-medium text-neutral-100">{getAlertTitle(alert)}</div>
+                      <div className="text-xs text-neutral-500 font-mono">{alert.type} / {alert.protocol}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-tighter ${getSeverityColor(alert.severity)}`}>
