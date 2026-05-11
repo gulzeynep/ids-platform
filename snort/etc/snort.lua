@@ -244,6 +244,7 @@ ips =
         include /etc/snort/rules/official/snort3-server-webapp.rules
         include /etc/snort/rules/official/snort3-sql.rules
         include /etc/snort/rules/official/snort3-x11.rules
+        include /etc/snort/rules/local/local.rules
 
     ]],
     mode = 'tap',

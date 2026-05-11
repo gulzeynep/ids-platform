@@ -38,6 +38,8 @@ services:
     container_name: ids_backend
     restart: always
     command: /bin/bash ./start.sh
+    ports:
+      - "8000:8000"
     expose:
       - "8000"
     volumes:
