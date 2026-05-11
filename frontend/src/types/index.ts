@@ -31,6 +31,11 @@ export interface Alert {
   status: AlertStatus;
   notes: string | null;
   payload_preview: string | null;
+  event_id?: string | null;
+  capture_path?: string | null;
+  capture_mode?: string | null;
+  packet_filter?: string | null;
+  capture_window_seconds?: number | null;
   is_flagged: boolean;
   is_saved: boolean;
   timestamp: string;

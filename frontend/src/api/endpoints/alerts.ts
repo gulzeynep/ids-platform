@@ -51,6 +51,11 @@ export const alertsApi = {
     return response.data;
   },
 
+  getAlert: async (id: number): Promise<Alert> => {
+    const response = await apiClient.get(`/alerts/${id}`);
+    return response.data;
+  },
+
   getAlertStats: async () => {
     const response = await apiClient.get('/alerts/stats/dashboard'); 
     return response.data;

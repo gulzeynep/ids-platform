@@ -106,13 +106,17 @@ services:
       - sh
       - -c
       - |
+        mkdir -p /var/log/snort/archive /var/log/snort/event_captures
+        if [ -f /var/log/snort/alert_json.txt ]; then
+          mv /var/log/snort/alert_json.txt /var/log/snort/archive/alert_json.$$(date +%Y%m%d%H%M%S).txt
+        fi
         /usr/local/bin/snort \
           -c /etc/snort/etc/snort.lua \
-          -i eth0 \
+          -i $${INTERFACE:-eth0} \
           -l /var/log/snort \
           -k none \
           -A alert_json \
-          --daq pcap
+          --daq afpacket
     depends_on:
       - reverse-proxy
 
@@ -125,7 +129,8 @@ services:
     command: python -u snort_bridge.py
     volumes:
       - ./backend:/app
-      - ./snort/logs:/var/log/snort:ro
+      - ./snort/logs:/var/log/snort
+      - ./nginx/logs:/var/log/nginx:ro
     env_file:
       - .env
     depends_on:

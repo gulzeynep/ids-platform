@@ -179,71 +179,10 @@ ips =
     -- RULE_PATH is typically set in snort_defaults.lua
     rules = [[
 
-        include /etc/snort/rules/official/snort3-app-detect.rules
-        include /etc/snort/rules/official/snort3-browser-chrome.rules
-        include /etc/snort/rules/official/snort3-browser-firefox.rules
-        include /etc/snort/rules/official/snort3-browser-ie.rules
-        include /etc/snort/rules/official/snort3-browser-other.rules
-        include /etc/snort/rules/official/snort3-browser-plugins.rules
-        include /etc/snort/rules/official/snort3-browser-webkit.rules
-        include /etc/snort/rules/official/snort3-content-replace.rules
-        include /etc/snort/rules/official/snort3-exploit-kit.rules
-        include /etc/snort/rules/official/snort3-file-executable.rules
-        include /etc/snort/rules/official/snort3-file-flash.rules
-        include /etc/snort/rules/official/snort3-file-identify.rules
-        include /etc/snort/rules/official/snort3-file-image.rules
-        include /etc/snort/rules/official/snort3-file-multimedia.rules
-        include /etc/snort/rules/official/snort3-file-office.rules
-        include /etc/snort/rules/official/snort3-file-other.rules
-        include /etc/snort/rules/official/snort3-file-pdf.rules
-        include /etc/snort/rules/official/snort3-indicator-compromise.rules
-        include /etc/snort/rules/official/snort3-indicator-obfuscation.rules
-        include /etc/snort/rules/official/snort3-indicator-scan.rules
-        include /etc/snort/rules/official/snort3-indicator-shellcode.rules
-        include /etc/snort/rules/official/snort3-malware-backdoor.rules
-        include /etc/snort/rules/official/snort3-malware-cnc.rules
-        include /etc/snort/rules/official/snort3-malware-other.rules
-        include /etc/snort/rules/official/snort3-malware-tools.rules
-        include /etc/snort/rules/official/snort3-netbios.rules
-        include /etc/snort/rules/official/snort3-os-linux.rules
-        include /etc/snort/rules/official/snort3-os-mobile.rules
-        include /etc/snort/rules/official/snort3-os-other.rules
-        include /etc/snort/rules/official/snort3-os-solaris.rules
-        include /etc/snort/rules/official/snort3-os-windows.rules
-        include /etc/snort/rules/official/snort3-policy-multimedia.rules
-        include /etc/snort/rules/official/snort3-policy-other.rules
-        include /etc/snort/rules/official/snort3-policy-social.rules
-        include /etc/snort/rules/official/snort3-policy-spam.rules
-        include /etc/snort/rules/official/snort3-protocol-dns.rules
-        include /etc/snort/rules/official/snort3-protocol-finger.rules
-        include /etc/snort/rules/official/snort3-protocol-ftp.rules
-        include /etc/snort/rules/official/snort3-protocol-icmp.rules
-        include /etc/snort/rules/official/snort3-protocol-imap.rules
-        include /etc/snort/rules/official/snort3-protocol-nntp.rules
-        include /etc/snort/rules/official/snort3-protocol-other.rules
-        include /etc/snort/rules/official/snort3-protocol-pop.rules
-        include /etc/snort/rules/official/snort3-protocol-rpc.rules
-        include /etc/snort/rules/official/snort3-protocol-scada.rules
-        include /etc/snort/rules/official/snort3-protocol-services.rules
-        include /etc/snort/rules/official/snort3-protocol-snmp.rules
-        include /etc/snort/rules/official/snort3-protocol-telnet.rules
-        include /etc/snort/rules/official/snort3-protocol-tftp.rules
-        include /etc/snort/rules/official/snort3-protocol-voip.rules
-        include /etc/snort/rules/official/snort3-pua-adware.rules
-        include /etc/snort/rules/official/snort3-pua-other.rules
-        include /etc/snort/rules/official/snort3-pua-p2p.rules
-        include /etc/snort/rules/official/snort3-pua-toolbars.rules
-        include /etc/snort/rules/official/snort3-server-apache.rules
-        include /etc/snort/rules/official/snort3-server-iis.rules
-        include /etc/snort/rules/official/snort3-server-mail.rules
-        include /etc/snort/rules/official/snort3-server-mssql.rules
-        include /etc/snort/rules/official/snort3-server-mysql.rules
-        include /etc/snort/rules/official/snort3-server-oracle.rules
-        include /etc/snort/rules/official/snort3-server-other.rules
-        include /etc/snort/rules/official/snort3-server-samba.rules
-        include /etc/snort/rules/official/snort3-server-webapp.rules
-        include /etc/snort/rules/official/snort3-sql.rules
-        include /etc/snort/rules/official/snort3-x11.rules
+        # Runtime stability mode: official web rules are kept in
+        # /etc/snort/rules/official, but this lab runtime uses a small local
+        # fallback set derived from those web signatures to avoid long
+        # startup stalls and keep dashboard streaming stable.
         include /etc/snort/rules/local/local.rules
 
     ]],
@@ -310,7 +249,7 @@ alert_fast = {
 
 alert_json = {
     file = true,
-    limit = 100,
+    limit = 100000,
     fields = 'seconds action msg priority b64_data class src_ap dst_ap proto sid gid rev service',
 }
 -- event logging
@@ -327,7 +266,12 @@ alert_json = {
 -- you can enable with defaults from the command line with -L <log_type>
 --log_codecs = { }
 --log_hext = { }
---log_pcap = { }
+-- Full packet logging is intentionally not enabled inline here because this
+-- Snort build can stall before packet processing when log_pcap is active.
+-- Event-based capture metadata is attached by snort_bridge.py instead.
+-- log_pcap = {
+--     limit = 10,
+-- }
 
 -- additional logs
 --packet_capture = { }

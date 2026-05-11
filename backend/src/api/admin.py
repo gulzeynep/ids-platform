@@ -18,17 +18,37 @@ router = APIRouter(prefix="/admin", tags=["Admin Panel"])
 
 
 def website_response(site: MonitoredWebsite) -> MonitoredWebsiteResponse:
+    host = site.public_hostname or site.domain
+    upstream = f"{site.scheme}://{site.target_ip}:{site.target_port}"
+    server_block = (
+        "server {\n"
+        f"    listen {site.listen_port};\n"
+        f"    server_name {host};\n"
+        "    location / {\n"
+        f"        proxy_pass {upstream};\n"
+        "        proxy_set_header Host $host;\n"
+        "        proxy_set_header X-Real-IP $remote_addr;\n"
+        "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n"
+        "    }\n"
+        "}"
+    )
     return MonitoredWebsiteResponse(
         id=site.id,
         domain=site.domain,
         target_ip=site.target_ip,
         target_port=site.target_port,
         scheme=site.scheme,
+        public_hostname=site.public_hostname,
+        listen_port=site.listen_port,
+        tls_mode=site.tls_mode,
+        proxy_mode=site.proxy_mode,
+        health_path=site.health_path,
         is_active=bool(site.is_active),
         created_at=site.created_at,
         workspace_id=site.workspace_id,
-        proxy_url=f"http://localhost:8080",
-        dns_target="localhost:8080",
+        proxy_url=f"http://{host}:{site.listen_port}",
+        dns_target=f"{host}:{site.listen_port}",
+        nginx_server_block=server_block,
     )
 
 async def require_system_admin(current_user: User = Depends(get_current_user)):
@@ -178,6 +198,11 @@ async def create_protected_site(
         target_ip=site_in.target_ip,
         target_port=site_in.target_port,
         scheme=site_in.scheme,
+        public_hostname=site_in.public_hostname,
+        listen_port=site_in.listen_port,
+        tls_mode=site_in.tls_mode,
+        proxy_mode=site_in.proxy_mode,
+        health_path=site_in.health_path,
         workspace_id=current_user.workspace_id,
         is_active=True,
     )

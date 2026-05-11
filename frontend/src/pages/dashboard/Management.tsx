@@ -23,9 +23,15 @@ interface ProtectedSite {
   target_ip: string;
   target_port: number;
   scheme: 'http' | 'https';
+  public_hostname: string | null;
+  listen_port: number;
+  tls_mode: string;
+  proxy_mode: string;
+  health_path: string;
   is_active: boolean;
   proxy_url: string;
   dns_target: string;
+  nginx_server_block: string;
 }
 
 export const Management = () => {
@@ -35,7 +41,17 @@ export const Management = () => {
 
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
-  const [siteForm, setSiteForm] = useState({ domain: '', target_ip: '', target_port: '80', scheme: 'http' });
+  const [siteForm, setSiteForm] = useState({
+    domain: '',
+    public_hostname: '',
+    target_ip: '',
+    target_port: '80',
+    listen_port: '8080',
+    scheme: 'http',
+    tls_mode: 'edge',
+    proxy_mode: 'reverse_proxy',
+    health_path: '/',
+  });
 
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['workspace_users'],
@@ -71,12 +87,17 @@ export const Management = () => {
       domain: siteForm.domain,
       target_ip: siteForm.target_ip,
       target_port: Number(siteForm.target_port),
+      public_hostname: siteForm.public_hostname || null,
+      listen_port: Number(siteForm.listen_port),
       scheme: siteForm.scheme,
+      tls_mode: siteForm.tls_mode,
+      proxy_mode: siteForm.proxy_mode,
+      health_path: siteForm.health_path,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
       toast.success('Protected origin attached to W-IDS proxy.');
-      setSiteForm({ domain: '', target_ip: '', target_port: '80', scheme: 'http' });
+      setSiteForm({ domain: '', public_hostname: '', target_ip: '', target_port: '80', listen_port: '8080', scheme: 'http', tls_mode: 'edge', proxy_mode: 'reverse_proxy', health_path: '/' });
     },
     onError: () => toast.error('Could not attach this site. Check domain, IP, and port.')
   });
@@ -166,7 +187,10 @@ export const Management = () => {
             <CardContent className="p-5 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <Input placeholder="app.example.com" value={siteForm.domain} onChange={(e) => setSiteForm({ ...siteForm, domain: e.target.value })} className="md:col-span-2 bg-black border-neutral-800" />
+                <Input placeholder="public host" value={siteForm.public_hostname} onChange={(e) => setSiteForm({ ...siteForm, public_hostname: e.target.value })} className="bg-black border-neutral-800" />
                 <Input placeholder="10.0.0.15" value={siteForm.target_ip} onChange={(e) => setSiteForm({ ...siteForm, target_ip: e.target.value })} className="bg-black border-neutral-800" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="flex gap-2">
                   <Input placeholder="8080" value={siteForm.target_port} onChange={(e) => setSiteForm({ ...siteForm, target_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
                   <select value={siteForm.scheme} onChange={(e) => setSiteForm({ ...siteForm, scheme: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-2 text-xs text-neutral-300 outline-none">
@@ -174,6 +198,13 @@ export const Management = () => {
                     <option value="https">HTTPS</option>
                   </select>
                 </div>
+                <Input placeholder="listen 8080" value={siteForm.listen_port} onChange={(e) => setSiteForm({ ...siteForm, listen_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
+                <select value={siteForm.tls_mode} onChange={(e) => setSiteForm({ ...siteForm, tls_mode: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
+                  <option value="edge">TLS at Gateway</option>
+                  <option value="passthrough">TLS Passthrough</option>
+                  <option value="origin">Origin TLS</option>
+                </select>
+                <Input placeholder="/health" value={siteForm.health_path} onChange={(e) => setSiteForm({ ...siteForm, health_path: e.target.value || '/' })} className="bg-black border-neutral-800" />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-neutral-500">Traffic path: user DNS {'->'} W-IDS gateway :8080 {'->'} Snort inspection {'->'} registered origin IP:port.</p>
@@ -202,7 +233,10 @@ export const Management = () => {
                           <p className="text-[10px] text-neutral-600 font-mono">{site.scheme.toUpperCase()}</p>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-neutral-400">{site.target_ip}:{site.target_port}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-blue-400">{site.proxy_url}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-mono text-xs text-blue-400">{site.proxy_url}</p>
+                          <p className="font-mono text-[10px] text-neutral-600">DNS: {site.dns_target}</p>
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <Button variant={site.is_active ? 'secondary' : 'ghost'} size="sm" onClick={() => toggleSiteMutation.mutate(site.id)}>
                             <Power className={`w-3 h-3 mr-2 ${site.is_active ? 'text-green-500' : 'text-neutral-600'}`} />
@@ -216,6 +250,12 @@ export const Management = () => {
                   </tbody>
                 </table>
               </div>
+              {protectedSites?.[0]?.nginx_server_block && (
+                <div className="rounded-lg border border-neutral-900 bg-black p-3">
+                  <p className="text-[10px] text-neutral-600 uppercase mb-2">Generated Nginx server block</p>
+                  <pre className="text-[10px] text-neutral-300 whitespace-pre-wrap overflow-x-auto">{protectedSites[0].nginx_server_block}</pre>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -227,12 +267,13 @@ export const Management = () => {
             </CardHeader>
             <CardContent className="space-y-4 text-xs text-neutral-400">
               <p>1. Add the real app origin, for example <span className="font-mono text-neutral-200">10.0.0.15:3000</span>.</p>
-              <p>2. Point the domain or test client to the W-IDS gateway. In this lab use <span className="font-mono text-neutral-200">localhost:8080</span>.</p>
-              <p>3. The reverse proxy forwards traffic to the origin while Snort inspects the same packets.</p>
+              <p>2. Publish the gateway with a stable public IP or load balancer, then point the customer's A/CNAME record to it.</p>
+              <p>3. Terminate TLS at the gateway when possible; otherwise use TCP passthrough and inspect metadata only.</p>
+              <p>4. The generated Nginx block shows the exact reverse-proxy shape that should be deployed for that domain.</p>
               <div className="rounded-lg border border-neutral-800 bg-black p-3 font-mono text-[10px] text-neutral-300 break-all">
                 curl.exe -H "Host: app.example.com" http://127.0.0.1:8080/etc/passwd
               </div>
-              <p className="text-neutral-500">Production path: publish this gateway behind a public IP/load balancer, then set the customer domain A/CNAME record to that gateway.</p>
+              <p className="text-neutral-500">Serious production path: DNS {'->'} W-IDS edge gateway {'->'} Snort sensor on the gateway network namespace {'->'} Nginx upstream to origin IP:port.</p>
             </CardContent>
           </Card>
         </div>

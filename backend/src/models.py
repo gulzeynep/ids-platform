@@ -62,6 +62,11 @@ class Alert(Base):
     protocol = Column(String, default="TCP") # TCP, UDP, ICMP, HTTP
     
     payload_preview = Column(Text, nullable=True) 
+    event_id = Column(String, nullable=True, index=True)
+    capture_path = Column(String, nullable=True)
+    capture_mode = Column(String, nullable=True)
+    packet_filter = Column(String, nullable=True)
+    capture_window_seconds = Column(Integer, nullable=True)
     
     # Status & Management
     action = Column(String, default="logged") # blocked, allowed, logged
@@ -114,6 +119,11 @@ class MonitoredWebsite(Base):
     target_ip = Column(String, nullable=False)
     target_port = Column(Integer, nullable=False)
     scheme = Column(String, default="http", nullable=False)
+    public_hostname = Column(String, nullable=True)
+    listen_port = Column(Integer, default=8080, nullable=False)
+    tls_mode = Column(String, default="edge", nullable=False)
+    proxy_mode = Column(String, default="reverse_proxy", nullable=False)
+    health_path = Column(String, default="/", nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)

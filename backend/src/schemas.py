@@ -88,6 +88,11 @@ class AlertCreate(BaseModel):
     protocol: str = "TCP"
     action: str = "logged"
     payload_preview: Optional[str] = None
+    event_id: Optional[str] = None
+    capture_path: Optional[str] = None
+    capture_mode: Optional[str] = None
+    packet_filter: Optional[str] = None
+    capture_window_seconds: Optional[int] = None
 
     @field_validator('severity')
     @classmethod
@@ -113,6 +118,11 @@ class AlertResponse(BaseModel):
     status: str
     notes: Optional[str] = None
     payload_preview: Optional[str]
+    event_id: Optional[str] = None
+    capture_path: Optional[str] = None
+    capture_mode: Optional[str] = None
+    packet_filter: Optional[str] = None
+    capture_window_seconds: Optional[int] = None
     
     is_flagged: bool = False
     is_saved: bool = False
@@ -192,6 +202,11 @@ class MonitoredWebsiteCreate(BaseModel):
     target_ip: str
     target_port: int
     scheme: str = "http"
+    public_hostname: Optional[str] = None
+    listen_port: int = 8080
+    tls_mode: str = "edge"
+    proxy_mode: str = "reverse_proxy"
+    health_path: str = "/"
 
     @field_validator('domain')
     @classmethod
@@ -213,11 +228,17 @@ class MonitoredWebsiteResponse(BaseModel):
     target_ip: str
     target_port: int
     scheme: str
+    public_hostname: Optional[str]
+    listen_port: int
+    tls_mode: str
+    proxy_mode: str
+    health_path: str
     is_active: bool
     created_at: datetime
     workspace_id: int
     proxy_url: str
     dns_target: str
+    nginx_server_block: str
 
     class Config:
         from_attributes = True
