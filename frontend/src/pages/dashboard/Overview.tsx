@@ -6,15 +6,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { getAlertTitle } from '../../utils/alertTitles';
 
 export const Overview = () => {
     const navigate = useNavigate();
     const { realtimeAlerts } = useAlertsStore(); 
 
-    const { data: stats, isLoading, isError } = useQuery({
+    const { data: stats, isLoading } = useQuery({
         queryKey: alertKeys.stats(),
         queryFn: () => alertsApi.getAlertStats(),
         refetchInterval: 3000, 
+        refetchIntervalInBackground: true,
+    });
+
+    const { data: latestAlerts } = useQuery({
+        queryKey: [...alertKeys.lists(), 'overview-latest'],
+        queryFn: () => alertsApi.getAlerts({ status: 'new' }, 0, 8),
+        refetchInterval: 5000,
+        refetchIntervalInBackground: true,
     });
 
     const isCompromised = stats && (stats.critical_threats > 0 || stats.active_alerts > 15);
@@ -96,17 +105,17 @@ export const Overview = () => {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 max-h-[350px] overflow-y-auto font-mono scrollbar-hide">
-                        {realtimeAlerts.length === 0 ? (
+                        {(realtimeAlerts.length === 0 && !latestAlerts?.length) ? (
                             <div className="p-12 text-center text-neutral-600 text-sm italic">
                                 &gt; Waiting for incoming sensor telemetry...
                             </div>
                         ) : (
-                            realtimeAlerts.map((alert, idx) => (
+                            (realtimeAlerts.length ? realtimeAlerts : latestAlerts || []).map((alert, idx) => (
                                 <div key={idx} className="p-4 border-b border-neutral-900 flex items-center justify-between hover:bg-white/[0.02] transition-colors animate-in slide-in-from-right-4">
                                     <div className="flex items-center gap-4">
                                         <span className={`w-2 h-2 rounded-full ${alert.severity === 'critical' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} />
                                         <div>
-                                            <p className="text-xs text-neutral-300 font-bold uppercase">{alert.type}</p>
+                                            <p className="text-xs text-neutral-300 font-bold uppercase">{getAlertTitle(alert)}</p>
                                             <p className="text-[10px] text-neutral-600 italic">SRC: {alert.source_ip}</p>
                                         </div>
                                     </div>

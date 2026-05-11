@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { ShieldCheck, BellRing, MonitorSmartphone } from 'lucide-react';
+import { BellRing } from 'lucide-react';
 
 export const Settings = () => {
   return (

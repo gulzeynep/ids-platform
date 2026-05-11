@@ -1,7 +1,7 @@
 """add_unique_to_blacklist
 
 Revision ID: f3acdf067d46
-Revises: f858ca31c698
+Revises: d1f4c7b8e9a2
 Create Date: 2026-04-28 12:38:08.440332
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'f3acdf067d46'
-down_revision: Union[str, Sequence[str], None] = 'f858ca31c698'
+down_revision: Union[str, Sequence[str], None] = 'd1f4c7b8e9a2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

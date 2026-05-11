@@ -20,6 +20,7 @@ export type Protocol = 'TCP' | 'UDP' | 'HTTP' | 'HTTPS' | 'ICMP';
 export interface Alert {
   id: number;
   type: string;
+  title?: string;
   severity: AlertSeverity;
   source_ip: string;
   destination_ip: string;
@@ -30,6 +31,11 @@ export interface Alert {
   status: AlertStatus;
   notes: string | null;
   payload_preview: string | null;
+  event_id?: string | null;
+  capture_path?: string | null;
+  capture_mode?: string | null;
+  packet_filter?: string | null;
+  capture_window_seconds?: number | null;
   is_flagged: boolean;
   is_saved: boolean;
   timestamp: string;

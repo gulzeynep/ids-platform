@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Globe, TrendingUp, Skull, ShieldAlert, BarChart3, Fingerprint } from 'lucide-react';
+import { Globe, TrendingUp, Skull, BarChart3, Fingerprint } from 'lucide-react';
 import apiClient from '../../api/client';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';

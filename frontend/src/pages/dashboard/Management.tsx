@@ -6,7 +6,7 @@ import apiClient from '../../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Key, UserPlus, RefreshCw, Copy, ShieldAlert, Users, X, UserCog, Save } from 'lucide-react';
+import { Key, UserPlus, RefreshCw, Copy, ShieldAlert, Users, X, UserCog, Save, Globe, Server, Power, Info } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface UserData {
@@ -17,6 +17,23 @@ interface UserData {
   is_active: boolean;
 }
 
+interface ProtectedSite {
+  id: number;
+  domain: string;
+  target_ip: string;
+  target_port: number;
+  scheme: 'http' | 'https';
+  public_hostname: string | null;
+  listen_port: number;
+  tls_mode: string;
+  proxy_mode: string;
+  health_path: string;
+  is_active: boolean;
+  proxy_url: string;
+  dns_target: string;
+  nginx_server_block: string;
+}
+
 export const Management = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
@@ -24,6 +41,17 @@ export const Management = () => {
 
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [siteForm, setSiteForm] = useState({
+    domain: '',
+    public_hostname: '',
+    target_ip: '',
+    target_port: '80',
+    listen_port: '8080',
+    scheme: 'http',
+    tls_mode: 'edge',
+    proxy_mode: 'reverse_proxy',
+    health_path: '/',
+  });
 
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['workspace_users'],
@@ -42,6 +70,43 @@ export const Management = () => {
       queryClient.invalidateQueries({ queryKey: ['workspace_users'] });
       toast.success(data.data.new_status ? "Account reactivated." : "Account suspended.");
       setSelectedUser(null); 
+    }
+  });
+
+  const { data: protectedSites, isLoading: sitesLoading } = useQuery({
+    queryKey: ['protected_sites'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/protected-sites');
+      return res.data as ProtectedSite[];
+    },
+    enabled: isAdmin
+  });
+
+  const createSiteMutation = useMutation({
+    mutationFn: async () => apiClient.post('/admin/protected-sites', {
+      domain: siteForm.domain,
+      target_ip: siteForm.target_ip,
+      target_port: Number(siteForm.target_port),
+      public_hostname: siteForm.public_hostname || null,
+      listen_port: Number(siteForm.listen_port),
+      scheme: siteForm.scheme,
+      tls_mode: siteForm.tls_mode,
+      proxy_mode: siteForm.proxy_mode,
+      health_path: siteForm.health_path,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
+      toast.success('Protected origin attached to W-IDS proxy.');
+      setSiteForm({ domain: '', public_hostname: '', target_ip: '', target_port: '80', listen_port: '8080', scheme: 'http', tls_mode: 'edge', proxy_mode: 'reverse_proxy', health_path: '/' });
+    },
+    onError: () => toast.error('Could not attach this site. Check domain, IP, and port.')
+  });
+
+  const toggleSiteMutation = useMutation({
+    mutationFn: async (siteId: number) => apiClient.patch(`/admin/protected-sites/${siteId}/toggle`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
+      toast.success('Protection status updated.');
     }
   });
 
@@ -110,6 +175,109 @@ export const Management = () => {
           </CardContent>
         </Card>
       </div>
+
+      {isAdmin && (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <Card className="xl:col-span-2 border-neutral-900 bg-[#0a0a0a]">
+            <CardHeader className="border-b border-neutral-900 pb-4">
+              <CardTitle className="text-xs font-mono flex items-center gap-2 text-neutral-300">
+                <Globe className="w-4 h-4 text-blue-500" /> PROTECTED_WEB_TRAFFIC
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Input placeholder="app.example.com" value={siteForm.domain} onChange={(e) => setSiteForm({ ...siteForm, domain: e.target.value })} className="md:col-span-2 bg-black border-neutral-800" />
+                <Input placeholder="public host" value={siteForm.public_hostname} onChange={(e) => setSiteForm({ ...siteForm, public_hostname: e.target.value })} className="bg-black border-neutral-800" />
+                <Input placeholder="10.0.0.15" value={siteForm.target_ip} onChange={(e) => setSiteForm({ ...siteForm, target_ip: e.target.value })} className="bg-black border-neutral-800" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="flex gap-2">
+                  <Input placeholder="8080" value={siteForm.target_port} onChange={(e) => setSiteForm({ ...siteForm, target_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
+                  <select value={siteForm.scheme} onChange={(e) => setSiteForm({ ...siteForm, scheme: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-2 text-xs text-neutral-300 outline-none">
+                    <option value="http">HTTP</option>
+                    <option value="https">HTTPS</option>
+                  </select>
+                </div>
+                <Input placeholder="listen 8080" value={siteForm.listen_port} onChange={(e) => setSiteForm({ ...siteForm, listen_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
+                <select value={siteForm.tls_mode} onChange={(e) => setSiteForm({ ...siteForm, tls_mode: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
+                  <option value="edge">TLS at Gateway</option>
+                  <option value="passthrough">TLS Passthrough</option>
+                  <option value="origin">Origin TLS</option>
+                </select>
+                <Input placeholder="/health" value={siteForm.health_path} onChange={(e) => setSiteForm({ ...siteForm, health_path: e.target.value || '/' })} className="bg-black border-neutral-800" />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-neutral-500">Traffic path: user DNS {'->'} W-IDS gateway :8080 {'->'} Snort inspection {'->'} registered origin IP:port.</p>
+                <Button size="sm" onClick={() => createSiteMutation.mutate()} isLoading={createSiteMutation.isPending} disabled={!siteForm.domain || !siteForm.target_ip || !siteForm.target_port}>
+                  <Server className="w-3 h-3 mr-2" /> Attach Site
+                </Button>
+              </div>
+
+              <div className="overflow-x-auto border border-neutral-900 rounded-lg">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-black/40 text-[10px] uppercase text-neutral-600">
+                    <tr>
+                      <th className="px-4 py-3">Domain</th>
+                      <th className="px-4 py-3">Origin</th>
+                      <th className="px-4 py-3">Proxy Entry</th>
+                      <th className="px-4 py-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-900">
+                    {sitesLoading ? (
+                      <tr><td colSpan={4} className="p-6 text-center text-neutral-500">Loading protected sites...</td></tr>
+                    ) : protectedSites?.length ? protectedSites.map((site) => (
+                      <tr key={site.id} className="hover:bg-white/[0.02]">
+                        <td className="px-4 py-3">
+                          <p className="text-neutral-100 font-medium">{site.domain}</p>
+                          <p className="text-[10px] text-neutral-600 font-mono">{site.scheme.toUpperCase()}</p>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-neutral-400">{site.target_ip}:{site.target_port}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-mono text-xs text-blue-400">{site.proxy_url}</p>
+                          <p className="font-mono text-[10px] text-neutral-600">DNS: {site.dns_target}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button variant={site.is_active ? 'secondary' : 'ghost'} size="sm" onClick={() => toggleSiteMutation.mutate(site.id)}>
+                            <Power className={`w-3 h-3 mr-2 ${site.is_active ? 'text-green-500' : 'text-neutral-600'}`} />
+                            {site.is_active ? 'Protected' : 'Paused'}
+                          </Button>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={4} className="p-6 text-center text-neutral-500">No protected origin attached yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {protectedSites?.[0]?.nginx_server_block && (
+                <div className="rounded-lg border border-neutral-900 bg-black p-3">
+                  <p className="text-[10px] text-neutral-600 uppercase mb-2">Generated Nginx server block</p>
+                  <pre className="text-[10px] text-neutral-300 whitespace-pre-wrap overflow-x-auto">{protectedSites[0].nginx_server_block}</pre>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-blue-500/20 bg-blue-500/[0.03]">
+            <CardHeader>
+              <CardTitle className="text-xs font-mono flex items-center gap-2 text-blue-400">
+                <Info className="w-4 h-4" /> ROUTING_GUIDE
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-xs text-neutral-400">
+              <p>1. Add the real app origin, for example <span className="font-mono text-neutral-200">10.0.0.15:3000</span>.</p>
+              <p>2. Publish the gateway with a stable public IP or load balancer, then point the customer's A/CNAME record to it.</p>
+              <p>3. Terminate TLS at the gateway when possible; otherwise use TCP passthrough and inspect metadata only.</p>
+              <p>4. The generated Nginx block shows the exact reverse-proxy shape that should be deployed for that domain.</p>
+              <div className="rounded-lg border border-neutral-800 bg-black p-3 font-mono text-[10px] text-neutral-300 break-all">
+                curl.exe -H "Host: app.example.com" http://127.0.0.1:8080/etc/passwd
+              </div>
+              <p className="text-neutral-500">Serious production path: DNS {'->'} W-IDS edge gateway {'->'} Snort sensor on the gateway network namespace {'->'} Nginx upstream to origin IP:port.</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {isAdmin && (
         <Card className="border-neutral-900 bg-[#0a0a0a]">

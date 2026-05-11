@@ -17,6 +17,7 @@ class Workspace(Base):
     alerts = relationship("Alert", back_populates="workspace")
     notifications = relationship("Notification", back_populates="workspace")
     blacklisted_ips = relationship("BlacklistedIP", back_populates="workspace")
+    monitored_websites = relationship("MonitoredWebsite", back_populates="workspace")
 
 class User(Base):
     """Represents the actual human logging in"""
@@ -61,11 +62,18 @@ class Alert(Base):
     protocol = Column(String, default="TCP") # TCP, UDP, ICMP, HTTP
     
     payload_preview = Column(Text, nullable=True) 
+    event_id = Column(String, nullable=True, index=True)
+    capture_path = Column(String, nullable=True)
+    capture_mode = Column(String, nullable=True)
+    packet_filter = Column(String, nullable=True)
+    capture_window_seconds = Column(Integer, nullable=True)
     
     # Status & Management
     action = Column(String, default="logged") # blocked, allowed, logged
     status = Column(String, default="new") # reviewing, reviewed, false_positive
     notes = Column(Text, nullable=True) 
+    is_flagged = Column(Boolean, default=False)
+    is_saved = Column(Boolean, default=False)
 
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     # Data Isolation 
@@ -100,3 +108,24 @@ class BlacklistedIP(Base):
     
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
     workspace = relationship("Workspace", back_populates="blacklisted_ips")
+
+
+class MonitoredWebsite(Base):
+    """A customer origin protected by the W-IDS reverse proxy."""
+    __tablename__ = "monitored_websites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, index=True, nullable=False)
+    target_ip = Column(String, nullable=False)
+    target_port = Column(Integer, nullable=False)
+    scheme = Column(String, default="http", nullable=False)
+    public_hostname = Column(String, nullable=True)
+    listen_port = Column(Integer, default=8080, nullable=False)
+    tls_mode = Column(String, default="edge", nullable=False)
+    proxy_mode = Column(String, default="reverse_proxy", nullable=False)
+    health_path = Column(String, default="/", nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
+
+    workspace = relationship("Workspace", back_populates="monitored_websites")

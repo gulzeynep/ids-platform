@@ -4,7 +4,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShieldAlert, ShieldCheck, Settings, 
   Bell, User, PanelLeftClose, PanelLeftOpen, Fingerprint,
-  Zap, LogOut, Activity, Mail, Hash
+  Zap, LogOut, Activity
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 import { useAlertsStore } from '../../stores/alerts.store';

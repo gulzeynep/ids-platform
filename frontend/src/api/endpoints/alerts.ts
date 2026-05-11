@@ -2,8 +2,7 @@ import apiClient from '../client';
 import type { 
   Alert, 
   AlertUpdateDto, 
-  AlertFilters,
-  AlertStats
+  AlertFilters
 } from '../../types';
 
 
@@ -49,6 +48,11 @@ export const alertsApi = {
 
   updateAlert: async (id: number, data: AlertUpdateDto): Promise<Alert> => {
     const response = await apiClient.patch(`/alerts/${id}/triage`, data);
+    return response.data;
+  },
+
+  getAlert: async (id: number): Promise<Alert> => {
+    const response = await apiClient.get(`/alerts/${id}`);
     return response.data;
   },
 

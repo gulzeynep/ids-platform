@@ -12,16 +12,16 @@ class Settings(BaseSettings):
     API_KEY: str
     SECRET_KEY: str
     ALGORITHM: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Redis
-    REDIS_HOST: str
-    REDIS_PORT: int
-    REDIS_URL: str
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_URL: str = "redis://redis:6379/0"
     
     # Email / SMTP
-    SMTP_SERVER: str
-    SMTP_PORT: int
+    SMTP_SERVER: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
     SMTP_PASS: Optional[str] = None
     SMTP_FROM: Optional[str] = None
