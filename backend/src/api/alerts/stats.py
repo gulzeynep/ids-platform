@@ -32,6 +32,10 @@ async def get_dashboard_metrics(
         db,
         select(func.count(Alert.id)).where(Alert.workspace_id == ws_id, Alert.status.in_(ACTIVE_STATUSES)),
     )
+    total_alerts = await scalar_count(
+        db,
+        select(func.count(Alert.id)).where(Alert.workspace_id == ws_id),
+    )
     critical_threats = await scalar_count(
         db,
         select(func.count(Alert.id)).where(
@@ -76,6 +80,7 @@ async def get_dashboard_metrics(
 
     return {
         "active_alerts": active_alerts,
+        "total_alerts": total_alerts,
         "critical_threats": critical_threats,
         "resolved_alerts": resolved_alerts,
         "false_positive_alerts": false_positive_alerts,

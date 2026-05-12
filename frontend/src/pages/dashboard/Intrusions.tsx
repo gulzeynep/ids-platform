@@ -16,7 +16,7 @@ export const Intrusions = () => {
   const limit = 50;
 
 
-  const { data: alerts, isLoading } = useQuery({
+  const { data: alerts, isLoading, error: alertsError } = useQuery({
     queryKey: alertKeys.list(filters, page),
     queryFn: () => alertsApi.getAlerts(filters, page, limit),
     refetchInterval: 5000,
@@ -51,8 +51,14 @@ export const Intrusions = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <header>
         <h2 className="text-2xl font-bold text-white tracking-wide">Intrusion Events</h2>
-        <p className="text-sm text-neutral-500">Monitor and triage incoming network threats</p>
+        <p className="text-sm text-neutral-500">Monitor, retain, and triage historical IDS events</p>
       </header>
+
+      {alertsError && (
+        <Card className="p-4 border-red-500/30 bg-red-500/10 text-red-300 text-sm">
+          Alert history could not be loaded. Your session may be expired or the backend is unavailable.
+        </Card>
+      )}
 
       {/* Filtre  */}
       <Card className="p-4 flex flex-wrap gap-4 items-center border-neutral-800 bg-[#0a0a0a]">
@@ -110,6 +116,23 @@ export const Intrusions = () => {
           <Flag className={`w-4 h-4 mr-2 ${filters.is_flagged ? 'fill-current' : ''}`} />
           Flagged
         </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setFilters({
+              status: 'all',
+              severity: 'all',
+              is_flagged: null,
+              is_saved: null,
+              search: '',
+              start_date: undefined,
+              end_date: undefined,
+            });
+            setPage(0);
+          }}
+        >
+          Show History
+        </Button>
       </Card>
 
       {/* Veri Tablosu */}
@@ -129,7 +152,7 @@ export const Intrusions = () => {
               {isLoading ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">Scanning neural databanks...</td></tr>
               ) : alerts?.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No security events found.</td></tr>
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No security events match the current filters. Use Show History to view retained IDS alerts.</td></tr>
               ) : (
                 alerts?.map((alert) => (
                   <tr key={alert.id} className="hover:bg-neutral-900/30 transition-colors group cursor-pointer" onClick={() => setSelectedAlertId(alert.id)}>

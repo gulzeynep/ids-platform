@@ -12,14 +12,14 @@ export const Overview = () => {
     const navigate = useNavigate();
     const { realtimeAlerts } = useAlertsStore(); 
 
-    const { data: stats, isLoading } = useQuery({
+    const { data: stats, isLoading, error: statsError } = useQuery({
         queryKey: alertKeys.stats(),
         queryFn: () => alertsApi.getAlertStats(),
         refetchInterval: 3000, 
         refetchIntervalInBackground: true,
     });
 
-    const { data: latestAlerts } = useQuery({
+    const { data: latestAlerts, error: latestAlertsError } = useQuery({
         queryKey: [...alertKeys.lists(), 'overview-latest'],
         queryFn: () => alertsApi.getAlerts({ status: 'all' }, 0, 8),
         refetchInterval: 5000,
@@ -31,6 +31,11 @@ export const Overview = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {(statsError || latestAlertsError) && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                    Dashboard telemetry could not be loaded. Check backend auth/session and refresh the page.
+                </div>
+            )}
             {/*  Canlı Sistem Durum Barı */}
             <div className={`p-6 rounded-2xl border flex items-center justify-between transition-all duration-1000 ${statusColor}`}>
                 <div className="flex items-center gap-6">
@@ -58,10 +63,10 @@ export const Overview = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold text-white tabular-nums">
-                            {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.active_alerts}
+                            {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.total_alerts ?? stats?.active_alerts ?? 0}
                         </div>
                         <p className="text-[10px] text-neutral-600 mt-2 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Alerts in last 5m: {stats?.recent_alerts_5m ?? 0}
+                            <Clock className="w-3 h-3" /> Historical IDS events. Last 5m: {stats?.recent_alerts_5m ?? 0}
                         </p>
                     </CardContent>
                 </Card>

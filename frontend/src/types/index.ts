@@ -66,6 +66,7 @@ export interface AlertUpdateDto {
 
 export interface AlertStats {
   active_alerts: number;
+  total_alerts?: number;
   critical_threats: number;
   resolved_alerts: number;
   false_positive_alerts?: number;

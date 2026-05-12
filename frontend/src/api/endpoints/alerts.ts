@@ -42,7 +42,17 @@ export const alertsApi = {
     params.append('offset', String(page * limit));
 
     const response = await apiClient.get('/alerts/', { params });
-    return response.data;
+    const payload = response.data;
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (Array.isArray(payload?.items)) {
+      return payload.items;
+    }
+    if (Array.isArray(payload?.value)) {
+      return payload.value;
+    }
+    return [];
   },
 
 
