@@ -50,6 +50,16 @@ interface DetectionRule {
 interface DetectionProfile {
   profile: string;
   available_profiles: string[];
+  engine_profile?: string | null;
+  reload_requested?: boolean;
+}
+
+interface SensorKey {
+  api_key: string;
+  workspace_id: number;
+  key_file: string;
+  delivery: string;
+  rotate_requires_bridge_restart: boolean;
 }
 
 export const Management = () => {
@@ -122,6 +132,15 @@ export const Management = () => {
     queryFn: async () => {
       const res = await apiClient.get('/admin/detection-profile');
       return res.data as DetectionProfile;
+    },
+    enabled: isAdmin
+  });
+
+  const { data: sensorKey } = useQuery({
+    queryKey: ['sensor_key'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/sensor-key');
+      return res.data as SensorKey;
     },
     enabled: isAdmin
   });
@@ -204,8 +223,17 @@ export const Management = () => {
     mutationFn: async (profile: string) => apiClient.patch('/admin/detection-profile', { profile }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['detection_profile'] });
-      toast.success('Detection profile saved. Restart secure-engine to apply Snort profile changes.');
+      toast.success('Detection profile saved. secure-engine reload requested.');
     }
+  });
+
+  const rotateSensorKeyMutation = useMutation({
+    mutationFn: async () => apiClient.post('/admin/sensor-key/rotate'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sensor_key'] });
+      toast.success('Sensor key rotated and shared with the bridge.');
+    },
+    onError: () => toast.error('Could not rotate sensor key.')
   });
 
   if (!user) {
@@ -230,11 +258,14 @@ export const Management = () => {
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <div className="relative">
-              <Input value="WIDS_PRO_69f7ff410b76_SECURE_TOKEN" readOnly className="font-mono text-[10px] bg-black border-neutral-800 pr-20 h-10" />
-              <Button variant="ghost" className="absolute right-1 top-1 h-8 text-[10px] hover:bg-white/5" onClick={() => { navigator.clipboard.writeText("WIDS_PRO_69f7ff410b76_SECURE_TOKEN"); toast.success("API Key copied."); }}>
+              <Input value={sensorKey?.api_key || 'Loading sensor key...'} readOnly className="font-mono text-[10px] bg-black border-neutral-800 pr-20 h-10" />
+              <Button variant="ghost" className="absolute right-1 top-1 h-8 text-[10px] hover:bg-white/5" onClick={() => { navigator.clipboard.writeText(sensorKey?.api_key || ''); toast.success("Sensor key copied."); }}>
                 <Copy className="w-3 h-3" />
               </Button>
             </div>
+            <p className="text-[10px] text-neutral-600 font-mono">
+              DELIVERY: {sensorKey?.delivery || 'shared_file'} | FILE: {sensorKey?.key_file || '/var/log/snort/sensor_key'}
+            </p>
             
             {isAdmin ? (
               <div className="flex items-center justify-between p-4 rounded-2xl bg-red-500/5 border border-red-500/10">
@@ -242,7 +273,7 @@ export const Management = () => {
                   <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Critical Action</p>
                   <p className="text-[10px] text-neutral-500">Rotation forces sensor re-authentication.</p>
                 </div>
-                <Button variant="danger" size="sm" className="h-8 rounded-lg text-[10px] font-bold">
+                <Button variant="danger" size="sm" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => rotateSensorKeyMutation.mutate()} isLoading={rotateSensorKeyMutation.isPending}>
                   <RefreshCw className="w-3 h-3 mr-2" /> ROTATE
                 </Button>
               </div>
@@ -402,6 +433,9 @@ export const Management = () => {
               <div>
                 <p className="text-[10px] uppercase text-neutral-600">Snort profile</p>
                 <p className="text-xs text-neutral-400">web-balanced keeps official web coverage without loading the full webapp set.</p>
+                <p className="text-[10px] text-neutral-600 font-mono mt-1">
+                  ENGINE: {detectionProfile?.engine_profile || 'unknown'} {detectionProfile?.reload_requested ? '| reload pending' : '| in sync'}
+                </p>
               </div>
               <select
                 value={detectionProfile?.profile || 'web-balanced'}

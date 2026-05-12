@@ -2,11 +2,10 @@ import asyncio
 import json
 
 from src.core.logger import logger
-from src.core.queue import redis_client
-from src.core.ws_manager import manager
+from src.core.queue import publish_alert_event, redis_client
 from src.database import AsyncSessionLocal
 from src.models import Alert
-from src.schemas import build_alert_title
+from src.schemas import serialize_alert_contract
 
 
 async def process_alerts():
@@ -28,43 +27,18 @@ async def process_alerts():
                         await db.commit()
                         await db.refresh(new_alert)
 
-                    alert_data = {
-                        "id": new_alert.id,
-                        "type": new_alert.type,
-                        "title": build_alert_title(new_alert.severity, new_alert.payload_preview, new_alert.type, new_alert.signature_msg),
-                        "severity": new_alert.severity,
-                        "source_ip": new_alert.source_ip,
-                        "destination_ip": new_alert.destination_ip,
-                        "source_port": new_alert.source_port,
-                        "destination_port": new_alert.destination_port,
-                        "protocol": new_alert.protocol,
-                        "action": new_alert.action,
-                        "status": new_alert.status,
-                        "payload_preview": new_alert.payload_preview,
-                        "signature_msg": new_alert.signature_msg,
-                        "signature_class": new_alert.signature_class,
-                        "signature_sid": new_alert.signature_sid,
-                        "signature_gid": new_alert.signature_gid,
-                        "timestamp": new_alert.timestamp.isoformat(),
-                        "workspace_id": new_alert.workspace_id,
-                        "is_flagged": new_alert.is_flagged,
-                        "is_saved": new_alert.is_saved,
-                    }
-
-                    try:
-                        await manager.broadcast_to_workspace(
-                            {
-                                "type": "alert",
-                                "data": alert_data,
-                                "timestamp": new_alert.timestamp.isoformat(),
-                            },
-                            workspace_id,
-                        )
-                    except Exception as exc:
-                        logger.error(f"WebSocket broadcast error: {exc}")
+                    alert_data = serialize_alert_contract(new_alert)
+                    await publish_alert_event(
+                        {
+                            "type": "alert",
+                            "workspace_id": workspace_id,
+                            "data": alert_data,
+                            "timestamp": alert_data["timestamp"],
+                        }
+                    )
 
                     await redis_client.xdel("alert_stream", msg_id)
-                    logger.info(f"Processed & broadcast alert: {payload['type']}")
+                    logger.info(f"Processed & published alert: {payload['type']}")
 
         except Exception as e:
             logger.error(f"Worker error: {e}")

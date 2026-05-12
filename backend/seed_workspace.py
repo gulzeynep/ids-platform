@@ -16,7 +16,13 @@ def env_flag(name: str, default: bool = False) -> bool:
 
 
 async def seed_workspace() -> None:
-    api_key = os.getenv("SNORT_API_KEY") or os.getenv("API_KEY")
+    sensor_key_path = os.getenv("SENSOR_KEY_FILE", "/var/log/snort/sensor_key")
+    file_api_key = ""
+    if os.path.exists(sensor_key_path):
+        with open(sensor_key_path, "r", encoding="utf-8") as key_file:
+            file_api_key = key_file.read().strip()
+
+    api_key = file_api_key or os.getenv("SNORT_API_KEY") or os.getenv("API_KEY")
     if not api_key:
         print("[seed] No SNORT_API_KEY/API_KEY configured; skipping workspace seed.")
         return
@@ -108,11 +114,21 @@ async def seed_workspace() -> None:
                 print(f"[seed] Demo origin {domain} already registered.")
 
         try:
-            from src.api.admin import refresh_custom_signatures, refresh_proxy_config
+            from src.api.admin import (
+                SNORT_PROFILE_PATH,
+                atomic_write,
+                refresh_custom_signatures,
+                refresh_proxy_config,
+                write_sensor_key,
+            )
+            from src.api.defense import sync_nginx_blacklist
 
+            write_sensor_key(api_key)
+            atomic_write(SNORT_PROFILE_PATH, f"{workspace.detection_profile or 'web-balanced'}\n")
             await refresh_proxy_config(db)
             await refresh_custom_signatures(db)
-            print("[seed] Refreshed generated proxy config and custom signature file.")
+            await sync_nginx_blacklist(db)
+            print("[seed] Refreshed generated proxy config, blacklist, and custom signature file.")
         except Exception as exc:
             print(f"[seed] Could not refresh runtime config files: {exc}")
 

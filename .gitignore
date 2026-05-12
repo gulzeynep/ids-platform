@@ -37,6 +37,9 @@ snort/logs/*.pcap
 snort/logs/archive/
 snort/logs/event_captures/
 snort/logs/custom_web_signatures.json
+snort/logs/detection_profile
+snort/logs/reload_snort
+snort/logs/sensor_key
 nginx/generated/*.conf
 nginx/certs/*
 !nginx/certs/.gitkeep

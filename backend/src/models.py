@@ -64,6 +64,7 @@ class Alert(Base):
     protocol = Column(String, default="TCP") # TCP, UDP, ICMP, HTTP
     
     payload_preview = Column(Text, nullable=True) 
+    raw_request = Column(Text, nullable=True)
     signature_msg = Column(String, nullable=True)
     signature_class = Column(String, nullable=True)
     signature_sid = Column(Integer, nullable=True)
@@ -126,7 +127,7 @@ class MonitoredWebsite(Base):
     target_port = Column(Integer, nullable=False)
     scheme = Column(String, default="http", nullable=False)
     public_hostname = Column(String, nullable=True)
-    listen_port = Column(Integer, default=8080, nullable=False)
+    listen_port = Column(Integer, default=80, nullable=False)
     tls_mode = Column(String, default="edge", nullable=False)
     proxy_mode = Column(String, default="reverse_proxy", nullable=False)
     health_path = Column(String, default="/", nullable=False)

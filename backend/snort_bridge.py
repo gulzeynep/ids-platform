@@ -22,6 +22,7 @@ SNORT_LOG = Path(os.environ.get("SNORT_ALERT_LOG", "/var/log/snort/alert_json.tx
 NGINX_ACCESS_LOG = Path(os.environ.get("NGINX_ACCESS_LOG", "/var/log/nginx/access.log"))
 CAPTURE_DIR = Path(os.environ.get("SNORT_CAPTURE_DIR", "/var/log/snort/event_captures"))
 CUSTOM_SIGNATURES_FILE = Path(os.environ.get("CUSTOM_WEB_SIGNATURES_PATH", "/var/log/snort/custom_web_signatures.json"))
+SENSOR_KEY_FILE = Path(os.environ.get("SENSOR_KEY_FILE", "/var/log/snort/sensor_key"))
 BACKEND = os.environ.get("BACKEND_URL", "http://ids_backend:8000")
 API_KEY = os.environ.get("SNORT_API_KEY") or os.environ.get("API_KEY", "")
 POLL_INTERVAL = float(os.environ.get("SNORT_BRIDGE_POLL_INTERVAL", "0.25"))
@@ -44,6 +45,14 @@ WEB_SIGNATURES = [
 ]
 CUSTOM_SIGNATURES_MTIME = 0.0
 CUSTOM_SIGNATURES: list[dict] = []
+
+
+def current_api_key() -> str:
+    if SENSOR_KEY_FILE.exists():
+        key = SENSOR_KEY_FILE.read_text(encoding="utf-8").strip()
+        if key:
+            return key
+    return API_KEY
 
 
 def classify(msg: str) -> str:
@@ -190,6 +199,7 @@ def build_payload(raw: dict):
         "protocol": proto,
         "action": "logged",
         "payload_preview": f"[{msg}]" + (f" payload={b64[:120]}" if b64 else ""),
+        "raw_request": raw.get("request"),
         "signature_msg": msg,
         "signature_class": raw.get("class"),
         "signature_sid": int(raw["sid"]) if str(raw.get("sid", "")).isdigit() else None,
@@ -249,6 +259,7 @@ def build_access_payload(line: str) -> Optional[dict]:
         "protocol": "TCP",
         "action": "logged",
         "payload_preview": f"[{title}] request={match.group('method')} {target} status={match.group('status')}",
+        "raw_request": f"{match.group('method')} {target} HTTP status={match.group('status')}",
         "signature_msg": title,
         "signature_class": category,
         "signature_sid": raw["sid"],
@@ -264,7 +275,7 @@ async def post_payload(client: httpx.AsyncClient, payload: dict) -> None:
             response = await client.post(
                 f"{BACKEND}/alerts/ingest",
                 json=payload,
-                headers={"x-api-key": API_KEY},
+                headers={"x-api-key": current_api_key()},
                 timeout=8.0,
             )
             status = "OK" if response.status_code == 201 else f"HTTP {response.status_code}"

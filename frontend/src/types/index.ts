@@ -31,6 +31,7 @@ export interface Alert {
   status: AlertStatus;
   notes: string | null;
   payload_preview: string | null;
+  raw_request?: string | null;
   signature_msg?: string | null;
   signature_class?: string | null;
   signature_sid?: number | null;
@@ -67,7 +68,18 @@ export interface AlertStats {
   active_alerts: number;
   critical_threats: number;
   resolved_alerts: number;
+  false_positive_alerts?: number;
+  protected_sites?: number;
+  secured_segments?: number;
+  blocked_ips?: number;
+  recent_alerts_5m?: number;
+  active_sensors?: number;
   status: 'Secure' | 'Compromised' | 'Under Attack';
+  last_mitigation?: {
+    ip_address: string;
+    reason?: string | null;
+    timestamp: string;
+  } | null;
 }
 
 export interface RealtimeAlert extends Alert {

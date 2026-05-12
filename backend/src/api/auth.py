@@ -1,4 +1,6 @@
+import os
 import secrets
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -23,15 +25,25 @@ limiter = Limiter(key_func=get_remote_address)
 ACCESS_TOKEN_EXPIRE_MINUTES = settings. ACCESS_TOKEN_EXPIRE_MINUTES
 
 
+def current_sensor_api_key() -> str:
+    key_file = Path(os.getenv("SENSOR_KEY_FILE", "/var/log/snort/sensor_key"))
+    if key_file.exists():
+        key = key_file.read_text(encoding="utf-8").strip()
+        if key:
+            return key
+    return settings.API_KEY
+
+
 async def get_or_create_sensor_workspace(db: AsyncSession) -> Workspace:
-    result = await db.execute(select(Workspace).where(Workspace.api_key == settings.API_KEY))
+    api_key = current_sensor_api_key()
+    result = await db.execute(select(Workspace).where(Workspace.api_key == api_key))
     workspace = result.scalars().first()
     if workspace:
         return workspace
 
     workspace = Workspace(
         name="IDS Demo Workspace",
-        api_key=settings.API_KEY,
+        api_key=api_key,
     )
     db.add(workspace)
     await db.commit()

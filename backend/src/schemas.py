@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, computed_field, field_validator
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 import re 
 
@@ -89,6 +89,7 @@ class AlertCreate(BaseModel):
     protocol: str = "TCP"
     action: str = "logged"
     payload_preview: Optional[str] = None
+    raw_request: Optional[str] = None
     signature_msg: Optional[str] = None
     signature_class: Optional[str] = None
     signature_sid: Optional[int] = None
@@ -123,6 +124,7 @@ class AlertResponse(BaseModel):
     status: str
     notes: Optional[str] = None
     payload_preview: Optional[str]
+    raw_request: Optional[str] = None
     signature_msg: Optional[str] = None
     signature_class: Optional[str] = None
     signature_sid: Optional[int] = None
@@ -194,6 +196,39 @@ def build_alert_title(
         name = normalized
 
     return f"{severity_title}: {name}"
+
+
+def serialize_alert_contract(alert: Any) -> dict:
+    """Canonical alert payload used by REST responses and WebSocket events."""
+    return {
+        "id": alert.id,
+        "type": alert.type,
+        "title": build_alert_title(alert.severity, alert.payload_preview, alert.type, alert.signature_msg),
+        "severity": alert.severity,
+        "source_ip": alert.source_ip,
+        "destination_ip": alert.destination_ip,
+        "source_port": alert.source_port,
+        "destination_port": alert.destination_port,
+        "protocol": alert.protocol,
+        "action": alert.action,
+        "status": alert.status,
+        "notes": alert.notes,
+        "payload_preview": alert.payload_preview,
+        "raw_request": alert.raw_request,
+        "signature_msg": alert.signature_msg,
+        "signature_class": alert.signature_class,
+        "signature_sid": alert.signature_sid,
+        "signature_gid": alert.signature_gid,
+        "event_id": alert.event_id,
+        "capture_path": alert.capture_path,
+        "capture_mode": alert.capture_mode,
+        "packet_filter": alert.packet_filter,
+        "capture_window_seconds": alert.capture_window_seconds,
+        "timestamp": alert.timestamp.isoformat() if hasattr(alert.timestamp, "isoformat") else alert.timestamp,
+        "workspace_id": alert.workspace_id,
+        "is_flagged": bool(alert.is_flagged),
+        "is_saved": bool(alert.is_saved),
+    }
 
 class AlertUpdateStatus(BaseModel):
     """Used by Analysts to update the status of an alert"""
@@ -366,3 +401,13 @@ class DetectionProfileUpdate(BaseModel):
 class DetectionProfileResponse(BaseModel):
     profile: str
     available_profiles: list[str]
+    engine_profile: Optional[str] = None
+    reload_requested: bool = False
+
+
+class SensorKeyResponse(BaseModel):
+    api_key: str
+    workspace_id: int
+    delivery: str = "shared_file"
+    key_file: str
+    rotate_requires_bridge_restart: bool = False

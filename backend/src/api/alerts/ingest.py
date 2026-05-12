@@ -40,7 +40,7 @@ async def ingest_alert(
     workspace: Workspace = Depends(verify_api_key)
 ):
     #prep the data and put it to redis queue instead of db 
-    payload = alert_in.dict()
+    payload = alert_in.model_dump()
     payload["workspace_id"] = workspace.id
     payload["status"] = "new"
     

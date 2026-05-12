@@ -43,7 +43,7 @@ export const Overview = () => {
                             {isLoading ? "Synchronizing..." : isCompromised ? "Incident in Progress" : "System Nominal"}
                         </h3>
                         <p className="text-sm opacity-80 font-mono">
-                            {isCompromised ? "> Alert: Critical anomalies detected in edge sensors." : "> Status: All clusters operating within baseline parameters."}
+                            {isCompromised ? "> Alert: Critical anomalies detected in protected traffic." : "> Status: No active critical alerts in backend telemetry."}
                         </p>
                     </div>
                 </div>
@@ -61,7 +61,7 @@ export const Overview = () => {
                             {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.active_alerts}
                         </div>
                         <p className="text-[10px] text-neutral-600 mt-2 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Requests per second: 124.2
+                            <Clock className="w-3 h-3" /> Alerts in last 5m: {stats?.recent_alerts_5m ?? 0}
                         </p>
                     </CardContent>
                 </Card>
@@ -85,8 +85,10 @@ export const Overview = () => {
                         <Zap className="w-4 h-4 text-yellow-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-4xl font-bold text-white tabular-nums">100%</div>
-                        <p className="text-[10px] text-neutral-600 mt-2 uppercase">L7 Protection Active</p>
+                        <div className="text-4xl font-bold text-white tabular-nums">
+                            {isLoading ? <Skeleton className="h-10 w-16" /> : stats?.secured_segments ?? 0}
+                        </div>
+                        <p className="text-[10px] text-neutral-600 mt-2 uppercase">Protected origins active</p>
                     </CardContent>
                 </Card>
             </div>
@@ -134,7 +136,11 @@ export const Overview = () => {
                     <CardContent className="space-y-4">
                         <div className="p-3 rounded bg-black/40 border border-neutral-800">
                             <p className="text-[10px] text-neutral-500 uppercase">Last Mitigation</p>
-                            <p className="text-xs text-green-500 mt-1">IP 185.22.XX.XX blocked successfully</p>
+                            <p className="text-xs text-green-500 mt-1">
+                                {stats?.last_mitigation
+                                    ? `${stats.last_mitigation.ip_address} blocked`
+                                    : `${stats?.blocked_ips ?? 0} active gateway deny rules`}
+                            </p>
                         </div>
                         <Button variant="primary" className="w-full text-xs h-11" onClick={() => navigate('/defense')}>
                             Deploy Firewall Rules
