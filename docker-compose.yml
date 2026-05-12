@@ -29,6 +29,17 @@ services:
       timeout: 5s
       retries: 5
 
+  demo-origin:
+    image: python:3.12-slim
+    container_name: ids_demo_origin
+    restart: unless-stopped
+    working_dir: /srv/demo
+    command: python -m http.server 8081 --bind 0.0.0.0
+    volumes:
+      - ./demo-origin:/srv/demo:ro
+    expose:
+      - "8081"
+
   backend:
     build:
       context: ./backend
@@ -52,6 +63,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      demo-origin:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3).close()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   worker:
     build:
@@ -69,6 +88,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      backend:
         condition: service_healthy
 
 
@@ -89,7 +110,10 @@ services:
       - sh
       - /etc/nginx/reload-watch.sh
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      demo-origin:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "nginx -t"]
       interval: 30s
@@ -140,7 +164,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"from pathlib import Path; assert Path('/var/log/snort').exists()\""]
       interval: 30s

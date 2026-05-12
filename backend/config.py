@@ -1,5 +1,13 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 from typing import Optional
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT_ENV = BACKEND_DIR.parent / ".env"
+BACKEND_LOCAL_ENV = BACKEND_DIR / ".env"
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "W-IDS Platform"
@@ -28,6 +36,13 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
+    # Docker Compose injects the root .env into the container environment and
+    # those real environment variables always win. The files below are only
+    # fallbacks for local, non-Docker development.
+    model_config = SettingsConfigDict(
+        env_file=(PROJECT_ROOT_ENV, BACKEND_LOCAL_ENV),
+        case_sensitive=True,
+        extra="ignore",
+    )
 
 settings = Settings()

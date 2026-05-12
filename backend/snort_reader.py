@@ -1,3 +1,9 @@
+"""Legacy fast-alert reader.
+
+The active Docker Compose pipeline uses snort_bridge.py, which reads Snort3
+alert_json output plus Nginx access logs. Keep this file only as a manual
+fallback for older alert_fast.txt experiments.
+"""
 import re
 import time
 import requests

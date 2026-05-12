@@ -64,7 +64,7 @@ export const Management = () => {
     public_hostname: '',
     target_ip: '',
     target_port: '80',
-    listen_port: '8080',
+    listen_port: '80',
     scheme: 'http',
     tls_mode: 'edge',
     proxy_mode: 'reverse_proxy',
@@ -141,7 +141,7 @@ export const Management = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
       toast.success('Protected origin attached to W-IDS proxy.');
-      setSiteForm({ domain: '', public_hostname: '', target_ip: '', target_port: '80', listen_port: '8080', scheme: 'http', tls_mode: 'edge', proxy_mode: 'reverse_proxy', health_path: '/' });
+      setSiteForm({ domain: '', public_hostname: '', target_ip: '', target_port: '80', listen_port: '80', scheme: 'http', tls_mode: 'edge', proxy_mode: 'reverse_proxy', health_path: '/' });
     },
     onError: () => toast.error('Could not attach this site. Check domain, IP, and port.')
   });
@@ -296,7 +296,7 @@ export const Management = () => {
                     <option value="https">HTTPS</option>
                   </select>
                 </div>
-                <Input placeholder="listen 8080" value={siteForm.listen_port} onChange={(e) => setSiteForm({ ...siteForm, listen_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
+                <Input placeholder="listen 80" value={siteForm.listen_port} onChange={(e) => setSiteForm({ ...siteForm, listen_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
                 <select value={siteForm.tls_mode} onChange={(e) => setSiteForm({ ...siteForm, tls_mode: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
                   <option value="edge">TLS at Gateway</option>
                   <option value="passthrough">TLS Passthrough</option>

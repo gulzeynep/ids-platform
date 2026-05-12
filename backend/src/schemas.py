@@ -225,7 +225,7 @@ class MonitoredWebsiteCreate(BaseModel):
     target_port: int
     scheme: str = "http"
     public_hostname: Optional[str] = None
-    listen_port: int = 8080
+    listen_port: int = 80
     tls_mode: str = "edge"
     proxy_mode: str = "reverse_proxy"
     health_path: str = "/"
