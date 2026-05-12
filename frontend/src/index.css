@@ -13,7 +13,7 @@ body {
   right: clamp(14px, 2vw, 28px);
   bottom: clamp(12px, 2vw, 24px);
   z-index: 80;
-  width: clamp(112px, 11vw, 164px);
+  width: clamp(148px, 14vw, 210px);
   cursor: default;
   filter: drop-shadow(0 0 14px rgba(255, 65, 45, 0.42));
 }
