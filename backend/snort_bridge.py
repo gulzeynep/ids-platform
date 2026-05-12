@@ -75,7 +75,7 @@ def classify(msg: str) -> str:
         return "Port Scan"
     if any(k in m for k in ["traversal", "passwd", "shadow", "../"]):
         return "Path Traversal"
-    if any(k in m for k in ["shellcode", "exploit", "overflow", "injection"]):
+    if any(k in m for k in ["shellcode", "exploit", "overflow", "injection", "smuggling", "cve-"]):
         return "Exploit Attempt"
     if any(k in m for k in ["malware", "backdoor", "cnc"]):
         return "Malware"
@@ -84,6 +84,13 @@ def classify(msg: str) -> str:
     if any(k in m for k in ["icmp", "ping"]):
         return "ICMP Probe"
     return "Intrusion Attempt"
+
+
+def severity_from_alert(msg: str, priority: int | str | None) -> str:
+    prefix = msg.strip().split(":", 1)[0].lower()
+    if prefix in {"critical", "high", "medium", "low"}:
+        return prefix
+    return PRIORITY_MAP.get(int(priority) if priority else 3, "medium")
 
 
 def split_ap(ap: str):
@@ -312,7 +319,7 @@ def build_payload(raw: dict):
 
     payload = {
         "type": classify(msg),
-        "severity": PRIORITY_MAP.get(int(priority) if priority else 3, "medium"),
+        "severity": severity_from_alert(msg, priority),
         "source_ip": src_ip,
         "destination_ip": dst_ip,
         "source_port": src_port,

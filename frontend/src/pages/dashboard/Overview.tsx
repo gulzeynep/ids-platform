@@ -21,7 +21,7 @@ export const Overview = () => {
 
     const { data: latestAlerts } = useQuery({
         queryKey: [...alertKeys.lists(), 'overview-latest'],
-        queryFn: () => alertsApi.getAlerts({ status: 'new' }, 0, 8),
+        queryFn: () => alertsApi.getAlerts({ status: 'all' }, 0, 8),
         refetchInterval: 5000,
         refetchIntervalInBackground: true,
     });
@@ -112,7 +112,10 @@ export const Overview = () => {
                                 &gt; Waiting for incoming sensor telemetry...
                             </div>
                         ) : (
-                            (realtimeAlerts.length ? realtimeAlerts : latestAlerts || []).map((alert, idx) => (
+                            ([...realtimeAlerts, ...(latestAlerts || [])]
+                                .filter((alert, idx, arr) => arr.findIndex((item) => item.id === alert.id) === idx)
+                                .slice(0, 8)
+                            ).map((alert, idx) => (
                                 <div key={idx} className="p-4 border-b border-neutral-900 flex items-center justify-between hover:bg-white/[0.02] transition-colors animate-in slide-in-from-right-4">
                                     <div className="flex items-center gap-4">
                                         <span className={`w-2 h-2 rounded-full ${alert.severity === 'critical' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} />

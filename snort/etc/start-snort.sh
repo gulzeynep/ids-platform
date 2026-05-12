@@ -15,6 +15,7 @@ include /etc/snort/rules/local/local.rules
 EOF
 
 cat > "$PROFILE_DIR/web-official.rules" <<'EOF'
+include /etc/snort/rules/local/local.rules
 include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
@@ -22,6 +23,7 @@ include /etc/snort/rules/official/snort3-server-webapp.rules
 EOF
 
 cat > "$PROFILE_DIR/web-balanced.rules" <<'EOF'
+include /etc/snort/rules/local/local.rules
 include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
