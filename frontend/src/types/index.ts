@@ -31,6 +31,10 @@ export interface Alert {
   status: AlertStatus;
   notes: string | null;
   payload_preview: string | null;
+  signature_msg?: string | null;
+  signature_class?: string | null;
+  signature_sid?: number | null;
+  signature_gid?: number | null;
   event_id?: string | null;
   capture_path?: string | null;
   capture_mode?: string | null;

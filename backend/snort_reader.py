@@ -44,7 +44,9 @@ def tail_and_send():
                 "destination_port": int(dst_port) if dst_port else None,
                 "protocol": proto.upper(),
                 "action": "logged",
-                "payload_preview": line.strip()
+                "payload_preview": line.strip(),
+                "signature_msg": msg,
+                "signature_class": "legacy-fast-alert",
             }
             try:
                 r = requests.post(

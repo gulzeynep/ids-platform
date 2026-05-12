@@ -7,6 +7,7 @@ import re
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
+    role: Optional[str] = "analyst"
 
     @field_validator('email')
     @classmethod
@@ -68,8 +69,8 @@ class PasswordChangeRequest(BaseModel):
 # Workspcae Schemas
 class WorkspaceResponse(BaseModel):
     id: int
-    name: str
-    subscription_plan: str
+    name: Optional[str]
+    subscription_plan: Optional[str] = None
     api_key: Optional[str]
     created_at: datetime
 
@@ -88,6 +89,10 @@ class AlertCreate(BaseModel):
     protocol: str = "TCP"
     action: str = "logged"
     payload_preview: Optional[str] = None
+    signature_msg: Optional[str] = None
+    signature_class: Optional[str] = None
+    signature_sid: Optional[int] = None
+    signature_gid: Optional[int] = None
     event_id: Optional[str] = None
     capture_path: Optional[str] = None
     capture_mode: Optional[str] = None
@@ -118,6 +123,10 @@ class AlertResponse(BaseModel):
     status: str
     notes: Optional[str] = None
     payload_preview: Optional[str]
+    signature_msg: Optional[str] = None
+    signature_class: Optional[str] = None
+    signature_sid: Optional[int] = None
+    signature_gid: Optional[int] = None
     event_id: Optional[str] = None
     capture_path: Optional[str] = None
     capture_mode: Optional[str] = None
@@ -133,15 +142,28 @@ class AlertResponse(BaseModel):
     @computed_field
     @property
     def display_title(self) -> str:
-        return build_alert_title(self.severity, self.payload_preview, self.type)
+        return build_alert_title(self.severity, self.payload_preview, self.type, self.signature_msg)
 
     class Config:
         from_attributes = True
 
 
-def build_alert_title(severity: str, payload_preview: Optional[str], fallback: str) -> str:
+def build_alert_title(
+    severity: str,
+    payload_preview: Optional[str],
+    fallback: str,
+    signature_msg: Optional[str] = None,
+) -> str:
+    severity_title = severity.title()
+
+    if signature_msg:
+        cleaned_signature = signature_msg.strip()
+        if re.match(r"^(critical|high|medium|low)\s*:", cleaned_signature, re.IGNORECASE):
+            return cleaned_signature
+        return f"{severity_title}: {cleaned_signature}"
+
     if not payload_preview:
-        return f"{severity.title()}: {fallback}"
+        return f"{severity_title}: {fallback}"
 
     raw_msg = payload_preview
     if payload_preview.startswith("[") and "]" in payload_preview:
@@ -171,7 +193,7 @@ def build_alert_title(severity: str, payload_preview: Optional[str], fallback: s
     else:
         name = normalized
 
-    return f"{severity.title()}: {name}"
+    return f"{severity_title}: {name}"
 
 class AlertUpdateStatus(BaseModel):
     """Used by Analysts to update the status of an alert"""
@@ -221,6 +243,34 @@ class MonitoredWebsiteCreate(BaseModel):
             raise ValueError("scheme must be http or https")
         return cleaned
 
+    @field_validator('listen_port', 'target_port')
+    @classmethod
+    def validate_port(cls, v: int) -> int:
+        if v < 1 or v > 65535:
+            raise ValueError("port must be between 1 and 65535")
+        return v
+
+    @field_validator('tls_mode')
+    @classmethod
+    def validate_tls_mode(cls, v: str) -> str:
+        cleaned = v.strip().lower()
+        if cleaned not in {"edge", "passthrough", "origin"}:
+            raise ValueError("tls_mode must be edge, passthrough, or origin")
+        return cleaned
+
+
+class MonitoredWebsiteUpdate(BaseModel):
+    domain: Optional[str] = None
+    target_ip: Optional[str] = None
+    target_port: Optional[int] = None
+    scheme: Optional[str] = None
+    public_hostname: Optional[str] = None
+    listen_port: Optional[int] = None
+    tls_mode: Optional[str] = None
+    proxy_mode: Optional[str] = None
+    health_path: Optional[str] = None
+    is_active: Optional[bool] = None
+
 
 class MonitoredWebsiteResponse(BaseModel):
     id: int
@@ -239,6 +289,80 @@ class MonitoredWebsiteResponse(BaseModel):
     proxy_url: str
     dns_target: str
     nginx_server_block: str
+    tls_status: str
+    upstream_health: str
 
     class Config:
         from_attributes = True
+
+
+class DetectionRuleBase(BaseModel):
+    title: str
+    severity: str = "medium"
+    category: str = "Web Custom"
+    match_type: str = "contains"
+    pattern: str
+    enabled: bool = True
+
+    @field_validator('title', 'category', 'pattern')
+    @classmethod
+    def trim_required_text(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("value cannot be empty")
+        return cleaned
+
+    @field_validator('severity')
+    @classmethod
+    def validate_rule_severity(cls, v: str) -> str:
+        cleaned = v.strip().lower()
+        if cleaned not in {"low", "medium", "high", "critical"}:
+            raise ValueError("severity must be low, medium, high, or critical")
+        return cleaned
+
+    @field_validator('match_type')
+    @classmethod
+    def validate_match_type(cls, v: str) -> str:
+        cleaned = v.strip().lower()
+        if cleaned not in {"contains", "regex"}:
+            raise ValueError("match_type must be contains or regex")
+        return cleaned
+
+
+class DetectionRuleCreate(DetectionRuleBase):
+    pass
+
+
+class DetectionRuleUpdate(BaseModel):
+    title: Optional[str] = None
+    severity: Optional[str] = None
+    category: Optional[str] = None
+    match_type: Optional[str] = None
+    pattern: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
+class DetectionRuleResponse(DetectionRuleBase):
+    id: int
+    created_at: datetime
+    workspace_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class DetectionProfileUpdate(BaseModel):
+    profile: str
+
+    @field_validator('profile')
+    @classmethod
+    def validate_profile(cls, v: str) -> str:
+        cleaned = v.strip().lower()
+        if cleaned not in {"web-balanced", "web-full", "local-only"}:
+            raise ValueError("profile must be web-balanced, web-full, or local-only")
+        return cleaned
+
+
+class DetectionProfileResponse(BaseModel):
+    profile: str
+    available_profiles: list[str]

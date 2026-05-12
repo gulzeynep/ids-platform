@@ -21,11 +21,13 @@ import httpx
 SNORT_LOG = Path(os.environ.get("SNORT_ALERT_LOG", "/var/log/snort/alert_json.txt"))
 NGINX_ACCESS_LOG = Path(os.environ.get("NGINX_ACCESS_LOG", "/var/log/nginx/access.log"))
 CAPTURE_DIR = Path(os.environ.get("SNORT_CAPTURE_DIR", "/var/log/snort/event_captures"))
+CUSTOM_SIGNATURES_FILE = Path(os.environ.get("CUSTOM_WEB_SIGNATURES_PATH", "/var/log/snort/custom_web_signatures.json"))
 BACKEND = os.environ.get("BACKEND_URL", "http://ids_backend:8000")
 API_KEY = os.environ.get("SNORT_API_KEY") or os.environ.get("API_KEY", "")
 POLL_INTERVAL = float(os.environ.get("SNORT_BRIDGE_POLL_INTERVAL", "0.25"))
 REOPEN_INTERVAL = float(os.environ.get("SNORT_BRIDGE_REOPEN_INTERVAL", "2"))
 SENSOR_IP = os.environ.get("IDS_SENSOR_IP", "172.18.0.7")
+MAX_RECENT_EVENTS = int(os.environ.get("SNORT_BRIDGE_RECENT_EVENTS", "4096"))
 
 PRIORITY_MAP = {1: "critical", 2: "high", 3: "medium", 4: "low"}
 ACCESS_RE = re.compile(r'^(?P<src>\S+) \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) (?P<target>\S+) HTTP/[^"]+" (?P<status>\d+)')
@@ -40,6 +42,8 @@ WEB_SIGNATURES = [
     ("Medium: phpMyAdmin Probe", "Port Scan", "medium", ["phpmyadmin"]),
     ("Critical: Log4Shell JNDI Lookup", "Exploit Attempt", "critical", ["${jndi:", "%24%7bjndi"]),
 ]
+CUSTOM_SIGNATURES_MTIME = 0.0
+CUSTOM_SIGNATURES: list[dict] = []
 
 
 def classify(msg: str) -> str:
@@ -108,6 +112,60 @@ def write_capture_metadata(raw: dict, payload: dict, event_id: str) -> dict:
     }
 
 
+def load_custom_signatures() -> list[dict]:
+    global CUSTOM_SIGNATURES_MTIME, CUSTOM_SIGNATURES
+
+    if not CUSTOM_SIGNATURES_FILE.exists():
+        CUSTOM_SIGNATURES_MTIME = 0.0
+        CUSTOM_SIGNATURES = []
+        return CUSTOM_SIGNATURES
+
+    mtime = CUSTOM_SIGNATURES_FILE.stat().st_mtime
+    if mtime == CUSTOM_SIGNATURES_MTIME:
+        return CUSTOM_SIGNATURES
+
+    try:
+        loaded = json.loads(CUSTOM_SIGNATURES_FILE.read_text(encoding="utf-8"))
+        if not isinstance(loaded, list):
+            raise ValueError("custom signature file must contain a list")
+        CUSTOM_SIGNATURES = [item for item in loaded if item.get("enabled", True)]
+        CUSTOM_SIGNATURES_MTIME = mtime
+        print(f"[bridge] Loaded {len(CUSTOM_SIGNATURES)} custom web signatures", flush=True)
+    except Exception as exc:
+        print(f"[bridge] Could not load custom signatures: {exc}", flush=True)
+
+    return CUSTOM_SIGNATURES
+
+
+def match_custom_access_alert(decoded: str, raw_target: str) -> Optional[tuple[str, str, str]]:
+    for rule in load_custom_signatures():
+        pattern = str(rule.get("pattern", "")).strip()
+        if not pattern:
+            continue
+
+        match_type = str(rule.get("match_type", "contains")).lower()
+        matched = False
+        if match_type == "regex":
+            try:
+                matched = bool(re.search(pattern, decoded, flags=re.IGNORECASE)) or bool(
+                    re.search(pattern, raw_target, flags=re.IGNORECASE)
+                )
+            except re.error as exc:
+                print(f"[bridge] Skipping invalid custom regex {rule.get('id')}: {exc}", flush=True)
+                continue
+        else:
+            needle = pattern.lower()
+            matched = needle in decoded or needle in raw_target
+
+        if matched:
+            return (
+                str(rule.get("title") or "Custom Web Signature"),
+                str(rule.get("category") or "Web Custom"),
+                str(rule.get("severity") or "medium").lower(),
+            )
+    return None
+
+
 def is_sensor_candidate(raw: dict) -> bool:
     return raw.get("msg") == "Sensor: HTTP Flow Candidate"
 
@@ -132,6 +190,10 @@ def build_payload(raw: dict):
         "protocol": proto,
         "action": "logged",
         "payload_preview": f"[{msg}]" + (f" payload={b64[:120]}" if b64 else ""),
+        "signature_msg": msg,
+        "signature_class": raw.get("class"),
+        "signature_sid": int(raw["sid"]) if str(raw.get("sid", "")).isdigit() else None,
+        "signature_gid": int(raw["gid"]) if str(raw.get("gid", "")).isdigit() else None,
     }
     payload.update(write_capture_metadata(raw, payload, event_id))
     return payload
@@ -140,6 +202,9 @@ def build_payload(raw: dict):
 def match_access_alert(target: str) -> Optional[tuple[str, str, str]]:
     decoded = unquote_plus(target).lower()
     raw_target = target.lower()
+    custom_match = match_custom_access_alert(decoded, raw_target)
+    if custom_match:
+        return custom_match
     for title, category, severity, needles in WEB_SIGNATURES:
         if any(needle in decoded or needle in raw_target for needle in needles):
             return title, category, severity
@@ -184,6 +249,10 @@ def build_access_payload(line: str) -> Optional[dict]:
         "protocol": "TCP",
         "action": "logged",
         "payload_preview": f"[{title}] request={match.group('method')} {target} status={match.group('status')}",
+        "signature_msg": title,
+        "signature_class": category,
+        "signature_sid": raw["sid"],
+        "signature_gid": raw["gid"],
     }
     payload.update(write_capture_metadata(raw, payload, event_id))
     return payload
@@ -211,6 +280,7 @@ async def tail_and_send():
     print(f"[bridge] Watching {SNORT_LOG} -> {BACKEND}", flush=True)
     last_inode = None
     position = 0
+    recent = deque(maxlen=MAX_RECENT_EVENTS)
 
     async with httpx.AsyncClient() as client:
         while True:
@@ -222,8 +292,9 @@ async def tail_and_send():
             stat = SNORT_LOG.stat()
             inode = getattr(stat, "st_ino", None)
             if last_inode != inode or stat.st_size < position:
+                first_open = last_inode is None
                 last_inode = inode
-                position = stat.st_size
+                position = stat.st_size if first_open else 0
                 print(f"[bridge] Opened alert file at offset {position}", flush=True)
 
             with SNORT_LOG.open("r", encoding="utf-8", errors="replace") as handle:
@@ -249,6 +320,9 @@ async def tail_and_send():
                         continue
 
                     payload = build_payload(raw)
+                    if payload["event_id"] in recent:
+                        continue
+                    recent.append(payload["event_id"])
                     await post_payload(client, payload)
 
             await asyncio.sleep(POLL_INTERVAL)
@@ -269,8 +343,9 @@ async def tail_nginx_access():
             stat = NGINX_ACCESS_LOG.stat()
             inode = getattr(stat, "st_ino", None)
             if last_inode != inode or stat.st_size < position:
+                first_open = last_inode is None
                 last_inode = inode
-                position = stat.st_size
+                position = stat.st_size if first_open else 0
                 print(f"[bridge] Opened nginx access log at offset {position}", flush=True)
 
             with NGINX_ACCESS_LOG.open("r", encoding="utf-8", errors="replace") as handle:
@@ -297,8 +372,22 @@ async def tail_nginx_access():
             await asyncio.sleep(POLL_INTERVAL)
 
 
+async def run_forever(name: str, coro_factory):
+    while True:
+        try:
+            await coro_factory()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[bridge] {name} crashed, restarting in {REOPEN_INTERVAL}s: {exc}", flush=True)
+            await asyncio.sleep(REOPEN_INTERVAL)
+
+
 async def main():
-    await asyncio.gather(tail_and_send(), tail_nginx_access())
+    await asyncio.gather(
+        run_forever("snort-tail", tail_and_send),
+        run_forever("nginx-access-tail", tail_nginx_access),
+    )
 
 
 if __name__ == "__main__":

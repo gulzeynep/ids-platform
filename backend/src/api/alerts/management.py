@@ -15,7 +15,7 @@ router = APIRouter()
 
 def serialize_alert(alert: Alert) -> AlertResponse:
     response = AlertResponse.model_validate(alert)
-    response.title = build_alert_title(alert.severity, alert.payload_preview, alert.type)
+    response.title = build_alert_title(alert.severity, alert.payload_preview, alert.type, alert.signature_msg)
     return response
 
 @router.get("/", response_model=List[AlertResponse])

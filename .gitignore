@@ -36,6 +36,10 @@ snort/logs/*.txt
 snort/logs/*.pcap
 snort/logs/archive/
 snort/logs/event_captures/
+snort/logs/custom_web_signatures.json
+nginx/generated/*.conf
+nginx/certs/*
+!nginx/certs/.gitkeep
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

@@ -31,7 +31,7 @@ async def process_alerts():
                     alert_data = {
                         "id": new_alert.id,
                         "type": new_alert.type,
-                        "title": build_alert_title(new_alert.severity, new_alert.payload_preview, new_alert.type),
+                        "title": build_alert_title(new_alert.severity, new_alert.payload_preview, new_alert.type, new_alert.signature_msg),
                         "severity": new_alert.severity,
                         "source_ip": new_alert.source_ip,
                         "destination_ip": new_alert.destination_ip,
@@ -41,6 +41,10 @@ async def process_alerts():
                         "action": new_alert.action,
                         "status": new_alert.status,
                         "payload_preview": new_alert.payload_preview,
+                        "signature_msg": new_alert.signature_msg,
+                        "signature_class": new_alert.signature_class,
+                        "signature_sid": new_alert.signature_sid,
+                        "signature_gid": new_alert.signature_gid,
                         "timestamp": new_alert.timestamp.isoformat(),
                         "workspace_id": new_alert.workspace_id,
                         "is_flagged": new_alert.is_flagged,
@@ -48,7 +52,14 @@ async def process_alerts():
                     }
 
                     try:
-                        await manager.broadcast_to_workspace(alert_data, workspace_id)
+                        await manager.broadcast_to_workspace(
+                            {
+                                "type": "alert",
+                                "data": alert_data,
+                                "timestamp": new_alert.timestamp.isoformat(),
+                            },
+                            workspace_id,
+                        )
                     except Exception as exc:
                         logger.error(f"WebSocket broadcast error: {exc}")
 

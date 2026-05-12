@@ -19,10 +19,13 @@ class ConnectionManager:
 
     async def broadcast_to_workspace(self, message: dict, workspace_id: int):
         if workspace_id in self.active_connections:
+            stale_connections = []
             for connection in self.active_connections[workspace_id]:
                 try:
                     await connection.send_json(message)
                 except Exception:
-                    pass
+                    stale_connections.append(connection)
+            for connection in stale_connections:
+                self.disconnect(connection, workspace_id)
 
 manager = ConnectionManager()
