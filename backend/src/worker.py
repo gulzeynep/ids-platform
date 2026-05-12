@@ -2,10 +2,12 @@ import asyncio
 import json
 
 from src.core.logger import logger
+from src.core.mailer import send_security_alert, should_send_alert_email
 from src.core.queue import publish_alert_event, redis_client
 from src.database import AsyncSessionLocal
-from src.models import Alert
+from src.models import Alert, User
 from src.schemas import serialize_alert_contract
+from sqlalchemy import select
 
 
 async def process_alerts():
@@ -27,6 +29,9 @@ async def process_alerts():
                         await db.commit()
                         await db.refresh(new_alert)
 
+                        users_result = await db.execute(select(User).where(User.workspace_id == workspace_id))
+                        notification_users = users_result.scalars().all()
+
                     alert_data = serialize_alert_contract(new_alert)
                     await publish_alert_event(
                         {
@@ -36,6 +41,25 @@ async def process_alerts():
                             "timestamp": alert_data["timestamp"],
                         }
                     )
+
+                    for user in notification_users:
+                        recipient = user.alert_email or user.email
+                        if not should_send_alert_email(
+                            enabled=user.enable_email_notifications is not False,
+                            recipient=recipient,
+                            severity=new_alert.severity,
+                            min_severity_level=user.min_severity_level or "high",
+                        ):
+                            continue
+                        try:
+                            await send_security_alert(
+                                recipient,
+                                new_alert.type,
+                                new_alert.severity,
+                                new_alert.source_ip,
+                            )
+                        except Exception as exc:
+                            logger.error(f"Email alert delivery failed for user {user.id}: {exc}")
 
                     await redis_client.xdel("alert_stream", msg_id)
                     logger.info(f"Processed & published alert: {payload['type']}")

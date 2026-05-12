@@ -237,6 +237,40 @@ class AlertUpdateStatus(BaseModel):
     is_flagged: Optional[bool] = None
     is_saved: Optional[bool] = None 
 
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        cleaned = v.strip().lower()
+        allowed = {"new", "reviewing", "reviewed", "false_positive"}
+        if cleaned not in allowed:
+            raise ValueError(f"Status must be one of {sorted(allowed)}")
+        return cleaned
+
+
+class UserSettingsUpdate(BaseModel):
+    alert_email: Optional[EmailStr] = None
+    enable_email_notifications: Optional[bool] = None
+    min_severity_level: Optional[str] = None
+
+    @field_validator("min_severity_level")
+    @classmethod
+    def validate_min_severity_level(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        cleaned = v.strip().lower()
+        allowed = {"low", "medium", "high", "critical"}
+        if cleaned not in allowed:
+            raise ValueError(f"Minimum severity must be one of {sorted(allowed)}")
+        return cleaned
+
+
+class UserSettingsResponse(BaseModel):
+    alert_email: Optional[str] = None
+    enable_email_notifications: bool = True
+    min_severity_level: str = "high"
+
 # Defense and Blacklist Schemas
 class BlacklistCreate(BaseModel):
     ip_address: str

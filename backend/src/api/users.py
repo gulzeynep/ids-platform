@@ -5,27 +5,53 @@ from typing import List
 
 from src.database import get_db
 from src.models import User, Notification
-from src.schemas import UserResponse, UserRegister
+from src.core.mailer import send_confirmation_email
+from src.schemas import UserResponse, UserRegister, UserSettingsResponse, UserSettingsUpdate
 from src.core.security import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/management", tags=["User & Workspace Management"])
 
+
+def serialize_user_settings(user: User) -> UserSettingsResponse:
+    return UserSettingsResponse(
+        alert_email=user.alert_email or user.email,
+        enable_email_notifications=user.enable_email_notifications is not False,
+        min_severity_level=user.min_severity_level or "high",
+    )
+
+
+@router.get("/settings", response_model=UserSettingsResponse)
+async def get_user_settings(current_user: User = Depends(get_current_user)):
+    """Read operative notification and alert preferences."""
+    return serialize_user_settings(current_user)
+
+
 @router.patch("/settings")
 async def update_user_settings(
-    settings_in: dict, 
+    settings_in: UserSettingsUpdate,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
     """Update operative notification and alert preferences."""
-    if "alert_email" in settings_in:
-        current_user.alert_email = settings_in["alert_email"]
-    if "enable_email_notifications" in settings_in:
-        current_user.enable_email_notifications = settings_in["enable_email_notifications"]
-    if "min_severity_level" in settings_in:
-        current_user.min_severity_level = settings_in["min_severity_level"]
+    update_data = settings_in.model_dump(exclude_unset=True)
+    if "alert_email" in update_data:
+        current_user.alert_email = str(update_data["alert_email"]) if update_data["alert_email"] else None
+    if "enable_email_notifications" in update_data:
+        current_user.enable_email_notifications = update_data["enable_email_notifications"]
+    if "min_severity_level" in update_data:
+        current_user.min_severity_level = update_data["min_severity_level"]
 
     await db.commit()
-    return {"status": "success", "message": "Neural settings synchronized."}
+    await db.refresh(current_user)
+    return serialize_user_settings(current_user)
+
+
+@router.post("/settings/test-email")
+async def send_settings_confirmation_email(current_user: User = Depends(get_current_user)):
+    """Send a confirmation email to the configured alert mailbox."""
+    recipient = current_user.alert_email or current_user.email
+    await send_confirmation_email(recipient)
+    return {"status": "sent", "recipient": recipient}
 
 @router.get("/notifications")
 async def get_my_notifications(

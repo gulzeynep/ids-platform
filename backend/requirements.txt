@@ -24,3 +24,4 @@ requests==2.31.0
 
 #tests
 pytest==8.2.0
+pytest-cov==5.0.0

@@ -88,7 +88,7 @@ async def update_alert_triage(
     triage_data: AlertUpdateStatus, 
     db: AsyncSession = Depends(get_db), 
     current_user: User = Depends(get_current_user)
-):
+) -> AlertResponse:
     """Universal update endpoint for status, notes, flags, and saves."""
     result = await db.execute(
         select(Alert).where(
@@ -101,10 +101,11 @@ async def update_alert_triage(
         raise HTTPException(status_code=404, detail="Alert record not found.")
     
     # Only update fields that were explicitly sent in the request
-    update_data = triage_data.dict(exclude_unset=True)
+    update_data = triage_data.model_dump(exclude_unset=True)
     
     for key, value in update_data.items():
         setattr(alert, key, value)
         
     await db.commit()
-    return {"message": "Alert updated successfully."}
+    await db.refresh(alert)
+    return serialize_alert(alert)
