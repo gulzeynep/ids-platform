@@ -5,6 +5,7 @@ from src.api import auth, alerts, admin, ws, users, defense
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from src.api.auth import limiter
+from src.core.realtime import start_realtime_broadcaster, stop_realtime_broadcaster
 
 app = FastAPI(title="W-IDS Core")
 app.state.limiter = limiter
@@ -24,3 +25,13 @@ app.include_router(admin.router)
 app.include_router(ws.router)
 app.include_router(users.router )
 app.include_router(defense.router )
+
+
+@app.on_event("startup")
+async def startup_realtime_broadcast() -> None:
+    await start_realtime_broadcaster()
+
+
+@app.on_event("shutdown")
+async def shutdown_realtime_broadcast() -> None:
+    await stop_realtime_broadcaster()

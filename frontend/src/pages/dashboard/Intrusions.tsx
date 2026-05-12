@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Flag, ShieldCheck, Search, ChevronLeft, ChevronRight, X, FileSearch, Radio } from 'lucide-react';
+import { Flag, ShieldCheck, Search, ChevronLeft, ChevronRight, X, FileSearch, Radio, Fingerprint } from 'lucide-react';
 import { alertsApi, alertKeys } from '../../api/endpoints/alerts';
 import { useAlertsStore } from '../../stores/alerts.store';
 import { Card } from '../../components/ui/Card';
@@ -61,18 +61,47 @@ export const Intrusions = () => {
           <Input 
             placeholder="Search by Source IP or Attack Type..." 
             className="pl-10"
+            value={filters.search || ''}
             onChange={(e) => setFilters({ search: e.target.value })}
           />
         </div>
+
+        <select
+          className="bg-[#111] border border-neutral-800 text-sm rounded-lg px-3 h-10 text-neutral-300 focus:ring-2 focus:ring-blue-500 outline-none"
+          value={filters.status || 'new'}
+          onChange={(e) => setFilters({ status: e.target.value as any })}
+        >
+          <option value="all">All Statuses</option>
+          <option value="new">New</option>
+          <option value="reviewing">Reviewing</option>
+          <option value="reviewed">Reviewed</option>
+          <option value="false_positive">False Positive</option>
+        </select>
         
         <select 
           className="bg-[#111] border border-neutral-800 text-sm rounded-lg px-3 h-10 text-neutral-300 focus:ring-2 focus:ring-blue-500 outline-none"
+          value={filters.severity || 'all'}
           onChange={(e) => setFilters({ severity: e.target.value as any })}
         >
           <option value="all">All Severities</option>
-          <option value="critical">Critical Only</option>
-          <option value="high">High & Above</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
         </select>
+
+        <Input
+          type="datetime-local"
+          className="max-w-[210px]"
+          value={filters.start_date || ''}
+          onChange={(e) => setFilters({ start_date: e.target.value || undefined })}
+        />
+        <Input
+          type="datetime-local"
+          className="max-w-[210px]"
+          value={filters.end_date || ''}
+          onChange={(e) => setFilters({ end_date: e.target.value || undefined })}
+        />
 
         <Button 
           variant={filters.is_flagged ? "danger" : "secondary"}
@@ -177,6 +206,12 @@ export const Intrusions = () => {
                   <p className="text-neutral-300">{selectedAlert.payload_preview?.match(/^\[([^\]]+)\]/)?.[1] || selectedAlert.type}</p>
                 </div>
                 <div className="p-3 bg-black border border-neutral-900 rounded-lg">
+                  <p className="text-[10px] uppercase text-neutral-600 mb-1 flex items-center gap-2"><Fingerprint size={14} /> Signature</p>
+                  <p className="text-xs text-neutral-300">SID/GID: {selectedAlert.signature_sid ?? 'n/a'} / {selectedAlert.signature_gid ?? 'n/a'}</p>
+                  <p className="text-xs text-neutral-400">Class: {selectedAlert.signature_class || 'n/a'}</p>
+                  <p className="text-xs text-neutral-400 break-all">Msg: {selectedAlert.signature_msg || 'n/a'}</p>
+                </div>
+                <div className="p-3 bg-black border border-neutral-900 rounded-lg">
                   <p className="text-[10px] uppercase text-neutral-600 mb-1">Flow</p>
                   <p className="font-mono text-neutral-300">{selectedAlert.source_ip}:{selectedAlert.source_port || '*'} {'->'} {selectedAlert.destination_ip}:{selectedAlert.destination_port || '*'}</p>
                 </div>
@@ -191,6 +226,10 @@ export const Intrusions = () => {
                 <div className="p-3 bg-black border border-neutral-900 rounded-lg">
                   <p className="text-[10px] uppercase text-neutral-600 mb-1 flex items-center gap-2"><Radio size={14} /> Packet filter</p>
                   <p className="font-mono text-xs text-neutral-300 break-all">{selectedAlert.packet_filter || 'No packet filter recorded.'}</p>
+                </div>
+                <div className="p-3 bg-black border border-neutral-900 rounded-lg">
+                  <p className="text-[10px] uppercase text-neutral-600 mb-1">Raw request</p>
+                  <p className="font-mono text-xs text-neutral-300 break-all whitespace-pre-wrap">{selectedAlert.raw_request || 'No raw request captured.'}</p>
                 </div>
               </div>
             </div>

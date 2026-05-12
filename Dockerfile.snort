@@ -36,8 +36,8 @@ RUN ldconfig
 # 5. Temizlik (İmaj boyutunu küçültmek için kaynak kodları siliyoruz)
 RUN rm -rf /tmp/libdaq /tmp/snort3
 
-# 6. Install iproute2 for the start script
-RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
+# 6. Install runtime network tooling for the start script and event captures.
+RUN apt-get update && apt-get install -y iproute2 tcpdump && rm -rf /var/lib/apt/lists/*
 
 # 7. Senin hiyerarşine uygun çalışma dizini
 WORKDIR /etc/snort/etc

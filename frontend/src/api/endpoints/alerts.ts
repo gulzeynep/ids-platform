@@ -59,6 +59,11 @@ export const alertsApi = {
   getAlertStats: async () => {
     const response = await apiClient.get('/alerts/stats/dashboard'); 
     return response.data;
+  },
+
+  getAnalysisStats: async () => {
+    const response = await apiClient.get('/alerts/stats/analysis');
+    return response.data;
   }
 };
 

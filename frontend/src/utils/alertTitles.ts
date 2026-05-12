@@ -1,6 +1,15 @@
 import type { Alert } from '../types';
 
-export const getAlertTitle = (alert: Pick<Alert, 'title' | 'type' | 'severity' | 'payload_preview'>): string => {
+const formatSignatureTitle = (severity: string, signature: string): string => {
+  const cleaned = signature.trim();
+  if (/^(critical|high|medium|low)\s*:/i.test(cleaned)) return cleaned;
+  return `${severity.charAt(0).toUpperCase()}${severity.slice(1)}: ${cleaned}`;
+};
+
+export const getAlertTitle = (
+  alert: Pick<Alert, 'title' | 'type' | 'severity' | 'payload_preview' | 'signature_msg'>
+): string => {
+  if (alert.signature_msg) return formatSignatureTitle(alert.severity, alert.signature_msg);
   if (alert.title) return alert.title;
 
   const raw = alert.payload_preview?.match(/^\[([^\]]+)\]/)?.[1] || alert.type;

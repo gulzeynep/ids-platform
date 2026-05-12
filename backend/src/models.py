@@ -10,6 +10,7 @@ class Workspace(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=True) # e.g., "Acme Corp" or "STUDENT WORKSPACE"
     api_key = Column(String, unique=True, index=True, nullable=True) # The Sensor Key belongs to the Workspace!
+    detection_profile = Column(String, default="web-official", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -18,6 +19,7 @@ class Workspace(Base):
     notifications = relationship("Notification", back_populates="workspace")
     blacklisted_ips = relationship("BlacklistedIP", back_populates="workspace")
     monitored_websites = relationship("MonitoredWebsite", back_populates="workspace")
+    detection_rules = relationship("DetectionRule", back_populates="workspace")
 
 class User(Base):
     """Represents the actual human logging in"""
@@ -62,6 +64,11 @@ class Alert(Base):
     protocol = Column(String, default="TCP") # TCP, UDP, ICMP, HTTP
     
     payload_preview = Column(Text, nullable=True) 
+    raw_request = Column(Text, nullable=True)
+    signature_msg = Column(String, nullable=True)
+    signature_class = Column(String, nullable=True)
+    signature_sid = Column(Integer, nullable=True)
+    signature_gid = Column(Integer, nullable=True)
     event_id = Column(String, nullable=True, index=True)
     capture_path = Column(String, nullable=True)
     capture_mode = Column(String, nullable=True)
@@ -120,7 +127,7 @@ class MonitoredWebsite(Base):
     target_port = Column(Integer, nullable=False)
     scheme = Column(String, default="http", nullable=False)
     public_hostname = Column(String, nullable=True)
-    listen_port = Column(Integer, default=8080, nullable=False)
+    listen_port = Column(Integer, default=80, nullable=False)
     tls_mode = Column(String, default="edge", nullable=False)
     proxy_mode = Column(String, default="reverse_proxy", nullable=False)
     health_path = Column(String, default="/", nullable=False)
@@ -129,3 +136,20 @@ class MonitoredWebsite(Base):
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
 
     workspace = relationship("Workspace", back_populates="monitored_websites")
+
+
+class DetectionRule(Base):
+    """Workspace-owned HTTP fallback signature used by the reverse-proxy bridge."""
+    __tablename__ = "detection_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    severity = Column(String, default="medium", nullable=False)
+    category = Column(String, default="Web Custom", nullable=False)
+    match_type = Column(String, default="contains", nullable=False)
+    pattern = Column(String, nullable=False)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), index=True, nullable=False)
+
+    workspace = relationship("Workspace", back_populates="detection_rules")

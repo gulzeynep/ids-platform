@@ -34,6 +34,8 @@ EXTERNAL_NET = 'any'
 include 'snort_defaults.lua'
 include 'file_magic.lua'
 
+local rule_profile_file = os.getenv('SNORT_RULE_PROFILE_FILE') or '/etc/snort/rules/local/local.rules'
+
 -- -------------------------------------------------------------------------
 -- 2. configure inspection
 -- ---------------------------------------------------------------------------
@@ -177,15 +179,7 @@ ips =
     --include = 'snort3-community.rules',
 
     -- RULE_PATH is typically set in snort_defaults.lua
-    rules = [[
-
-        # Runtime stability mode: official web rules are kept in
-        # /etc/snort/rules/official, but this lab runtime uses a small local
-        # fallback set derived from those web signatures to avoid long
-        # startup stalls and keep dashboard streaming stable.
-        include /etc/snort/rules/local/local.rules
-
-    ]],
+    rules = 'include ' .. rule_profile_file .. '\n',
     mode = 'tap',
     variables = default_variables,
 }
@@ -249,7 +243,7 @@ alert_fast = {
 
 alert_json = {
     file = true,
-    limit = 100000,
+    limit = 0,
     fields = 'seconds action msg priority b64_data class src_ap dst_ap proto sid gid rev service',
 }
 -- event logging

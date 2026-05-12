@@ -15,7 +15,7 @@ router = APIRouter()
 
 def serialize_alert(alert: Alert) -> AlertResponse:
     response = AlertResponse.model_validate(alert)
-    response.title = build_alert_title(alert.severity, alert.payload_preview, alert.type)
+    response.title = build_alert_title(alert.severity, alert.payload_preview, alert.type, alert.signature_msg)
     return response
 
 @router.get("/", response_model=List[AlertResponse])
@@ -25,8 +25,8 @@ async def get_workspace_alerts(
     is_saved: Optional[bool] = None,
     is_flagged: Optional[bool] = None,
     search: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db), 
@@ -51,12 +51,15 @@ async def get_workspace_alerts(
                 Alert.source_ip.ilike(like),
                 Alert.destination_ip.ilike(like),
                 Alert.payload_preview.ilike(like),
+                Alert.raw_request.ilike(like),
+                Alert.signature_msg.ilike(like),
+                Alert.signature_class.ilike(like),
             )
         )
-    if start_time:
-        query = query.where(Alert.timestamp >= start_time)
-    if end_time:
-        query = query.where(Alert.timestamp <= end_time)
+    if start_date:
+        query = query.where(Alert.timestamp >= start_date)
+    if end_date:
+        query = query.where(Alert.timestamp <= end_date)
 
     result = await db.execute(query.order_by(Alert.timestamp.desc()).offset(offset).limit(limit))
     return [serialize_alert(alert) for alert in result.scalars().all()]

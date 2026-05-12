@@ -9,6 +9,8 @@ import hashlib
 import json
 import os
 import re
+import shlex
+import shutil
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,11 +23,22 @@ import httpx
 SNORT_LOG = Path(os.environ.get("SNORT_ALERT_LOG", "/var/log/snort/alert_json.txt"))
 NGINX_ACCESS_LOG = Path(os.environ.get("NGINX_ACCESS_LOG", "/var/log/nginx/access.log"))
 CAPTURE_DIR = Path(os.environ.get("SNORT_CAPTURE_DIR", "/var/log/snort/event_captures"))
+ROLLING_CAPTURE_DIR = Path(os.environ.get("SNORT_ROLLING_CAPTURE_DIR", "/var/log/snort/event_captures/ring"))
+CUSTOM_SIGNATURES_FILE = Path(os.environ.get("CUSTOM_WEB_SIGNATURES_PATH", "/var/log/snort/custom_web_signatures.json"))
+SENSOR_KEY_FILE = Path(os.environ.get("SENSOR_KEY_FILE", "/var/log/snort/sensor_key"))
 BACKEND = os.environ.get("BACKEND_URL", "http://ids_backend:8000")
 API_KEY = os.environ.get("SNORT_API_KEY") or os.environ.get("API_KEY", "")
 POLL_INTERVAL = float(os.environ.get("SNORT_BRIDGE_POLL_INTERVAL", "0.25"))
 REOPEN_INTERVAL = float(os.environ.get("SNORT_BRIDGE_REOPEN_INTERVAL", "2"))
 SENSOR_IP = os.environ.get("IDS_SENSOR_IP", "172.18.0.7")
+MAX_RECENT_EVENTS = int(os.environ.get("SNORT_BRIDGE_RECENT_EVENTS", "4096"))
+ENABLE_NGINX_SIGNATURE_FALLBACK = os.environ.get("ENABLE_NGINX_SIGNATURE_FALLBACK", "false").lower() in {"1", "true", "yes"}
+ENABLE_EVENT_PCAP = os.environ.get("ENABLE_EVENT_PCAP", "true").lower() in {"1", "true", "yes"}
+PCAP_INTERFACE = os.environ.get("PCAP_INTERFACE", os.environ.get("INTERFACE", "eth0"))
+PCAP_WINDOW_SECONDS = int(os.environ.get("EVENT_PCAP_WINDOW_SECONDS", "5"))
+ROLLING_PCAP_SECONDS = int(os.environ.get("ROLLING_PCAP_SECONDS", "5"))
+ROLLING_PCAP_FILES = int(os.environ.get("ROLLING_PCAP_FILES", "12"))
+ROLLING_PCAP_FILTER = os.environ.get("ROLLING_PCAP_FILTER", "tcp port 80 or tcp port 443")
 
 PRIORITY_MAP = {1: "critical", 2: "high", 3: "medium", 4: "low"}
 ACCESS_RE = re.compile(r'^(?P<src>\S+) \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) (?P<target>\S+) HTTP/[^"]+" (?P<status>\d+)')
@@ -40,6 +53,16 @@ WEB_SIGNATURES = [
     ("Medium: phpMyAdmin Probe", "Port Scan", "medium", ["phpmyadmin"]),
     ("Critical: Log4Shell JNDI Lookup", "Exploit Attempt", "critical", ["${jndi:", "%24%7bjndi"]),
 ]
+CUSTOM_SIGNATURES_MTIME = 0.0
+CUSTOM_SIGNATURES: list[dict] = []
+
+
+def current_api_key() -> str:
+    if SENSOR_KEY_FILE.exists():
+        key = SENSOR_KEY_FILE.read_text(encoding="utf-8").strip()
+        if key:
+            return key
+    return API_KEY
 
 
 def classify(msg: str) -> str:
@@ -82,11 +105,16 @@ def packet_filter(src_ip: str, src_port: Optional[int], dst_ip: str, dst_port: O
 
 def write_capture_metadata(raw: dict, payload: dict, event_id: str) -> dict:
     CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
-    capture_path = CAPTURE_DIR / f"{event_id}.json"
+    try:
+        os.chmod(CAPTURE_DIR, 0o777)
+    except OSError:
+        pass
+    metadata_path = CAPTURE_DIR / f"{event_id}.json"
+    pcap_path = CAPTURE_DIR / f"{event_id}.pcap"
     metadata = {
         "event_id": event_id,
-        "capture_mode": "event_metadata",
-        "capture_window_seconds": 10,
+        "capture_mode": "event_pcap_ring" if ENABLE_EVENT_PCAP else "event_metadata",
+        "capture_window_seconds": ROLLING_PCAP_SECONDS if ENABLE_EVENT_PCAP else 0,
         "packet_filter": packet_filter(
             payload["source_ip"],
             payload["source_port"],
@@ -94,18 +122,178 @@ def write_capture_metadata(raw: dict, payload: dict, event_id: str) -> dict:
             payload["destination_port"],
             payload["protocol"],
         ),
+        "pcap_path": str(pcap_path) if ENABLE_EVENT_PCAP else None,
         "pcap_directory": "/var/log/snort",
-        "note": "Snort packet logging is size-limited; this record preserves the event context used to locate matching packets.",
+        "note": "Event-triggered tcpdump capture. It is intentionally short-lived to avoid stressing Snort or the host.",
         "raw_alert": raw,
     }
-    capture_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     return {
         "event_id": event_id,
-        "capture_path": str(capture_path),
+        "capture_path": str(pcap_path if ENABLE_EVENT_PCAP else metadata_path),
         "capture_mode": metadata["capture_mode"],
         "packet_filter": metadata["packet_filter"],
         "capture_window_seconds": metadata["capture_window_seconds"],
     }
+
+
+async def capture_event_pcap(event_id: str, bpf_filter: str) -> None:
+    if not ENABLE_EVENT_PCAP:
+        return
+
+    CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
+    pcap_path = CAPTURE_DIR / f"{event_id}.pcap"
+    await asyncio.sleep(1)
+
+    ring_files = sorted(
+        (path for path in ROLLING_CAPTURE_DIR.glob("*.pcap") if path.stat().st_size > 24),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if ring_files:
+        try:
+            shutil.copyfile(ring_files[0], pcap_path)
+            print(f"[bridge] PCAP copied {ring_files[0]} -> {pcap_path}", flush=True)
+            return
+        except Exception as exc:
+            print(f"[bridge] Rolling PCAP copy failed: {exc}", flush=True)
+
+    safe_filter = bpf_filter or "tcp"
+    command = [
+        "tcpdump",
+        "-i",
+        PCAP_INTERFACE,
+        "-s",
+        "0",
+        "-U",
+        "-w",
+        str(pcap_path),
+        safe_filter,
+    ]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=PCAP_WINDOW_SECONDS)
+        except asyncio.TimeoutError:
+            proc.terminate()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=2)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+            print(f"[bridge] PCAP captured {pcap_path} filter={shlex.quote(safe_filter)}", flush=True)
+            return
+
+        if proc.returncode not in (0, None):
+            message = (stderr or b"").decode("utf-8", errors="replace").strip()
+            print(f"[bridge] PCAP capture exited early rc={proc.returncode}: {message}", flush=True)
+    except FileNotFoundError:
+        print("[bridge] tcpdump is not installed; event pcap capture skipped", flush=True)
+    except Exception as exc:
+        print(f"[bridge] PCAP capture failed: {exc}", flush=True)
+
+
+async def rolling_pcap_capture() -> None:
+    if not ENABLE_EVENT_PCAP:
+        return
+
+    ROLLING_CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(CAPTURE_DIR, 0o777)
+        os.chmod(ROLLING_CAPTURE_DIR, 0o777)
+    except OSError:
+        pass
+    output_pattern = str(ROLLING_CAPTURE_DIR / "ids-%s.pcap")
+    command = [
+        "tcpdump",
+        "-i",
+        PCAP_INTERFACE,
+        "-s",
+        "0",
+        "-U",
+        "-G",
+        str(ROLLING_PCAP_SECONDS),
+        "-W",
+        str(ROLLING_PCAP_FILES),
+        "-w",
+        output_pattern,
+        ROLLING_PCAP_FILTER,
+    ]
+    while True:
+        try:
+            print(f"[bridge] Starting rolling PCAP capture: {shlex.join(command)}", flush=True)
+            proc = await asyncio.create_subprocess_exec(
+                *command,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await proc.communicate()
+            message = (stderr or b"").decode("utf-8", errors="replace").strip()
+            print(f"[bridge] Rolling PCAP stopped rc={proc.returncode}: {message}", flush=True)
+        except FileNotFoundError:
+            print("[bridge] tcpdump is not installed; rolling event pcap disabled", flush=True)
+            return
+        except Exception as exc:
+            print(f"[bridge] Rolling PCAP failed: {exc}", flush=True)
+        await asyncio.sleep(REOPEN_INTERVAL)
+
+
+def load_custom_signatures() -> list[dict]:
+    global CUSTOM_SIGNATURES_MTIME, CUSTOM_SIGNATURES
+
+    if not CUSTOM_SIGNATURES_FILE.exists():
+        CUSTOM_SIGNATURES_MTIME = 0.0
+        CUSTOM_SIGNATURES = []
+        return CUSTOM_SIGNATURES
+
+    mtime = CUSTOM_SIGNATURES_FILE.stat().st_mtime
+    if mtime == CUSTOM_SIGNATURES_MTIME:
+        return CUSTOM_SIGNATURES
+
+    try:
+        loaded = json.loads(CUSTOM_SIGNATURES_FILE.read_text(encoding="utf-8"))
+        if not isinstance(loaded, list):
+            raise ValueError("custom signature file must contain a list")
+        CUSTOM_SIGNATURES = [item for item in loaded if item.get("enabled", True)]
+        CUSTOM_SIGNATURES_MTIME = mtime
+        print(f"[bridge] Loaded {len(CUSTOM_SIGNATURES)} custom web signatures", flush=True)
+    except Exception as exc:
+        print(f"[bridge] Could not load custom signatures: {exc}", flush=True)
+
+    return CUSTOM_SIGNATURES
+
+
+def match_custom_access_alert(decoded: str, raw_target: str) -> Optional[tuple[str, str, str]]:
+    for rule in load_custom_signatures():
+        pattern = str(rule.get("pattern", "")).strip()
+        if not pattern:
+            continue
+
+        match_type = str(rule.get("match_type", "contains")).lower()
+        matched = False
+        if match_type == "regex":
+            try:
+                matched = bool(re.search(pattern, decoded, flags=re.IGNORECASE)) or bool(
+                    re.search(pattern, raw_target, flags=re.IGNORECASE)
+                )
+            except re.error as exc:
+                print(f"[bridge] Skipping invalid custom regex {rule.get('id')}: {exc}", flush=True)
+                continue
+        else:
+            needle = pattern.lower()
+            matched = needle in decoded or needle in raw_target
+
+        if matched:
+            return (
+                str(rule.get("title") or "Custom Web Signature"),
+                str(rule.get("category") or "Web Custom"),
+                str(rule.get("severity") or "medium").lower(),
+            )
+    return None
 
 
 def is_sensor_candidate(raw: dict) -> bool:
@@ -132,6 +320,11 @@ def build_payload(raw: dict):
         "protocol": proto,
         "action": "logged",
         "payload_preview": f"[{msg}]" + (f" payload={b64[:120]}" if b64 else ""),
+        "raw_request": raw.get("request"),
+        "signature_msg": msg,
+        "signature_class": raw.get("class"),
+        "signature_sid": int(raw["sid"]) if str(raw.get("sid", "")).isdigit() else None,
+        "signature_gid": int(raw["gid"]) if str(raw.get("gid", "")).isdigit() else None,
     }
     payload.update(write_capture_metadata(raw, payload, event_id))
     return payload
@@ -140,6 +333,9 @@ def build_payload(raw: dict):
 def match_access_alert(target: str) -> Optional[tuple[str, str, str]]:
     decoded = unquote_plus(target).lower()
     raw_target = target.lower()
+    custom_match = match_custom_access_alert(decoded, raw_target)
+    if custom_match:
+        return custom_match
     for title, category, severity, needles in WEB_SIGNATURES:
         if any(needle in decoded or needle in raw_target for needle in needles):
             return title, category, severity
@@ -184,6 +380,11 @@ def build_access_payload(line: str) -> Optional[dict]:
         "protocol": "TCP",
         "action": "logged",
         "payload_preview": f"[{title}] request={match.group('method')} {target} status={match.group('status')}",
+        "raw_request": f"{match.group('method')} {target} HTTP status={match.group('status')}",
+        "signature_msg": title,
+        "signature_class": category,
+        "signature_sid": raw["sid"],
+        "signature_gid": raw["gid"],
     }
     payload.update(write_capture_metadata(raw, payload, event_id))
     return payload
@@ -195,7 +396,7 @@ async def post_payload(client: httpx.AsyncClient, payload: dict) -> None:
             response = await client.post(
                 f"{BACKEND}/alerts/ingest",
                 json=payload,
-                headers={"x-api-key": API_KEY},
+                headers={"x-api-key": current_api_key()},
                 timeout=8.0,
             )
             status = "OK" if response.status_code == 201 else f"HTTP {response.status_code}"
@@ -211,6 +412,7 @@ async def tail_and_send():
     print(f"[bridge] Watching {SNORT_LOG} -> {BACKEND}", flush=True)
     last_inode = None
     position = 0
+    recent = deque(maxlen=MAX_RECENT_EVENTS)
 
     async with httpx.AsyncClient() as client:
         while True:
@@ -222,8 +424,9 @@ async def tail_and_send():
             stat = SNORT_LOG.stat()
             inode = getattr(stat, "st_ino", None)
             if last_inode != inode or stat.st_size < position:
+                first_open = last_inode is None
                 last_inode = inode
-                position = stat.st_size
+                position = stat.st_size if first_open else 0
                 print(f"[bridge] Opened alert file at offset {position}", flush=True)
 
             with SNORT_LOG.open("r", encoding="utf-8", errors="replace") as handle:
@@ -249,6 +452,10 @@ async def tail_and_send():
                         continue
 
                     payload = build_payload(raw)
+                    if payload["event_id"] in recent:
+                        continue
+                    recent.append(payload["event_id"])
+                    asyncio.create_task(capture_event_pcap(payload["event_id"], payload.get("packet_filter") or "tcp"))
                     await post_payload(client, payload)
 
             await asyncio.sleep(POLL_INTERVAL)
@@ -269,8 +476,9 @@ async def tail_nginx_access():
             stat = NGINX_ACCESS_LOG.stat()
             inode = getattr(stat, "st_ino", None)
             if last_inode != inode or stat.st_size < position:
+                first_open = last_inode is None
                 last_inode = inode
-                position = stat.st_size
+                position = stat.st_size if first_open else 0
                 print(f"[bridge] Opened nginx access log at offset {position}", flush=True)
 
             with NGINX_ACCESS_LOG.open("r", encoding="utf-8", errors="replace") as handle:
@@ -297,8 +505,26 @@ async def tail_nginx_access():
             await asyncio.sleep(POLL_INTERVAL)
 
 
+async def run_forever(name: str, coro_factory):
+    while True:
+        try:
+            await coro_factory()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[bridge] {name} crashed, restarting in {REOPEN_INTERVAL}s: {exc}", flush=True)
+            await asyncio.sleep(REOPEN_INTERVAL)
+
+
 async def main():
-    await asyncio.gather(tail_and_send(), tail_nginx_access())
+    tasks = [run_forever("snort-tail", tail_and_send)]
+    if ENABLE_EVENT_PCAP:
+        tasks.append(run_forever("rolling-pcap", rolling_pcap_capture))
+    if ENABLE_NGINX_SIGNATURE_FALLBACK:
+        tasks.append(run_forever("nginx-access-tail", tail_nginx_access))
+    else:
+        print("[bridge] Nginx signature fallback disabled; ingesting Snort JSON only", flush=True)
+    await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
