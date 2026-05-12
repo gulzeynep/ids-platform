@@ -136,6 +136,14 @@ export const AppLayout = () => {
           <div className="max-w-7xl mx-auto"><Outlet /></div>
         </main>
       </div>
+
+      <div className="black-rabbit group" aria-label="follow the black rabbit coming soon">
+        <div className="black-rabbit-tooltip">
+          <span>follow the black rabbit</span>
+          <span>coming soon</span>
+        </div>
+        <img src="/black-rabbit.png" alt="" className="black-rabbit-image" />
+      </div>
     </div>
   );
 };
