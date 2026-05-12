@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export interface ApiResponse<T> {
   data: T;
   message?: string;
@@ -74,6 +76,13 @@ export interface AlertStats {
   secured_segments?: number;
   blocked_ips?: number;
   recent_alerts_5m?: number;
+  period?: 'day';
+  today_alerts?: number;
+  previous_day_alerts?: number;
+  daily_delta?: number;
+  hourly_trend?: TrendPoint[];
+  attack_type_distribution?: DistributionItem[];
+  success_metrics?: SuccessMetrics;
   active_sensors?: number;
   status: 'Secure' | 'Compromised' | 'Under Attack';
   last_mitigation?: {
@@ -83,20 +92,74 @@ export interface AlertStats {
   } | null;
 }
 
+export interface TrendPoint {
+  timestamp: string;
+  count: number;
+}
+
+export interface DistributionItem {
+  type: string;
+  count: number;
+  ratio: number;
+}
+
+export interface SuccessMetrics {
+  total_alerts: number;
+  triaged_alerts: number;
+  reviewed_alerts: number;
+  false_positive_alerts: number;
+  active_alerts: number;
+  blocked_alerts: number;
+  flagged_alerts: number;
+  critical_alerts: number;
+  resolved_critical_alerts: number;
+  resolution_rate: number;
+  review_rate: number;
+  false_positive_rate: number;
+  backlog_rate: number;
+  containment_rate: number;
+  flag_rate: number;
+  critical_resolution_rate: number;
+  formulas: Record<string, string>;
+}
+
+export interface IntelligenceStats {
+  period: 'week' | 'month';
+  period_days: number;
+  top_attackers: { ip: string; count: number }[];
+  severity_distribution: Record<string, number>;
+  protocol_distribution: Record<string, number>;
+  protocol_share: Record<string, number>;
+  attack_type_distribution: DistributionItem[];
+  unique_attackers: number;
+  trend_period: { current: number; previous: number; delta: number };
+  trend_24h: { current: number; previous: number; delta: number };
+  daily_trend: TrendPoint[];
+  top_rule: { signature_msg: string; sid: number | null; count: number } | null;
+  critical_ratio: number;
+  success_metrics: SuccessMetrics;
+}
+
+export interface UserSettings {
+  alert_email: string | null;
+  enable_email_notifications: boolean;
+  min_severity_level: AlertSeverity;
+}
+
 export interface RealtimeAlert extends Alert {
   is_new: boolean; 
 }
 
 export interface WebSocketMessage {
   type: 'alert' | 'notification' | 'stats_update';
-  data: any;
+  data: unknown;
   timestamp: string;
 }
 
 export interface Modal {
   isOpen: boolean;
   title: string;
-  content: React.ReactNode | null;
+  content: ReactNode | null;
   onClose?: () => void;
 }
 

@@ -27,11 +27,13 @@ export const AppLayout = () => {
     '/intrusions': 'Detection',
     '/defense': 'Defense',
     '/management': 'System',
-    '/settings': 'Settings'
+    '/settings': 'Settings',
+    '/notifications': 'Notifications',
+    '/profile': 'Profile'
   }[location.pathname] || 'Command Center';
 
   return (
-    <div className="flex h-screen bg-[#020202] text-white overflow-hidden font-sans">
+    <div className="app-shell flex h-screen text-white overflow-hidden font-sans">
       
       {/* ================= SIDEBAR (NO HOVER) ================= */}
       <aside 
@@ -48,17 +50,6 @@ export const AppLayout = () => {
             </span>
           </div>
         </Link>
-
-        {/* AÇ-KAPA (PIN) BUTONU - HİZALAMA DÜZELTİLDİ */}
-        <div className={`flex items-center px-4 py-2 border-b border-white/5 ${sidebarOpen ? 'justify-start' : 'justify-center'}`}>
-          <button 
-            onClick={toggleSidebar}
-            className={`p-1.5 rounded-lg border transition-all shadow-inner ${sidebarOpen ? 'bg-blue-600/20 border-blue-500/50 text-blue-400' : 'bg-transparent border-transparent text-neutral-500 hover:bg-white/5 hover:text-white'}`}
-            title={sidebarOpen ? "Close Sidebar" : "Open Sidebar"}
-          >
-            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-          </button>
-        </div>
 
         <div className="flex-1 py-6 px-3 space-y-8 overflow-y-auto overflow-x-hidden scrollbar-hide">
           <div className="space-y-1">
@@ -94,6 +85,13 @@ export const AppLayout = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 z-30 border-b border-white/5 bg-black/40 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">            
+            <button
+              onClick={toggleSidebar}
+              className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-neutral-400 hover:border-blue-500/40 hover:text-white transition-colors inline-flex items-center justify-center"
+              title={sidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+            >
+              {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            </button>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold tracking-tight text-white uppercase italic">{currentTitle}</h2>

@@ -1,5 +1,9 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { ReactNode } from 'react';
 import type { Modal, Toast } from '../types';
+
+export type AppTheme = 'dark' | 'blue' | 'light';
 
 interface UIState {
   // Sidebar
@@ -9,7 +13,7 @@ interface UIState {
   
   // Modal
   modal: Modal;
-  openModal: (title: string, content: React.ReactNode, onClose?: () => void) => void;
+  openModal: (title: string, content: ReactNode, onClose?: () => void) => void;
   closeModal: () => void;
   
   // Loading overlay
@@ -22,11 +26,13 @@ interface UIState {
   removeToast: (id: string) => void;
   
   // Theme
-  theme: 'dark' | 'light';
-  setTheme: (theme: 'dark' | 'light') => void;
+  theme: AppTheme;
+  setTheme: (theme: AppTheme) => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
   // Sidebar
   sidebarOpen: true,
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -64,4 +70,13 @@ export const useUIStore = create<UIState>((set) => ({
   // Theme
   theme: 'dark',
   setTheme: (theme) => set({ theme }),
-}));
+    }),
+    {
+      name: 'wids-ui-storage',
+      partialize: (state) => ({
+        sidebarOpen: state.sidebarOpen,
+        theme: state.theme,
+      }),
+    },
+  ),
+);

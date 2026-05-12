@@ -2,10 +2,98 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --app-bg: #020202;
+  --surface: #0a0a0a;
+  --surface-strong: #080808;
+  --surface-muted: #111111;
+  --border-soft: #171717;
+  --text-primary: #ffffff;
+  --text-secondary: #d4d4d4;
+}
+
+html[data-theme="blue"] {
+  --app-bg: #05080d;
+  --surface: #07111d;
+  --surface-strong: #050b12;
+  --surface-muted: #0d1724;
+  --border-soft: #193047;
+  --text-primary: #f8fbff;
+  --text-secondary: #c6d4e3;
+}
+
+html[data-theme="light"] {
+  --app-bg: #eef2f7;
+  --surface: #ffffff;
+  --surface-strong: #f8fafc;
+  --surface-muted: #e2e8f0;
+  --border-soft: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+}
 
 body {
-  background-color: #050505;
-  color: #e5e5e5;
+  background-color: var(--app-bg);
+  color: var(--text-secondary);
+}
+
+.app-shell {
+  background-color: var(--app-bg);
+  color: var(--text-primary);
+}
+
+.app-shell aside {
+  background-color: var(--surface-strong);
+}
+
+.app-shell header {
+  background-color: color-mix(in srgb, var(--app-bg) 78%, transparent);
+}
+
+html[data-theme="light"] .text-white,
+html[data-theme="light"] .text-neutral-100,
+html[data-theme="light"] .text-neutral-200,
+html[data-theme="light"] .text-neutral-300 {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme="light"] .text-neutral-400,
+html[data-theme="light"] .text-neutral-500,
+html[data-theme="light"] .text-neutral-600 {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .bg-\[\#0a0a0a\],
+html[data-theme="light"] .bg-\[\#080808\],
+html[data-theme="light"] .bg-\[\#111\],
+html[data-theme="light"] .bg-black\/40,
+html[data-theme="light"] .bg-black\/30,
+html[data-theme="light"] .bg-neutral-900\/40,
+html[data-theme="light"] .bg-neutral-900\/50,
+html[data-theme="light"] .bg-white\/\[0\.02\] {
+  background-color: var(--surface) !important;
+}
+
+html[data-theme="blue"] .bg-\[\#0a0a0a\],
+html[data-theme="blue"] .bg-\[\#080808\],
+html[data-theme="blue"] .bg-\[\#111\],
+html[data-theme="blue"] .bg-black\/40,
+html[data-theme="blue"] .bg-black\/30,
+html[data-theme="blue"] .bg-neutral-900\/40,
+html[data-theme="blue"] .bg-neutral-900\/50,
+html[data-theme="blue"] .bg-white\/\[0\.02\] {
+  background-color: var(--surface) !important;
+}
+
+html[data-theme="light"] .border-neutral-900,
+html[data-theme="light"] .border-neutral-800,
+html[data-theme="light"] .border-white\/5,
+html[data-theme="light"] .border-white\/10,
+html[data-theme="blue"] .border-neutral-900,
+html[data-theme="blue"] .border-neutral-800,
+html[data-theme="blue"] .border-white\/5,
+html[data-theme="blue"] .border-white\/10 {
+  border-color: var(--border-soft) !important;
 }
 
 .black-rabbit {

@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Flag, ShieldCheck, Search, ChevronLeft, ChevronRight, X, FileSearch, Radio, Fingerprint } from 'lucide-react';
+import { Flag, ShieldCheck, Search, ChevronLeft, ChevronRight, X, FileSearch, Radio, Fingerprint, Bookmark, RotateCcw, ShieldQuestion, CircleCheck, MessageSquare } from 'lucide-react';
 import { alertsApi, alertKeys } from '../../api/endpoints/alerts';
 import { useAlertsStore } from '../../stores/alerts.store';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { getAlertTitle } from '../../utils/alertTitles';
+import type { AlertSeverity, AlertStatus, AlertUpdateDto } from '../../types';
 
 export const Intrusions = () => {
   const queryClient = useQueryClient();
   const { filters, setFilters } = useAlertsStore();
   const [page, setPage] = useState(0);
   const [selectedAlertId, setSelectedAlertId] = useState<number | null>(null);
+  const [notesDraft, setNotesDraft] = useState('');
   const limit = 50;
 
 
@@ -32,7 +34,7 @@ export const Intrusions = () => {
 
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) =>
+    mutationFn: ({ id, data }: { id: number; data: AlertUpdateDto }) =>
       alertsApi.updateAlert(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: alertKeys.all });
@@ -45,6 +47,27 @@ export const Intrusions = () => {
       case 'high': return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
       default: return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
     }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'reviewed': return 'text-green-400 bg-green-500/10 border-green-500/20';
+      case 'reviewing': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+      case 'false_positive': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+      default: return 'text-neutral-300 bg-neutral-500/10 border-neutral-700';
+    }
+  };
+
+  const selectAlert = (id: number, notes: string | null) => {
+    setSelectedAlertId(id);
+    setNotesDraft(notes ?? '');
+  };
+
+  const updateSelectedAlert = (data: AlertUpdateDto) => {
+    if (!selectedAlertId) {
+      return;
+    }
+    updateMutation.mutate({ id: selectedAlertId, data });
   };
 
   return (
@@ -75,7 +98,7 @@ export const Intrusions = () => {
         <select
           className="bg-[#111] border border-neutral-800 text-sm rounded-lg px-3 h-10 text-neutral-300 focus:ring-2 focus:ring-blue-500 outline-none"
           value={filters.status || 'new'}
-          onChange={(e) => setFilters({ status: e.target.value as any })}
+          onChange={(e) => setFilters({ status: e.target.value as AlertStatus | 'all' })}
         >
           <option value="all">All Statuses</option>
           <option value="new">New</option>
@@ -87,7 +110,7 @@ export const Intrusions = () => {
         <select 
           className="bg-[#111] border border-neutral-800 text-sm rounded-lg px-3 h-10 text-neutral-300 focus:ring-2 focus:ring-blue-500 outline-none"
           value={filters.severity || 'all'}
-          onChange={(e) => setFilters({ severity: e.target.value as any })}
+          onChange={(e) => setFilters({ severity: e.target.value as AlertSeverity | 'all' })}
         >
           <option value="all">All Severities</option>
           <option value="critical">Critical</option>
@@ -144,18 +167,19 @@ export const Intrusions = () => {
                 <th className="px-6 py-4 font-medium">Timestamp</th>
                 <th className="px-6 py-4 font-medium">Alert Title</th>
                 <th className="px-6 py-4 font-medium">Severity</th>
+                <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium">Source IP</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-900">
               {isLoading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">Scanning neural databanks...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">Scanning neural databanks...</td></tr>
               ) : alerts?.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No security events match the current filters. Use Show History to view retained IDS alerts.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No security events match the current filters. Use Show History to view retained IDS alerts.</td></tr>
               ) : (
                 alerts?.map((alert) => (
-                  <tr key={alert.id} className="hover:bg-neutral-900/30 transition-colors group cursor-pointer" onClick={() => setSelectedAlertId(alert.id)}>
+                  <tr key={alert.id} className="hover:bg-neutral-900/30 transition-colors group cursor-pointer" onClick={() => selectAlert(alert.id, alert.notes)}>
                     <td className="px-6 py-4 text-sm font-mono text-neutral-500">
                       {new Date(alert.timestamp).toLocaleTimeString()}
                     </td>
@@ -168,6 +192,11 @@ export const Intrusions = () => {
                         {alert.severity}
                       </span>
                     </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-tighter ${getStatusColor(alert.status)}`}>
+                        {alert.status.replace('_', ' ')}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-sm font-mono text-neutral-400">
                       {alert.source_ip}
                     </td>
@@ -177,11 +206,15 @@ export const Intrusions = () => {
                         size="sm"
                         onClick={(event) => {
                           event.stopPropagation();
-                          updateMutation.mutate({ id: alert.id, data: { status: 'reviewed' } });
+                          updateMutation.mutate({ id: alert.id, data: { status: alert.status === 'reviewed' ? 'new' : 'reviewed' } });
                         }}
-                        title="Mark as Resolved"
+                        title={alert.status === 'reviewed' ? 'Move back to New' : 'Mark as Reviewed'}
                       >
-                        <ShieldCheck className="w-4 h-4 text-neutral-500 group-hover:text-green-500 transition-colors" />
+                        {alert.status === 'reviewed' ? (
+                          <RotateCcw className="w-4 h-4 text-neutral-500 group-hover:text-yellow-500 transition-colors" />
+                        ) : (
+                          <ShieldCheck className="w-4 h-4 text-neutral-500 group-hover:text-green-500 transition-colors" />
+                        )}
                       </Button>
                     </td>
                   </tr>
@@ -214,13 +247,59 @@ export const Intrusions = () => {
 
       {selectedAlert && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-3xl bg-[#080808] border border-white/10 rounded-lg shadow-2xl overflow-hidden">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#080808] border border-white/10 rounded-lg shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-white/10">
               <div>
                 <h3 className="text-sm font-bold text-white">{getAlertTitle(selectedAlert)}</h3>
                 <p className="text-[10px] text-neutral-500 font-mono">EVENT_ID: {selectedAlert.event_id || 'not captured'}</p>
               </div>
               <button onClick={() => setSelectedAlertId(null)} className="text-neutral-500 hover:text-white"><X size={18} /></button>
+            </div>
+            <div className="p-5 border-b border-white/10 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`px-2 py-1 rounded border text-[10px] font-bold uppercase tracking-tighter ${getStatusColor(selectedAlert.status)}`}>
+                  {selectedAlert.status.replace('_', ' ')}
+                </span>
+                <Button
+                  size="sm"
+                  variant={selectedAlert.status === 'reviewed' ? 'secondary' : 'primary'}
+                  onClick={() => updateSelectedAlert({ status: selectedAlert.status === 'reviewed' ? 'new' : 'reviewed' })}
+                  isLoading={updateMutation.isPending}
+                >
+                  {selectedAlert.status === 'reviewed' ? <RotateCcw className="w-4 h-4 mr-2" /> : <CircleCheck className="w-4 h-4 mr-2" />}
+                  {selectedAlert.status === 'reviewed' ? 'Unreview' : 'Review'}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => updateSelectedAlert({ status: 'reviewing' })} isLoading={updateMutation.isPending}>
+                  <ShieldQuestion className="w-4 h-4 mr-2" /> Investigating
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => updateSelectedAlert({ status: 'false_positive' })} isLoading={updateMutation.isPending}>
+                  False Positive
+                </Button>
+                <Button size="sm" variant={selectedAlert.is_flagged ? 'danger' : 'secondary'} onClick={() => updateSelectedAlert({ is_flagged: !selectedAlert.is_flagged })} isLoading={updateMutation.isPending}>
+                  <Flag className={`w-4 h-4 mr-2 ${selectedAlert.is_flagged ? 'fill-current' : ''}`} /> {selectedAlert.is_flagged ? 'Unflag' : 'Flag'}
+                </Button>
+                <Button size="sm" variant={selectedAlert.is_saved ? 'primary' : 'secondary'} onClick={() => updateSelectedAlert({ is_saved: !selectedAlert.is_saved })} isLoading={updateMutation.isPending}>
+                  <Bookmark className={`w-4 h-4 mr-2 ${selectedAlert.is_saved ? 'fill-current' : ''}`} /> {selectedAlert.is_saved ? 'Saved' : 'Save'}
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+                <label className="sr-only" htmlFor="alert-notes">Analyst notes</label>
+                <textarea
+                  id="alert-notes"
+                  value={notesDraft}
+                  onChange={(event) => setNotesDraft(event.target.value)}
+                  className="min-h-20 rounded-lg border border-neutral-800 bg-black/50 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                  placeholder="Add analyst notes..."
+                />
+                <Button
+                  variant="secondary"
+                  className="h-full min-h-20"
+                  onClick={() => updateSelectedAlert({ notes: notesDraft })}
+                  isLoading={updateMutation.isPending}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" /> Save Notes
+                </Button>
+              </div>
             </div>
             <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="space-y-3">

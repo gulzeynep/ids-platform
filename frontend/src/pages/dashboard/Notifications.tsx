@@ -1,9 +1,12 @@
 import { useAlertsStore } from '../../stores/alerts.store';
 import { Card } from '../../components/ui/Card';
-import { Bell, ShieldAlert, Info } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import { ArrowLeft, Bell, ShieldAlert, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const Notifications = () => {
   const { realtimeAlerts } = useAlertsStore();
+  const navigate = useNavigate();
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -11,6 +14,9 @@ export const Notifications = () => {
         <h2 className="text-2xl font-bold text-white flex items-center gap-3 italic">
           <Bell className="text-blue-500" /> EVENT_LOG_STREAM
         </h2>
+        <Button variant="secondary" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back
+        </Button>
       </div>
 
       <div className="space-y-3">

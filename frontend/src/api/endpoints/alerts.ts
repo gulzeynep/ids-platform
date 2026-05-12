@@ -2,7 +2,9 @@ import apiClient from '../client';
 import type { 
   Alert, 
   AlertUpdateDto, 
-  AlertFilters
+  AlertFilters,
+  AlertStats,
+  IntelligenceStats
 } from '../../types';
 
 
@@ -66,13 +68,13 @@ export const alertsApi = {
     return response.data;
   },
 
-  getAlertStats: async () => {
+  getAlertStats: async (): Promise<AlertStats> => {
     const response = await apiClient.get('/alerts/stats/dashboard'); 
     return response.data;
   },
 
-  getAnalysisStats: async () => {
-    const response = await apiClient.get('/alerts/stats/analysis');
+  getAnalysisStats: async (period: 'week' | 'month' = 'week'): Promise<IntelligenceStats> => {
+    const response = await apiClient.get('/alerts/stats/analysis', { params: { period } });
     return response.data;
   }
 };

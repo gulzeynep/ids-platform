@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ShieldAlert, Activity, ShieldCheck, ServerCrash, Zap, Globe, Clock } from 'lucide-react';
+import { ShieldAlert, Activity, ShieldCheck, ServerCrash, Zap, Globe, Clock, BarChart3, CheckCircle2 } from 'lucide-react';
 import { alertsApi, alertKeys } from '../../api/endpoints/alerts';
 import { useAlertsStore } from '../../stores/alerts.store';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -28,6 +28,10 @@ export const Overview = () => {
 
     const isCompromised = stats && (stats.critical_threats > 0 || stats.active_alerts > 15);
     const statusColor = isCompromised ? "border-red-500/30 bg-red-500/5 text-red-500" : "border-green-500/30 bg-green-500/5 text-green-500";
+    const hourlyTrend = stats?.hourly_trend ?? [];
+    const maxHourly = Math.max(...hourlyTrend.map((point) => point.count), 1);
+    const attackTypes = stats?.attack_type_distribution ?? [];
+    const resolutionRate = Math.round((stats?.success_metrics?.resolution_rate ?? 0) * 100);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -63,10 +67,10 @@ export const Overview = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold text-white tabular-nums">
-                            {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.total_alerts ?? stats?.active_alerts ?? 0}
+                            {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.today_alerts ?? 0}
                         </div>
                         <p className="text-[10px] text-neutral-600 mt-2 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Historical IDS events. Last 5m: {stats?.recent_alerts_5m ?? 0}
+                            <Clock className="w-3 h-3" /> Last 24h. Delta: {stats?.daily_delta ?? 0} vs previous day
                         </p>
                     </CardContent>
                 </Card>
@@ -99,6 +103,65 @@ export const Overview = () => {
             </div>
 
             {/*  Canlı Akış Paneli (WebSocket Feed) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <Card className="lg:col-span-2 border-neutral-900 bg-[#0a0a0a]">
+                    <CardHeader className="border-b border-neutral-900 pb-4">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-blue-500" /> Daily Alert Rhythm
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        {isLoading ? (
+                            <Skeleton className="h-36 w-full" />
+                        ) : hourlyTrend.length === 0 ? (
+                            <div className="h-36 flex items-center justify-center text-xs text-neutral-600 font-mono border border-dashed border-neutral-900 rounded-lg">
+                                No alerts in the last 24 hours.
+                            </div>
+                        ) : (
+                            <div className="h-36 flex items-end gap-1">
+                                {hourlyTrend.map((point) => (
+                                    <div
+                                        key={point.timestamp}
+                                        className="flex-1 min-w-1 rounded-t bg-blue-500/70 hover:bg-blue-400 transition-colors"
+                                        style={{ height: `${Math.max(8, (point.count / maxHourly) * 100)}%` }}
+                                        title={`${new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: ${point.count}`}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="border-neutral-900 bg-[#0a0a0a]">
+                    <CardHeader className="border-b border-neutral-900 pb-4">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-500" /> Daily Success
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-5">
+                        <div>
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-neutral-400">Triage completion</span>
+                                <span className="font-mono text-green-400">{resolutionRate}%</span>
+                            </div>
+                            <div className="mt-2 h-2 rounded-full bg-neutral-900 overflow-hidden">
+                                <div className="h-full bg-green-500" style={{ width: `${resolutionRate}%` }} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="rounded-lg border border-neutral-900 bg-black/30 p-3">
+                                <p className="text-neutral-600 uppercase text-[10px]">Blocked</p>
+                                <p className="text-lg font-bold text-white">{stats?.success_metrics?.blocked_alerts ?? 0}</p>
+                            </div>
+                            <div className="rounded-lg border border-neutral-900 bg-black/30 p-3">
+                                <p className="text-neutral-600 uppercase text-[10px]">Backlog</p>
+                                <p className="text-lg font-bold text-white">{stats?.success_metrics?.active_alerts ?? 0}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <Card className="lg:col-span-2 border-neutral-900 bg-[#0a0a0a]">
                     <CardHeader className="border-b border-neutral-900 pb-4">
@@ -142,6 +205,22 @@ export const Overview = () => {
                         <CardTitle className="text-sm">Response Readiness</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="space-y-3">
+                            <p className="text-[10px] text-neutral-500 uppercase tracking-widest">Today Attack Mix</p>
+                            {attackTypes.length === 0 ? (
+                                <p className="text-xs text-neutral-600 font-mono">No daily attack mix yet.</p>
+                            ) : attackTypes.slice(0, 4).map((item) => (
+                                <div key={item.type} className="space-y-1">
+                                    <div className="flex justify-between text-[10px] text-neutral-400">
+                                        <span className="truncate pr-2">{item.type}</span>
+                                        <span>{Math.round(item.ratio * 100)}%</span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-neutral-900 overflow-hidden">
+                                        <div className="h-full bg-blue-500" style={{ width: `${Math.max(5, Math.round(item.ratio * 100))}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                         <div className="p-3 rounded bg-black/40 border border-neutral-800">
                             <p className="text-[10px] text-neutral-500 uppercase">Last Mitigation</p>
                             <p className="text-xs text-green-500 mt-1">

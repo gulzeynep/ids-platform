@@ -20,6 +20,7 @@ import { Notifications } from './pages/dashboard/Notifications';
 import { Profile } from './pages/dashboard/Profile';
 
 import { useAuthStore } from './stores/auth.store';
+import { useUIStore } from './stores/ui.store';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,10 +37,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  const theme = useUIStore((state) => state.theme);
+
+  React.useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Toaster theme="dark" position="top-right" richColors />
+        <Toaster theme={theme === 'light' ? 'light' : 'dark'} position="top-right" richColors />
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/login" element={<Login />} />
