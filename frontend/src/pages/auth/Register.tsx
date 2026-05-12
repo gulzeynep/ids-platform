@@ -73,7 +73,7 @@ export const Register = () => {
         <div className="w-full max-w-md p-8 bg-[#0a0a0a] border border-neutral-900 rounded-xl shadow-2xl">
             <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-white tracking-wide">Request Access</h2>
-                <p className="text-sm text-neutral-500 mt-2">Join the W-IDS security network</p>
+                <p className="text-sm text-neutral-500 mt-2">Join the LynxGate security network</p>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

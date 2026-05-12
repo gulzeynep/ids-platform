@@ -5,12 +5,14 @@ Reads Snort3 alert_json.txt, tolerates file rotation/truncation, creates a
 small event-capture record, and POSTs each alert to /alerts/ingest.
 """
 import asyncio
+import base64
 import hashlib
 import json
 import os
 import re
 import shlex
 import shutil
+import struct
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,6 +57,18 @@ WEB_SIGNATURES = [
 ]
 CUSTOM_SIGNATURES_MTIME = 0.0
 CUSTOM_SIGNATURES: list[dict] = []
+HTTP_METHODS = (
+    b"GET ",
+    b"POST ",
+    b"PUT ",
+    b"PATCH ",
+    b"DELETE ",
+    b"HEAD ",
+    b"OPTIONS ",
+    b"TRACE ",
+    b"CONNECT ",
+)
+MAX_RAW_REQUEST_BYTES = int(os.environ.get("MAX_RAW_REQUEST_BYTES", "8192"))
 
 
 def current_api_key() -> str:
@@ -110,6 +124,87 @@ def packet_filter(src_ip: str, src_port: Optional[int], dst_ip: str, dst_port: O
     return " ".join(parts)
 
 
+def _decode_snort_b64(value: str) -> bytes:
+    if not value:
+        return b""
+    compact = "".join(str(value).split())
+    padding = "=" * (-len(compact) % 4)
+    try:
+        return base64.b64decode(compact + padding, validate=False)
+    except Exception:
+        return b""
+
+
+def extract_http_request_from_bytes(data: bytes) -> Optional[str]:
+    """Best-effort HTTP request extraction from Snort payload bytes or PCAP packets."""
+    if not data:
+        return None
+
+    starts = [idx for method in HTTP_METHODS if (idx := data.find(method)) >= 0]
+    if not starts:
+        return None
+
+    start = min(starts)
+    end = data.find(b"\r\n\r\n", start)
+    terminator_len = 4
+    if end < 0:
+        end = data.find(b"\n\n", start)
+        terminator_len = 2
+    if end < 0:
+        end = min(len(data), start + MAX_RAW_REQUEST_BYTES)
+        terminator_len = 0
+
+    request_bytes = data[start : min(end + terminator_len, start + MAX_RAW_REQUEST_BYTES)]
+    text = request_bytes.decode("utf-8", errors="replace")
+    text = "".join(ch if ch in "\r\n\t" or ord(ch) >= 32 else "." for ch in text)
+    text = text.replace("\r\n", "\n").strip()
+    return text or None
+
+
+def extract_raw_request_from_alert(raw: dict) -> Optional[str]:
+    for key in ("request", "raw_request", "http_request"):
+        value = raw.get(key)
+        if value:
+            return str(value).strip()
+
+    decoded = _decode_snort_b64(str(raw.get("b64_data") or ""))
+    return extract_http_request_from_bytes(decoded)
+
+
+def extract_raw_request_from_pcap(path: Path) -> Optional[str]:
+    if not path.exists() or path.stat().st_size <= 24:
+        return None
+
+    data = path.read_bytes()
+    if len(data) < 24:
+        return None
+
+    magic = data[:4]
+    if magic in {b"\xd4\xc3\xb2\xa1", b"\x4d\x3c\xb2\xa1"}:
+        endian = "<"
+    elif magic in {b"\xa1\xb2\xc3\xd4", b"\xa1\xb2\x3c\x4d"}:
+        endian = ">"
+    else:
+        return extract_http_request_from_bytes(data)
+
+    offset = 24
+    while offset + 16 <= len(data):
+        try:
+            _, _, included_len, _ = struct.unpack(endian + "IIII", data[offset : offset + 16])
+        except struct.error:
+            return None
+        offset += 16
+        if included_len <= 0 or offset + included_len > len(data):
+            return None
+
+        request = extract_http_request_from_bytes(data[offset : offset + included_len])
+        if request:
+            return request
+        offset += included_len
+
+    return None
+
+
 def write_capture_metadata(raw: dict, payload: dict, event_id: str) -> dict:
     CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
     try:
@@ -144,9 +239,9 @@ def write_capture_metadata(raw: dict, payload: dict, event_id: str) -> dict:
     }
 
 
-async def capture_event_pcap(event_id: str, bpf_filter: str) -> None:
+async def capture_event_pcap(event_id: str, bpf_filter: str) -> Optional[Path]:
     if not ENABLE_EVENT_PCAP:
-        return
+        return None
 
     CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
     pcap_path = CAPTURE_DIR / f"{event_id}.pcap"
@@ -161,7 +256,7 @@ async def capture_event_pcap(event_id: str, bpf_filter: str) -> None:
         try:
             shutil.copyfile(ring_files[0], pcap_path)
             print(f"[bridge] PCAP copied {ring_files[0]} -> {pcap_path}", flush=True)
-            return
+            return pcap_path
         except Exception as exc:
             print(f"[bridge] Rolling PCAP copy failed: {exc}", flush=True)
 
@@ -193,7 +288,7 @@ async def capture_event_pcap(event_id: str, bpf_filter: str) -> None:
                 proc.kill()
                 await proc.wait()
             print(f"[bridge] PCAP captured {pcap_path} filter={shlex.quote(safe_filter)}", flush=True)
-            return
+            return pcap_path
 
         if proc.returncode not in (0, None):
             message = (stderr or b"").decode("utf-8", errors="replace").strip()
@@ -202,6 +297,7 @@ async def capture_event_pcap(event_id: str, bpf_filter: str) -> None:
         print("[bridge] tcpdump is not installed; event pcap capture skipped", flush=True)
     except Exception as exc:
         print(f"[bridge] PCAP capture failed: {exc}", flush=True)
+    return None
 
 
 async def rolling_pcap_capture() -> None:
@@ -327,7 +423,7 @@ def build_payload(raw: dict):
         "protocol": proto,
         "action": "logged",
         "payload_preview": f"[{msg}]" + (f" payload={b64[:120]}" if b64 else ""),
-        "raw_request": raw.get("request"),
+        "raw_request": extract_raw_request_from_alert(raw),
         "signature_msg": msg,
         "signature_class": raw.get("class"),
         "signature_sid": int(raw["sid"]) if str(raw.get("sid", "")).isdigit() else None,
@@ -462,7 +558,9 @@ async def tail_and_send():
                     if payload["event_id"] in recent:
                         continue
                     recent.append(payload["event_id"])
-                    asyncio.create_task(capture_event_pcap(payload["event_id"], payload.get("packet_filter") or "tcp"))
+                    pcap_path = await capture_event_pcap(payload["event_id"], payload.get("packet_filter") or "tcp")
+                    if not payload.get("raw_request") and pcap_path:
+                        payload["raw_request"] = extract_raw_request_from_pcap(pcap_path)
                     await post_payload(client, payload)
 
             await asyncio.sleep(POLL_INTERVAL)

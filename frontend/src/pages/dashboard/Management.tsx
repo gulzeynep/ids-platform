@@ -159,7 +159,7 @@ export const Management = () => {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
-      toast.success('Protected origin attached to W-IDS proxy.');
+      toast.success('Protected origin attached to LynxGate proxy.');
       setSiteForm({ domain: '', public_hostname: '', target_ip: '', target_port: '80', listen_port: '80', scheme: 'http', tls_mode: 'edge', proxy_mode: 'reverse_proxy', health_path: '/' });
     },
     onError: () => toast.error('Could not attach this site. Check domain, IP, and port.')
@@ -336,7 +336,7 @@ export const Management = () => {
                 <Input placeholder="/health" value={siteForm.health_path} onChange={(e) => setSiteForm({ ...siteForm, health_path: e.target.value || '/' })} className="bg-black border-neutral-800" />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-neutral-500">Traffic path: user DNS {'->'} W-IDS gateway :8080 {'->'} Snort inspection {'->'} registered origin IP:port.</p>
+                <p className="text-xs text-neutral-500">Traffic path: user DNS {'->'} LynxGate gateway :8080 {'->'} Snort inspection {'->'} registered origin IP:port.</p>
                 <Button size="sm" onClick={() => createSiteMutation.mutate()} isLoading={createSiteMutation.isPending} disabled={!siteForm.domain || !siteForm.target_ip || !siteForm.target_port}>
                   <Server className="w-3 h-3 mr-2" /> Attach Site
                 </Button>
@@ -409,13 +409,13 @@ export const Management = () => {
             </CardHeader>
             <CardContent className="space-y-4 text-xs text-neutral-400">
               <p>1. Add the real app origin, for example <span className="font-mono text-neutral-200">10.0.0.15:3000</span>.</p>
-              <p>2. Point the customer's A/CNAME record to the W-IDS gateway public IP; local lab traffic uses port <span className="font-mono text-neutral-200">8080</span>.</p>
+              <p>2. Point the customer's A/CNAME record to the LynxGate gateway public IP; local lab traffic uses port <span className="font-mono text-neutral-200">8080</span>.</p>
               <p>3. Edge TLS inspection expects certs at <span className="font-mono text-neutral-200">nginx/certs/domain/fullchain.pem</span> and <span className="font-mono text-neutral-200">privkey.pem</span>.</p>
               <p>4. Backend writes <span className="font-mono text-neutral-200">protected-sites.conf</span>; the gateway validates and reloads it automatically.</p>
               <div className="rounded-lg border border-neutral-800 bg-black p-3 font-mono text-[10px] text-neutral-300 break-all">
                 curl.exe -H "Host: app.example.com" http://127.0.0.1:8080/etc/passwd
               </div>
-              <p className="text-neutral-500">Production path: DNS {'->'} W-IDS edge gateway {'->'} Snort sensor on the gateway network namespace {'->'} Nginx upstream to origin IP:port.</p>
+              <p className="text-neutral-500">Production path: DNS {'->'} LynxGate edge gateway {'->'} Snort sensor on the gateway network namespace {'->'} Nginx upstream to origin IP:port.</p>
             </CardContent>
           </Card>
         </div>

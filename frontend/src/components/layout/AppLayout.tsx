@@ -3,7 +3,7 @@ import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShieldAlert, ShieldCheck, Settings, 
-  Bell, User, PanelLeftClose, PanelLeftOpen, Fingerprint,
+  Bell, User, PanelLeftClose, PanelLeftOpen,
   Zap, LogOut, Activity
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
@@ -39,14 +39,14 @@ export const AppLayout = () => {
       <aside 
         className={`flex flex-col bg-[#080808] border-r border-white/5 transition-all duration-300 ease-in-out flex-shrink-0 z-50 ${sidebarOpen ? 'w-64' : 'w-20'}`}
       >
-        {/* LOGO BÖLÜMÜ */}
-        <Link to="/dashboard" className={`h-16 flex items-center px-6 hover:bg-white/5 transition-colors whitespace-nowrap overflow-hidden ${sidebarOpen ? 'justify-start' : 'justify-center px-0'}`}>
-          <div className="flex items-center gap-3">
-            <div className="min-w-[32px] h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-              <Fingerprint size={18} />
-            </div>
-            <span className={`font-black italic text-lg tracking-tighter uppercase transition-opacity duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
-              W-IDS
+        <Link to="/dashboard" className={`brand-link h-28 flex items-center px-5 hover:bg-white/5 transition-colors whitespace-nowrap overflow-hidden ${sidebarOpen ? 'justify-center' : 'justify-center px-0'}`}>
+          <div className={`brand-lockup ${sidebarOpen ? '' : 'brand-lockup-collapsed'}`}>
+            <span className="brand-mark-wrap" aria-hidden="true">
+              <img src="/lynxgate-mark.png" alt="" className="brand-mark" />
+            </span>
+            <span className={`brand-wordmark transition-opacity duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0 hidden'}`}>
+              <span className="brand-name">LynxGate</span>
+              <span className="brand-subtitle">Intrusion on System</span>
             </span>
           </div>
         </Link>

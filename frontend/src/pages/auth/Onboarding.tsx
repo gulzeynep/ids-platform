@@ -62,7 +62,7 @@ export const Onboarding = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">Workspace Initialized</h2>
                 <p className="text-neutral-400 mb-6">
-                    Your sensor integration key is ready. Please copy this key to your W-IDS Python Sensor environment variables.
+                    Your sensor integration key is ready. Please copy this key to your LynxGate Python Sensor environment variables.
                 </p>
                 
                 <div className="bg-[#111] p-4 rounded-lg border border-neutral-800 font-mono text-sm text-blue-400 break-all mb-8 select-all">

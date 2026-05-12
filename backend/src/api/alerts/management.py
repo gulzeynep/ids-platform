@@ -3,12 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from typing import List, Optional
 from datetime import datetime
+from pathlib import Path
+import json
 
 from src.database import get_db
 from src.models import Alert, User
 from src.schemas import AlertResponse, AlertUpdateStatus
 from src.core.security import get_current_user
 from src.schemas import build_alert_title
+from snort_bridge import extract_raw_request_from_pcap
 
 router = APIRouter()
 
@@ -17,6 +20,43 @@ def serialize_alert(alert: Alert) -> AlertResponse:
     response = AlertResponse.model_validate(alert)
     response.title = build_alert_title(alert.severity, alert.payload_preview, alert.type, alert.signature_msg)
     return response
+
+
+def extract_capture_pcap_path(capture_path: Optional[str]) -> Optional[Path]:
+    if not capture_path:
+        return None
+
+    path = Path(capture_path)
+    if path.suffix.lower() == ".pcap":
+        return path
+
+    if path.suffix.lower() == ".json" and path.exists():
+        try:
+            metadata = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        pcap_path = metadata.get("pcap_path")
+        if pcap_path:
+            return Path(pcap_path)
+
+    return None
+
+
+async def hydrate_raw_request_from_capture(alert: Alert, db: AsyncSession) -> None:
+    if alert.raw_request:
+        return
+
+    pcap_path = extract_capture_pcap_path(alert.capture_path)
+    if not pcap_path:
+        return
+
+    raw_request = extract_raw_request_from_pcap(pcap_path)
+    if not raw_request:
+        return
+
+    alert.raw_request = raw_request
+    await db.commit()
+    await db.refresh(alert)
 
 @router.get("/", response_model=List[AlertResponse])
 async def get_workspace_alerts(
@@ -80,6 +120,7 @@ async def get_alert_detail(
     alert = result.scalars().first()
     if not alert:
         raise HTTPException(status_code=404, detail="Intelligence record not found.")
+    await hydrate_raw_request_from_capture(alert, db)
     return serialize_alert(alert)
 
 @router.patch("/{alert_id}/triage")
