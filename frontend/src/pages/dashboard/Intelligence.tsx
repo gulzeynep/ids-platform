@@ -1,6 +1,20 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Globe, TrendingUp, Skull, BarChart3, Fingerprint, Target, ShieldCheck } from 'lucide-react';
+import {
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 import { alertsApi } from '../../api/endpoints/alerts';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -10,6 +24,7 @@ import type { IntelligenceStats, TrendPoint } from '../../types';
 type Period = 'week' | 'month';
 
 const formatPercent = (value: number | undefined) => `${Math.round((value ?? 0) * 100)}%`;
+const CHART_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7', '#14b8a6', '#f97316', '#e11d48'];
 
 interface NormalizedTrendPoint {
     label: string;
@@ -40,16 +55,6 @@ const normalizeTrend = (trend: TrendPoint[], periodDays: number): NormalizedTren
 };
 
 const TrendAreaChart = ({ points }: { points: NormalizedTrendPoint[] }) => {
-    const width = 640;
-    const height = 220;
-    const padding = { top: 18, right: 18, bottom: 42, left: 42 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    const maxValue = Math.max(...points.map((point) => point.count), 1);
-    const xFor = (index: number) => padding.left + (points.length <= 1 ? chartWidth : (index / (points.length - 1)) * chartWidth);
-    const yFor = (count: number) => padding.top + chartHeight - (count / maxValue) * chartHeight;
-    const line = points.map((point, index) => `${xFor(index)},${yFor(point.count)}`).join(' ');
-    const area = `${padding.left},${padding.top + chartHeight} ${line} ${padding.left + chartWidth},${padding.top + chartHeight}`;
     const lastPoint = points[points.length - 1];
     const peak = points.reduce((winner, point) => point.count > winner.count ? point : winner, points[0] ?? { label: '', shortLabel: '', count: 0 });
 
@@ -75,36 +80,37 @@ const TrendAreaChart = ({ points }: { points: NormalizedTrendPoint[] }) => {
                     <p className="text-sm font-bold text-white mt-1">{peak.label || 'n/a'}</p>
                 </div>
             </div>
-            <div className="relative overflow-hidden rounded-lg border border-neutral-900 bg-black/30">
-                <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full" role="img" aria-label="Alert trend area chart">
-                    {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
-                        const y = padding.top + chartHeight - tick * chartHeight;
-                        return (
-                            <g key={tick}>
-                                <line x1={padding.left} x2={padding.left + chartWidth} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" />
-                                <text x={12} y={y + 4} fill="#737373" fontSize="10">{Math.round(maxValue * tick)}</text>
-                            </g>
-                        );
-                    })}
-                    <polygon points={area} fill="rgba(37, 99, 235, 0.18)" />
-                    <polyline points={line} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-                    {points.map((point, index) => (
-                        <g key={`${point.label}-${index}`}>
-                            <circle cx={xFor(index)} cy={yFor(point.count)} r="4" fill="#0a0a0a" stroke="#60a5fa" strokeWidth="2">
-                                <title>{`${point.label}: ${point.count} alerts`}</title>
-                            </circle>
-                            {point.shortLabel && (
-                                <text x={xFor(index)} y={height - 16} textAnchor="middle" fill="#737373" fontSize="10">
-                                    {point.shortLabel}
-                                </text>
-                            )}
-                        </g>
-                    ))}
-                </svg>
+            <div className="h-72 rounded-lg border border-neutral-900 bg-black/30 p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={points} margin={{ top: 8, right: 10, left: -12, bottom: 0 }}>
+                        <defs>
+                            <linearGradient id="alertTrendFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.45} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="rgba(255,255,255,0.07)" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="shortLabel" tick={{ fill: '#737373', fontSize: 11 }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} interval={0} />
+                        <YAxis allowDecimals={false} tick={{ fill: '#737373', fontSize: 11 }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                            content={({ active, payload }) => active && payload?.length ? (
+                                <div className="rounded-lg border border-neutral-800 bg-black px-3 py-2 shadow-xl">
+                                    <p className="text-xs font-bold text-white">{payload[0].payload.label}</p>
+                                    <p className="text-[11px] text-blue-400">{payload[0].value} alerts</p>
+                                </div>
+                            ) : null}
+                        />
+                        <Area type="monotone" dataKey="count" stroke="#60a5fa" strokeWidth={3} fill="url(#alertTrendFill)" dot={{ r: 3, strokeWidth: 2, fill: '#050505' }} activeDot={{ r: 5 }} />
+                    </AreaChart>
+                </ResponsiveContainer>
             </div>
         </div>
     );
 };
+
+const Description = ({ children }: { children: string }) => (
+    <p className="mt-2 text-[11px] leading-relaxed text-neutral-600">{children}</p>
+);
 
 export const Intelligence = () => {
     const [period, setPeriod] = useState<Period>('week');
@@ -121,6 +127,22 @@ export const Intelligence = () => {
     const attackTypes = stats?.attack_type_distribution ?? [];
     const severityEntries = Object.entries(stats?.severity_distribution ?? {});
     const protocolEntries = Object.entries(stats?.protocol_distribution ?? {});
+    const attackTypeChart = attackTypes.map((item, index) => ({
+        name: item.type,
+        count: item.count,
+        ratio: Math.round(item.ratio * 100),
+        fill: CHART_COLORS[index % CHART_COLORS.length],
+    }));
+    const protocolChart = protocolEntries.map(([protocol, count], index) => ({
+        name: protocol.toUpperCase(),
+        count,
+        fill: CHART_COLORS[index % CHART_COLORS.length],
+    }));
+    const severityChart = severityEntries.map(([severity, count], index) => ({
+        name: severity.toUpperCase(),
+        count,
+        fill: CHART_COLORS[index % CHART_COLORS.length],
+    }));
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
@@ -157,6 +179,7 @@ export const Intelligence = () => {
                         </div>
                         <p className="text-2xl font-bold text-white mt-2">{isLoading ? '...' : stats?.trend_period.current ?? 0}</p>
                         <p className="text-[10px] text-neutral-500 mt-1">{periodLabel}, delta {stats?.trend_period.delta ?? 0}</p>
+                        <Description>Selected period içindeki toplam alert hacmini ve önceki aynı dönemle farkı gösterir.</Description>
                     </CardContent>
                 </Card>
                 <Card className="bg-red-500/5 border-red-900/20">
@@ -166,6 +189,7 @@ export const Intelligence = () => {
                             <Skull className="w-4 h-4 text-red-500" />
                         </div>
                         <p className="text-2xl font-bold text-white mt-2">{isLoading ? '...' : stats?.unique_attackers ?? 0}</p>
+                        <Description>Kaç farklı source IP’den saldırı gözlendiğini gösterir; yüksek değer geniş tarama davranışına işaret eder.</Description>
                     </CardContent>
                 </Card>
                 <Card className="bg-neutral-900/40 border-neutral-800">
@@ -176,6 +200,7 @@ export const Intelligence = () => {
                         </div>
                         <p className="text-sm font-bold text-white mt-2 truncate">{stats?.top_rule?.signature_msg || 'No signatures yet'}</p>
                         <p className="text-[10px] text-neutral-500 mt-1">SID {stats?.top_rule?.sid ?? 'n/a'} / {stats?.top_rule?.count ?? 0} hits</p>
+                        <Description>En çok tetiklenen signature kuralını öne çıkarır; tuning ve false positive incelemesi için başlangıç noktasıdır.</Description>
                     </CardContent>
                 </Card>
                 <Card className="bg-green-500/5 border-green-900/20">
@@ -186,6 +211,7 @@ export const Intelligence = () => {
                         </div>
                         <p className="text-2xl font-bold text-white mt-2">{formatPercent(stats?.success_metrics.resolution_rate)}</p>
                         <p className="text-[10px] text-neutral-500 mt-1">reviewed + false positive / total</p>
+                        <Description>Analistin kapattığı ya da false positive olarak işaretlediği olayların toplam alertlere oranıdır.</Description>
                     </CardContent>
                 </Card>
             </div>
@@ -196,6 +222,7 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <BarChart3 className="w-4 h-4 text-blue-500" /> {periodLabel} Alert Trend
                         </CardTitle>
+                        <p className="text-xs text-neutral-600">Zamana göre alert yoğunluğunu gösterir; ani sıçramalar aktif tarama veya kampanya işareti olabilir.</p>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -215,6 +242,7 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <Target className="w-4 h-4 text-red-500" /> Success Metrics
                         </CardTitle>
+                        <p className="text-xs text-neutral-600">IDS tarafında başarı, engellemeden çok triage kalitesi, backlog ve kritik olay kapanışıyla okunur.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {[
@@ -242,23 +270,45 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <BarChart3 className="w-4 h-4 text-blue-500" /> Attack Type Ratio
                         </CardTitle>
+                        <p className="text-xs text-neutral-600">Saldırı sınıflarının dönem içindeki ağırlığını gösterir; hangi risk ailesine odaklanacağını söyler.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {isLoading ? (
                             <Skeleton className="h-48 w-full" />
                         ) : attackTypes.length === 0 ? (
                             <div className="p-4 text-center text-sm text-neutral-500 font-mono">No attack type data available.</div>
-                        ) : attackTypes.map((item) => (
-                            <div key={item.type} className="space-y-2">
-                                <div className="flex justify-between text-xs font-mono">
-                                    <span className="text-neutral-300 truncate pr-4">{item.type}</span>
-                                    <span className="text-neutral-500">{item.count} hits / {formatPercent(item.ratio)}</span>
+                        ) : (
+                            <>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={attackTypeChart} layout="vertical" margin={{ top: 0, right: 18, left: 8, bottom: 0 }}>
+                                            <CartesianGrid stroke="rgba(255,255,255,0.07)" strokeDasharray="3 3" horizontal={false} />
+                                            <XAxis type="number" tick={{ fill: '#737373', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                            <YAxis dataKey="name" type="category" width={110} tick={{ fill: '#a3a3a3', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                            <Tooltip
+                                                content={({ active, payload }) => active && payload?.length ? (
+                                                    <div className="rounded-lg border border-neutral-800 bg-black px-3 py-2 shadow-xl">
+                                                        <p className="text-xs font-bold text-white">{payload[0].payload.name}</p>
+                                                        <p className="text-[11px] text-blue-400">{payload[0].payload.count} hits / {payload[0].payload.ratio}%</p>
+                                                    </div>
+                                                ) : null}
+                                            />
+                                            <Bar dataKey="count" radius={[0, 6, 6, 0]}>
+                                                {attackTypeChart.map((item) => <Cell key={item.name} fill={item.fill} />)}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 </div>
-                                <div className="h-2 w-full bg-neutral-900 rounded-full overflow-hidden">
-                                    <div className="h-full bg-red-500 transition-all duration-1000" style={{ width: `${Math.max(4, Math.round(item.ratio * 100))}%` }} />
+                                <div className="grid grid-cols-2 gap-2">
+                                    {attackTypeChart.slice(0, 4).map((item) => (
+                                        <div key={item.name} className="rounded-lg border border-neutral-900 bg-black/30 p-3">
+                                            <p className="truncate text-[11px] text-neutral-400">{item.name}</p>
+                                            <p className="text-sm font-bold text-white">{item.ratio}%</p>
+                                        </div>
+                                    ))}
                                 </div>
-                            </div>
-                        ))}
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -267,6 +317,7 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <Globe className="w-4 h-4 text-red-500" /> Top Attackers
                         </CardTitle>
+                        <p className="text-xs text-neutral-600">En fazla alert üreten source IP’leri listeler; tekrar eden kaynaklar blocklist/tuning adayıdır.</p>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
@@ -301,35 +352,76 @@ export const Intelligence = () => {
                 <Card className="border-neutral-900 bg-[#0a0a0a]">
                     <CardHeader>
                         <CardTitle className="text-sm font-medium text-neutral-400">Protocol Distribution</CardTitle>
+                        <p className="text-xs text-neutral-600">Alertlerin hangi protokoller üzerinden geldiğini gösterir; web IDS odağında HTTP/HTTPS baskın olmalıdır.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {protocolEntries.map(([protocol, count]) => (
-                            <div key={protocol} className="space-y-2">
-                                <div className="flex justify-between text-xs font-mono">
-                                    <span className="text-neutral-300">{protocol.toUpperCase()}</span>
-                                    <span className="text-neutral-500">{count} hits</span>
+                        {protocolChart.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-neutral-500 font-mono">No protocol data available.</div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 items-center">
+                                <div className="h-56">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={protocolChart} dataKey="count" nameKey="name" innerRadius={54} outerRadius={86} paddingAngle={3}>
+                                                {protocolChart.map((item) => <Cell key={item.name} fill={item.fill} />)}
+                                            </Pie>
+                                            <Tooltip
+                                                content={({ active, payload }) => active && payload?.length ? (
+                                                    <div className="rounded-lg border border-neutral-800 bg-black px-3 py-2 shadow-xl">
+                                                        <p className="text-xs font-bold text-white">{payload[0].payload.name}</p>
+                                                        <p className="text-[11px] text-blue-400">{payload[0].value} hits</p>
+                                                    </div>
+                                                ) : null}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
                                 </div>
-                                <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${Math.max(4, Math.round((stats?.protocol_share?.[protocol] ?? 0) * 100))}%` }} />
+                                <div className="space-y-2">
+                                    {protocolChart.map((item) => (
+                                        <div key={item.name} className="flex items-center justify-between rounded-lg border border-neutral-900 bg-black/30 px-3 py-2 text-xs">
+                                            <span className="flex items-center gap-2 text-neutral-300">
+                                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                                                {item.name}
+                                            </span>
+                                            <span className="font-mono text-neutral-500">{item.count}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </CardContent>
                 </Card>
 
                 <Card className="border-neutral-900 bg-[#0a0a0a]">
                     <CardHeader>
                         <CardTitle className="text-sm font-medium text-neutral-400">Severity Distribution</CardTitle>
+                        <p className="text-xs text-neutral-600">Alertlerin önem derecesini gösterir; kritik ve yüksek değerler gerçek zamanlı triage önceliğidir.</p>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-3">
+                    <CardContent className="space-y-4">
                         {severityEntries.length === 0 ? (
-                            <div className="col-span-2 p-4 text-center text-sm text-neutral-500 font-mono">No severity data available.</div>
-                        ) : severityEntries.map(([severity, count]) => (
-                            <div key={severity} className="rounded-lg border border-neutral-900 bg-black/30 p-4">
-                                <p className="text-[10px] uppercase text-neutral-500">{severity}</p>
-                                <p className="mt-1 text-2xl font-bold text-white">{count}</p>
+                            <div className="p-4 text-center text-sm text-neutral-500 font-mono">No severity data available.</div>
+                        ) : (
+                            <div className="h-56">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={severityChart} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                                        <CartesianGrid stroke="rgba(255,255,255,0.07)" strokeDasharray="3 3" vertical={false} />
+                                        <XAxis dataKey="name" tick={{ fill: '#a3a3a3', fontSize: 11 }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
+                                        <YAxis allowDecimals={false} tick={{ fill: '#737373', fontSize: 11 }} tickLine={false} axisLine={false} />
+                                        <Tooltip
+                                            content={({ active, payload }) => active && payload?.length ? (
+                                                <div className="rounded-lg border border-neutral-800 bg-black px-3 py-2 shadow-xl">
+                                                    <p className="text-xs font-bold text-white">{payload[0].payload.name}</p>
+                                                    <p className="text-[11px] text-blue-400">{payload[0].value} alerts</p>
+                                                </div>
+                                            ) : null}
+                                        />
+                                        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                                            {severityChart.map((item) => <Cell key={item.name} fill={item.fill} />)}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
-                        ))}
+                        )}
                     </CardContent>
                 </Card>
             </div>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { ShieldAlert, Activity, ShieldCheck, ServerCrash, Zap, Globe, Clock, BarChart3, CheckCircle2 } from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { alertsApi, alertKeys } from '../../api/endpoints/alerts';
 import { useAlertsStore } from '../../stores/alerts.store';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -29,8 +30,17 @@ export const Overview = () => {
     const isCompromised = stats && (stats.critical_threats > 0 || stats.active_alerts > 15);
     const statusColor = isCompromised ? "border-red-500/30 bg-red-500/5 text-red-500" : "border-green-500/30 bg-green-500/5 text-green-500";
     const hourlyTrend = stats?.hourly_trend ?? [];
-    const maxHourly = Math.max(...hourlyTrend.map((point) => point.count), 1);
+    const hourlyChart = hourlyTrend.map((point) => ({
+        time: new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        count: point.count,
+    }));
     const attackTypes = stats?.attack_type_distribution ?? [];
+    const attackMixChart = attackTypes.slice(0, 5).map((item, index) => ({
+        name: item.type,
+        count: item.count,
+        ratio: Math.round(item.ratio * 100),
+        fill: ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7'][index % 5],
+    }));
     const resolutionRate = Math.round((stats?.success_metrics?.resolution_rate ?? 0) * 100);
 
     return (
@@ -109,24 +119,39 @@ export const Overview = () => {
                         <CardTitle className="text-sm font-bold flex items-center gap-2">
                             <BarChart3 className="w-4 h-4 text-blue-500" /> Daily Alert Rhythm
                         </CardTitle>
+                        <p className="text-xs text-neutral-600">Son 24 saatte alert yoğunluğu. Spike görülen saatler canlı inceleme için önceliklidir.</p>
                     </CardHeader>
                     <CardContent className="pt-6">
                         {isLoading ? (
                             <Skeleton className="h-36 w-full" />
-                        ) : hourlyTrend.length === 0 ? (
+                        ) : hourlyChart.length === 0 ? (
                             <div className="h-36 flex items-center justify-center text-xs text-neutral-600 font-mono border border-dashed border-neutral-900 rounded-lg">
                                 No alerts in the last 24 hours.
                             </div>
                         ) : (
-                            <div className="h-36 flex items-end gap-1">
-                                {hourlyTrend.map((point) => (
-                                    <div
-                                        key={point.timestamp}
-                                        className="flex-1 min-w-1 rounded-t bg-blue-500/70 hover:bg-blue-400 transition-colors"
-                                        style={{ height: `${Math.max(8, (point.count / maxHourly) * 100)}%` }}
-                                        title={`${new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: ${point.count}`}
-                                    />
-                                ))}
+                            <div className="h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={hourlyChart} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="dailyAlertFill" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid stroke="rgba(255,255,255,0.07)" strokeDasharray="3 3" vertical={false} />
+                                        <XAxis dataKey="time" tick={{ fill: '#737373', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} minTickGap={18} />
+                                        <YAxis allowDecimals={false} tick={{ fill: '#737373', fontSize: 10 }} tickLine={false} axisLine={false} />
+                                        <Tooltip
+                                            content={({ active, payload }) => active && payload?.length ? (
+                                                <div className="rounded-lg border border-neutral-800 bg-black px-3 py-2 shadow-xl">
+                                                    <p className="text-xs font-bold text-white">{payload[0].payload.time}</p>
+                                                    <p className="text-[11px] text-blue-400">{payload[0].value} alerts</p>
+                                                </div>
+                                            ) : null}
+                                        />
+                                        <Area type="monotone" dataKey="count" stroke="#60a5fa" strokeWidth={3} fill="url(#dailyAlertFill)" dot={{ r: 2, fill: '#050505', stroke: '#60a5fa' }} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
                             </div>
                         )}
                     </CardContent>
@@ -209,17 +234,38 @@ export const Overview = () => {
                             <p className="text-[10px] text-neutral-500 uppercase tracking-widest">Today Attack Mix</p>
                             {attackTypes.length === 0 ? (
                                 <p className="text-xs text-neutral-600 font-mono">No daily attack mix yet.</p>
-                            ) : attackTypes.slice(0, 4).map((item) => (
-                                <div key={item.type} className="space-y-1">
-                                    <div className="flex justify-between text-[10px] text-neutral-400">
-                                        <span className="truncate pr-2">{item.type}</span>
-                                        <span>{Math.round(item.ratio * 100)}%</span>
+                            ) : (
+                                <div className="grid grid-cols-[110px_1fr] gap-3 items-center">
+                                    <div className="h-28">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie data={attackMixChart} dataKey="count" nameKey="name" innerRadius={28} outerRadius={48} paddingAngle={3}>
+                                                    {attackMixChart.map((item) => <Cell key={item.name} fill={item.fill} />)}
+                                                </Pie>
+                                                <Tooltip
+                                                    content={({ active, payload }) => active && payload?.length ? (
+                                                        <div className="rounded-lg border border-neutral-800 bg-black px-3 py-2 shadow-xl">
+                                                            <p className="text-xs font-bold text-white">{payload[0].payload.name}</p>
+                                                            <p className="text-[11px] text-blue-400">{payload[0].payload.ratio}% / {payload[0].value} hits</p>
+                                                        </div>
+                                                    ) : null}
+                                                />
+                                            </PieChart>
+                                        </ResponsiveContainer>
                                     </div>
-                                    <div className="h-1.5 rounded-full bg-neutral-900 overflow-hidden">
-                                        <div className="h-full bg-blue-500" style={{ width: `${Math.max(5, Math.round(item.ratio * 100))}%` }} />
+                                    <div className="space-y-2">
+                                        {attackMixChart.slice(0, 4).map((item) => (
+                                            <div key={item.name} className="flex items-center justify-between gap-2 text-[10px] text-neutral-400">
+                                                <span className="flex min-w-0 items-center gap-1">
+                                                    <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.fill }} />
+                                                    <span className="truncate">{item.name}</span>
+                                                </span>
+                                                <span>{item.ratio}%</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                            ))}
+                            )}
                         </div>
                         <div className="p-3 rounded bg-black/40 border border-neutral-800">
                             <p className="text-[10px] text-neutral-500 uppercase">Last Mitigation</p>
