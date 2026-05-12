@@ -2,8 +2,7 @@ import apiClient from '../client';
 import type { 
   Alert, 
   AlertUpdateDto, 
-  AlertFilters,
-  AlertStats
+  AlertFilters
 } from '../../types';
 
 
@@ -43,7 +42,17 @@ export const alertsApi = {
     params.append('offset', String(page * limit));
 
     const response = await apiClient.get('/alerts/', { params });
-    return response.data;
+    const payload = response.data;
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (Array.isArray(payload?.items)) {
+      return payload.items;
+    }
+    if (Array.isArray(payload?.value)) {
+      return payload.value;
+    }
+    return [];
   },
 
 
@@ -52,8 +61,18 @@ export const alertsApi = {
     return response.data;
   },
 
+  getAlert: async (id: number): Promise<Alert> => {
+    const response = await apiClient.get(`/alerts/${id}`);
+    return response.data;
+  },
+
   getAlertStats: async () => {
     const response = await apiClient.get('/alerts/stats/dashboard'); 
+    return response.data;
+  },
+
+  getAnalysisStats: async () => {
+    const response = await apiClient.get('/alerts/stats/analysis');
     return response.data;
   }
 };

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Globe, TrendingUp, Skull, ShieldAlert, BarChart3, Fingerprint } from 'lucide-react';
-import apiClient from '../../api/client';
+import { Globe, TrendingUp, Skull, BarChart3, Fingerprint } from 'lucide-react';
+import { alertsApi } from '../../api/endpoints/alerts';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 
@@ -9,15 +9,17 @@ interface IntelligenceStats {
     top_attackers: { ip: string; count: number }[];
     severity_distribution: Record<string, number>;
     protocol_distribution: Record<string, number>;
+    protocol_share: Record<string, number>;
+    unique_attackers: number;
+    trend_24h: { current: number; previous: number; delta: number };
+    top_rule: { signature_msg: string; sid: number | null; count: number } | null;
+    critical_ratio: number;
 }
 
 export const Intelligence = () => {
     const { data: stats, isLoading } = useQuery({
         queryKey: ['intelligence_stats'],
-        queryFn: async () => {
-            const response = await apiClient.get('/alerts/stats/analysis');
-            return response.data as IntelligenceStats;
-        },
+        queryFn: () => alertsApi.getAnalysisStats() as Promise<IntelligenceStats>,
         refetchInterval: 30000 
     });
 
@@ -33,7 +35,6 @@ export const Intelligence = () => {
                 </p>
             </div>
 
-            {/* Statistics Summaries (Currently N/A as backend doesn't provide them yet) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="bg-blue-500/5 border-blue-500/20">
                     <CardContent className="pt-6">
@@ -41,7 +42,8 @@ export const Intelligence = () => {
                             <p className="text-xs font-semibold text-blue-400 uppercase">Monthly Trend</p>
                             <TrendingUp className="w-4 h-4 text-blue-500" />
                         </div>
-                        <p className="text-2xl font-bold text-white mt-2 opacity-50">N/A</p>
+                        <p className="text-2xl font-bold text-white mt-2">{isLoading ? '...' : stats?.trend_24h.current ?? 0}</p>
+                        <p className="text-[10px] text-neutral-500 mt-1">delta {stats?.trend_24h.delta ?? 0} vs previous 24h</p>
                     </CardContent>
                 </Card>
                 <Card className="bg-red-500/5 border-red-900/20">
@@ -50,7 +52,26 @@ export const Intelligence = () => {
                             <p className="text-xs font-semibold text-red-400 uppercase">Unique Attackers</p>
                             <Skull className="w-4 h-4 text-red-500" />
                         </div>
-                        <p className="text-2xl font-bold text-white mt-2 opacity-50">N/A</p>
+                        <p className="text-2xl font-bold text-white mt-2">{isLoading ? '...' : stats?.unique_attackers ?? 0}</p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-neutral-900/40 border-neutral-800">
+                    <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-neutral-400 uppercase">Top Rule</p>
+                            <Fingerprint className="w-4 h-4 text-neutral-500" />
+                        </div>
+                        <p className="text-sm font-bold text-white mt-2 truncate">{stats?.top_rule?.signature_msg || 'No signatures yet'}</p>
+                        <p className="text-[10px] text-neutral-500 mt-1">SID {stats?.top_rule?.sid ?? 'n/a'} / {stats?.top_rule?.count ?? 0} hits</p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-red-500/5 border-red-900/20">
+                    <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-red-400 uppercase">Critical Ratio</p>
+                            <Skull className="w-4 h-4 text-red-500" />
+                        </div>
+                        <p className="text-2xl font-bold text-white mt-2">{Math.round((stats?.critical_ratio ?? 0) * 100)}%</p>
                     </CardContent>
                 </Card>
             </div>
@@ -76,7 +97,7 @@ export const Intelligence = () => {
                                     <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden">
                                         <div 
                                             className="h-full bg-blue-600 transition-all duration-1000" 
-                                            style={{ width: `${Math.min((count / 1000) * 100, 100)}%` }} 
+                                            style={{ width: `${Math.max(4, Math.round((stats?.protocol_share?.[protocol] ?? 0) * 100))}%` }} 
                                         />
                                     </div>
                                 </div>
@@ -126,7 +147,7 @@ export const Intelligence = () => {
             {/* Footer Note */}
             <div className="p-4 bg-neutral-900/30 border border-neutral-800 rounded-lg">
                 <p className="text-xs text-neutral-600 italic">
-                    Note: Long-term data is aggregated every 24 hours. Data reflects normalized traffic patterns across all integrated sensors.
+                    Metrics are calculated from workspace IDS alerts in PostgreSQL and refresh every 30 seconds.
                 </p>
             </div>
         </div>

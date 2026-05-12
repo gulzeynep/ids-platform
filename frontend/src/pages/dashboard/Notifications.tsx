@@ -1,6 +1,6 @@
 import { useAlertsStore } from '../../stores/alerts.store';
 import { Card } from '../../components/ui/Card';
-import { Bell, ShieldAlert, Clock, Info } from 'lucide-react';
+import { Bell, ShieldAlert, Info } from 'lucide-react';
 
 export const Notifications = () => {
   const { realtimeAlerts } = useAlertsStore();

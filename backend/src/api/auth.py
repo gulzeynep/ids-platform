@@ -1,4 +1,6 @@
+import os
 import secrets
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -22,6 +24,32 @@ limiter = Limiter(key_func=get_remote_address)
 
 ACCESS_TOKEN_EXPIRE_MINUTES = settings. ACCESS_TOKEN_EXPIRE_MINUTES
 
+
+def current_sensor_api_key() -> str:
+    key_file = Path(os.getenv("SENSOR_KEY_FILE", "/var/log/snort/sensor_key"))
+    if key_file.exists():
+        key = key_file.read_text(encoding="utf-8").strip()
+        if key:
+            return key
+    return settings.API_KEY
+
+
+async def get_or_create_sensor_workspace(db: AsyncSession) -> Workspace:
+    api_key = current_sensor_api_key()
+    result = await db.execute(select(Workspace).where(Workspace.api_key == api_key))
+    workspace = result.scalars().first()
+    if workspace:
+        return workspace
+
+    workspace = Workspace(
+        name="IDS Demo Workspace",
+        api_key=api_key,
+    )
+    db.add(workspace)
+    await db.commit()
+    await db.refresh(workspace)
+    return workspace
+
 #  REGISTRATION 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
@@ -33,9 +61,13 @@ async def register_user(
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="User already registered.")
     
+    workspace = await get_or_create_sensor_workspace(db)
+
     new_user = User(
         email=user_data.email, 
-        hashed_password=get_password_hash(user_data.password)
+        hashed_password=get_password_hash(user_data.password),
+        workspace_id=workspace.id,
+        role="admin",
     )
     db.add(new_user)
     await db.commit()
@@ -85,26 +117,27 @@ async def complete_onboarding(
     Completes the user registration by creating their isolated Workspace
     and generating the initial Sensor API Key.
     """
-    # Prevent re-onboarding if already in a workspace
     if current_user.workspace_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Operative is already assigned to a Workspace."
-        )
+        ws_query = await db.execute(select(Workspace).where(Workspace.id == current_user.workspace_id))
+        new_workspace = ws_query.scalars().first()
+    else:
+        new_workspace = await get_or_create_sensor_workspace(db)
 
-    # Create the new Workspace for the user
-    new_workspace = Workspace(
-        name=onboard_data.company_name,
-        api_key=secrets.token_hex(32)  # Generates a secure random 64-character API Key
-    )
-    db.add(new_workspace)
-    await db.commit()
-    await db.refresh(new_workspace)
+    if new_workspace is None:
+        new_workspace = Workspace(
+            name=onboard_data.company_name,
+            api_key=secrets.token_hex(32)
+        )
+        db.add(new_workspace)
+        await db.commit()
+        await db.refresh(new_workspace)
 
     # Update the current user with profile data and link to workspace
     current_user.full_name = onboard_data.full_name
     current_user.user_persona = onboard_data.user_persona
     current_user.role = "admin"  # The first user to onboard is the admin of that workspace
+    if onboard_data.company_name and new_workspace.name in (None, "", "IDS Demo Workspace"):
+        new_workspace.name = onboard_data.company_name
     current_user.workspace_id = new_workspace.id
     
     await db.commit()

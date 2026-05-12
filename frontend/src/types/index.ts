@@ -20,6 +20,7 @@ export type Protocol = 'TCP' | 'UDP' | 'HTTP' | 'HTTPS' | 'ICMP';
 export interface Alert {
   id: number;
   type: string;
+  title?: string;
   severity: AlertSeverity;
   source_ip: string;
   destination_ip: string;
@@ -30,6 +31,16 @@ export interface Alert {
   status: AlertStatus;
   notes: string | null;
   payload_preview: string | null;
+  raw_request?: string | null;
+  signature_msg?: string | null;
+  signature_class?: string | null;
+  signature_sid?: number | null;
+  signature_gid?: number | null;
+  event_id?: string | null;
+  capture_path?: string | null;
+  capture_mode?: string | null;
+  packet_filter?: string | null;
+  capture_window_seconds?: number | null;
   is_flagged: boolean;
   is_saved: boolean;
   timestamp: string;
@@ -55,9 +66,21 @@ export interface AlertUpdateDto {
 
 export interface AlertStats {
   active_alerts: number;
+  total_alerts?: number;
   critical_threats: number;
   resolved_alerts: number;
+  false_positive_alerts?: number;
+  protected_sites?: number;
+  secured_segments?: number;
+  blocked_ips?: number;
+  recent_alerts_5m?: number;
+  active_sensors?: number;
   status: 'Secure' | 'Compromised' | 'Under Attack';
+  last_mitigation?: {
+    ip_address: string;
+    reason?: string | null;
+    timestamp: string;
+  } | null;
 }
 
 export interface RealtimeAlert extends Alert {

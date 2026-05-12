@@ -6,15 +6,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { getAlertTitle } from '../../utils/alertTitles';
 
 export const Overview = () => {
     const navigate = useNavigate();
     const { realtimeAlerts } = useAlertsStore(); 
 
-    const { data: stats, isLoading, isError } = useQuery({
+    const { data: stats, isLoading, error: statsError } = useQuery({
         queryKey: alertKeys.stats(),
         queryFn: () => alertsApi.getAlertStats(),
         refetchInterval: 3000, 
+        refetchIntervalInBackground: true,
+    });
+
+    const { data: latestAlerts, error: latestAlertsError } = useQuery({
+        queryKey: [...alertKeys.lists(), 'overview-latest'],
+        queryFn: () => alertsApi.getAlerts({ status: 'all' }, 0, 8),
+        refetchInterval: 5000,
+        refetchIntervalInBackground: true,
     });
 
     const isCompromised = stats && (stats.critical_threats > 0 || stats.active_alerts > 15);
@@ -22,6 +31,11 @@ export const Overview = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {(statsError || latestAlertsError) && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                    Dashboard telemetry could not be loaded. Check backend auth/session and refresh the page.
+                </div>
+            )}
             {/*  Canlı Sistem Durum Barı */}
             <div className={`p-6 rounded-2xl border flex items-center justify-between transition-all duration-1000 ${statusColor}`}>
                 <div className="flex items-center gap-6">
@@ -34,7 +48,7 @@ export const Overview = () => {
                             {isLoading ? "Synchronizing..." : isCompromised ? "Incident in Progress" : "System Nominal"}
                         </h3>
                         <p className="text-sm opacity-80 font-mono">
-                            {isCompromised ? "> Alert: Critical anomalies detected in edge sensors." : "> Status: All clusters operating within baseline parameters."}
+                            {isCompromised ? "> Alert: Critical anomalies detected in protected traffic." : "> Status: No active critical alerts in backend telemetry."}
                         </p>
                     </div>
                 </div>
@@ -49,10 +63,10 @@ export const Overview = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold text-white tabular-nums">
-                            {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.active_alerts}
+                            {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.total_alerts ?? stats?.active_alerts ?? 0}
                         </div>
                         <p className="text-[10px] text-neutral-600 mt-2 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Requests per second: 124.2
+                            <Clock className="w-3 h-3" /> Historical IDS events. Last 5m: {stats?.recent_alerts_5m ?? 0}
                         </p>
                     </CardContent>
                 </Card>
@@ -76,8 +90,10 @@ export const Overview = () => {
                         <Zap className="w-4 h-4 text-yellow-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-4xl font-bold text-white tabular-nums">100%</div>
-                        <p className="text-[10px] text-neutral-600 mt-2 uppercase">L7 Protection Active</p>
+                        <div className="text-4xl font-bold text-white tabular-nums">
+                            {isLoading ? <Skeleton className="h-10 w-16" /> : stats?.secured_segments ?? 0}
+                        </div>
+                        <p className="text-[10px] text-neutral-600 mt-2 uppercase">Protected origins active</p>
                     </CardContent>
                 </Card>
             </div>
@@ -96,17 +112,20 @@ export const Overview = () => {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 max-h-[350px] overflow-y-auto font-mono scrollbar-hide">
-                        {realtimeAlerts.length === 0 ? (
+                        {(realtimeAlerts.length === 0 && !latestAlerts?.length) ? (
                             <div className="p-12 text-center text-neutral-600 text-sm italic">
                                 &gt; Waiting for incoming sensor telemetry...
                             </div>
                         ) : (
-                            realtimeAlerts.map((alert, idx) => (
+                            ([...realtimeAlerts, ...(latestAlerts || [])]
+                                .filter((alert, idx, arr) => arr.findIndex((item) => item.id === alert.id) === idx)
+                                .slice(0, 8)
+                            ).map((alert, idx) => (
                                 <div key={idx} className="p-4 border-b border-neutral-900 flex items-center justify-between hover:bg-white/[0.02] transition-colors animate-in slide-in-from-right-4">
                                     <div className="flex items-center gap-4">
                                         <span className={`w-2 h-2 rounded-full ${alert.severity === 'critical' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} />
                                         <div>
-                                            <p className="text-xs text-neutral-300 font-bold uppercase">{alert.type}</p>
+                                            <p className="text-xs text-neutral-300 font-bold uppercase">{getAlertTitle(alert)}</p>
                                             <p className="text-[10px] text-neutral-600 italic">SRC: {alert.source_ip}</p>
                                         </div>
                                     </div>
@@ -125,7 +144,11 @@ export const Overview = () => {
                     <CardContent className="space-y-4">
                         <div className="p-3 rounded bg-black/40 border border-neutral-800">
                             <p className="text-[10px] text-neutral-500 uppercase">Last Mitigation</p>
-                            <p className="text-xs text-green-500 mt-1">IP 185.22.XX.XX blocked successfully</p>
+                            <p className="text-xs text-green-500 mt-1">
+                                {stats?.last_mitigation
+                                    ? `${stats.last_mitigation.ip_address} blocked`
+                                    : `${stats?.blocked_ips ?? 0} active gateway deny rules`}
+                            </p>
                         </div>
                         <Button variant="primary" className="w-full text-xs h-11" onClick={() => navigate('/defense')}>
                             Deploy Firewall Rules

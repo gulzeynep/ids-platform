@@ -24,7 +24,7 @@ interface AlertsState {
 }
 
 const defaultFilters: AlertFilters = {
-  status: 'new',
+  status: 'all',
   severity: 'all',
   is_flagged: null,
   is_saved: null,

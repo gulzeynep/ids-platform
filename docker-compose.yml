@@ -3,8 +3,10 @@ services:
     image: postgres:16
     container_name: ids_postgres
     restart: always
-    env_file:
-      - ./backend/.env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
+      POSTGRES_DB: ids_db
     ports:
       - "5434:5432"
     volumes:
@@ -27,44 +29,154 @@ services:
       timeout: 5s
       retries: 5
 
+  demo-origin:
+    image: python:3.12-slim
+    container_name: ids_demo_origin
+    restart: unless-stopped
+    working_dir: /srv/demo
+    command: python -m http.server 8081 --bind 0.0.0.0
+    volumes:
+      - ./demo-origin:/srv/demo:ro
+    expose:
+      - "8081"
+
   backend:
     build:
-      context: ./backend      
-      dockerfile: Dockerfile  
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: ids_backend
     restart: always
+    command: /bin/bash ./start.sh
     ports:
       - "8000:8000"
+    expose:
+      - "8000"
     volumes:
-      - ./backend:/app     
+      - ./backend:/app
+      - ./snort/logs:/var/log/snort
+      - ./nginx/generated:/etc/nginx/generated
+      - ./nginx/certs:/etc/nginx/certs:ro
     env_file:
-      - ./backend/.env
-    environment:
-      - PYTHONPATH=/app
+      - .env
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      demo-origin:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3).close()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   worker:
     build:
-      context: ./backend      
+      context: ./backend
       dockerfile: Dockerfile
     container_name: ids_worker
     restart: always
-    command: python src/worker.py 
+    command: python src/worker.py
     volumes:
       - ./backend:/app
+      - ./snort/logs:/var/log/snort
     env_file:
-      - ./backend/.env
-    environment:
-      - PYTHONPATH=/app
+      - .env
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      backend:
+        condition: service_healthy
+
+
+
+  reverse-proxy:
+    image: nginx:latest
+    container_name: ids-gateway
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/reload-watch.sh:/etc/nginx/reload-watch.sh:ro
+      - ./nginx/logs:/var/log/nginx
+      - ./nginx/generated:/etc/nginx/generated
+      - ./nginx/certs:/etc/nginx/certs:ro
+    command:
+      - sh
+      - /etc/nginx/reload-watch.sh
+    depends_on:
+      backend:
+        condition: service_started
+      demo-origin:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  secure-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.snort
+    container_name: secure-engine
+    restart: always
+    network_mode: "service:reverse-proxy"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    volumes:
+      - ./snort/etc:/etc/snort/etc
+      - ./snort/rules:/etc/snort/rules
+      - ./snort/logs:/var/log/snort
+    working_dir: /etc/snort/etc
+    environment:
+      - INTERFACE=eth0
+      - SNORT_RULE_PROFILE=web-official
+    command:
+      - sh
+      - /etc/snort/etc/start-snort.sh
+    depends_on:
+      - reverse-proxy
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/local/bin/snort -V >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  snort-bridge:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ids_snort_bridge
+    restart: always
+    command: python -u snort_bridge.py
+    network_mode: "service:reverse-proxy"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./backend:/app
+      - ./snort/logs:/var/log/snort
+      - ./nginx/logs:/var/log/nginx:ro
+    env_file:
+      - .env
+    depends_on:
+      backend:
+        condition: service_healthy
+      reverse-proxy:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"from pathlib import Path; assert Path('/var/log/snort').exists()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   postgres_data:

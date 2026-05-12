@@ -1,82 +1,115 @@
+# W-IDS Local Demo
 
-# W-IDS (Web-Intrusion Detection System) Core Platform 
+W-IDS is a local web intrusion detection demo with FastAPI, PostgreSQL, Redis,
+Snort3, an Nginx reverse proxy, and a React dashboard.
 
-Bu proje, ağ üzerindeki siber tehditleri gerçek zamanlı olarak algılayan, çoklu şirket (Multi-tenant) destekli, Rol Bazlı Erişim Kontrolü (RBAC) içeren bir siber güvenlik izleme platformudur.
+## Services
 
-## 🏗️ Teknoloji Yığını
-* **Frontend:** React, TypeScript, Zustand, React Query, Vite, TailwindCSS, Recharts, Lucide Icons
-* **Backend:** Python, FastAPI, SQLAlchemy (Async), JWT Authentication
-* **Veritabanı & Önbellek:** PostgreSQL, Redis
-* **Altyapı:** Docker & Docker Compose
+- `backend`: FastAPI API, auth, admin panel, alert ingest.
+- `worker`: consumes Redis alert jobs, writes alerts to PostgreSQL, broadcasts WebSocket events.
+- `reverse-proxy`: Nginx gateway exposed as `http://localhost:8080`.
+- `secure-engine`: Snort3 watching the gateway network namespace.
+- `snort-bridge`: active alert reader; reads Snort JSON and Nginx access logs, then posts to `/alerts/ingest`.
+- `demo-origin`: local upstream test site for `app.example.com`.
+- `db` and `redis`: runtime persistence and queue.
 
----
+`backend/snort_reader.py` is legacy and is not used by the Compose pipeline.
 
-##  Başlangıç (Sıfırdan Kurulum)
+## Environment
 
-### 1. Gereksinimler
-Bilgisayarınızda şunların yüklü olduğundan emin olun:
-* **Docker** ve **Docker Compose**
-* **Git** 
+The root `.env` file is the Docker Compose source of truth. Copy
+`.env.example` to `.env` if you need to recreate it.
 
-### 2. Projeyi İndirme ve Ortam Hazırlığı
-* Terminali açın ve projeyi klonlayın (veya dosyaları yeni bilgisayara kopyalayın):
-```bash
-git clone <repo_url>
-cd ids-platform
+For Docker, keep:
+
+```env
+POSTGRES_PASSWORD=12345
+DATABASE_URL=postgresql+asyncpg://postgres:12345@db:5432/ids_db
+API_KEY=ids_engine_icin_gizli_api_anahtari
+SNORT_API_KEY=ids_engine_icin_gizli_api_anahtari
 ```
-* .env.example doyasını baz alarak .env dosyalarınızı oluşturun.
 
-### 3. Sistemi Ayağa Kaldırma
-Tüm servisleri (Frontend, Backend, Postgres, Redis, Worker) tek komutla inşa edip başlatın:
+`backend/.env.example` is only for running the backend outside Docker. In that
+case it points PostgreSQL to `127.0.0.1:5434`.
 
-```bash
-docker-compose up --build
+## Start
+
+```powershell
+docker compose up -d --build
 ```
-Not: İlk kurulumda veritabanı imajlarının indirilmesi birkaç dakika sürebilir.
 
-Sistem ayağa kalktığında:
+Backend migrations and local demo seeding run automatically on backend startup.
+Existing data is preserved.
 
-* Frontend (Arayüz): http://localhost:5173
+Run the frontend locally:
 
-* Backend (API Docs): http://localhost:8000/docs adresinden erişilebilir olacaktır.
-***
-##  İlk Yönetici Hesabını (Admin) Oluşturma
-Sistem "Multi-tenant" çalıştığı için, yeni bir kurulumda içeride hiç şirket veya kullanıcı olmaz. Platformda yeni bir şirket için workspace açan ilk kullanıcı admin olur ve tüm yetkiler ona aittir. 
-
-**Kayıt Yapın :** Tarayıcıdan http://localhost:5173/register adresine gidin ve normal bir kayıt yapın.
-
-* Email: dev@wids.com
-
-* Operator Name: developer
-
-* Organization: W-IDS HQ
-
-* Password: 12345
-
-**Databaseden Manuel yetki verme işlemi :** Veritabanına manuel müdahale ederek kendinize tam yetki verin. Yeni bir terminal açın ve şu komutları çalıştırın:
-```bash
-# Postgres konteynerine bağlanın
-docker exec -it ids_postgres psql -U postgres -d ids_db
-
-# Kayıt olduğunuz email adresine admin ve developer yetkisi verin
-UPDATE users SET is_admin = true, role = 'developer' WHERE email = 'dev@wids.com';
-
-# Çıkış yapın
-\q
+```powershell
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1
 ```
-***
-##  Proje Yapısı
-* /frontend: Kullanıcı arayüzü kodları. Ana giriş noktası src/App.tsx.
 
-* /backend: API ve iş mantığı.
+Open:
 
-* * /src/api: Endpoint'ler (auth.py, alerts.py, admin.py).
+- Dashboard: `http://localhost:5173`
+- API docs: `http://localhost:8000/docs`
+- Gateway: `http://localhost:8080`
 
-* * /src/models.py: Veritabanı tabloları (Company, User, Alert).
+Demo login:
 
-* * /src/schemas.py: Veri doğrulama ve transfer objeleri (Pydantic).
+- Email: `demo@wids.local`
+- Password: `DemoPass123!`
 
-* docker-compose.yml: Tüm servislerin orkestrasyonu.
+The seeder will not overwrite an existing demo user's password unless
+`RESET_DEMO_ADMIN_PASSWORD=true` is set.
 
-* simulate_ids.py: Test amaçlı sisteme sahte saldırı logları gönderen Python betiği.
-***
+## Test The IDS Path
+
+The seeded protected site is:
+
+- Public host: `app.example.com`
+- Gateway: `http://127.0.0.1:8080`
+- Origin: `demo-origin:8081`
+
+Use the Host header so the request hits the protected-site Nginx server block:
+
+```powershell
+curl.exe -i -H "Host: app.example.com" http://127.0.0.1:8080/etc/passwd
+curl.exe -i -H "Host: app.example.com" http://127.0.0.1:8080/.env
+curl.exe -i -H "Host: app.example.com" "http://127.0.0.1:8080/search?q=union%20select"
+curl.exe -i -H "Host: app.example.com" "http://127.0.0.1:8080/?q=%3Cscript%3E"
+```
+
+A 404 from the demo origin is fine. The important result is that the gateway
+access log is inspected and alerts appear in Dashboard/Intrusions with specific
+titles like `High: Password File Disclosure Attempt`.
+
+## Runtime Flow
+
+1. User logs in with the demo admin.
+2. Requests go to `ids-gateway` on `localhost:8080`.
+3. `ids-gateway` routes `Host: app.example.com` to `demo-origin:8081`.
+4. `secure-engine` watches the gateway network namespace with Snort3.
+5. `snort_bridge.py` reads Snort JSON and Nginx access logs.
+6. The bridge posts alerts to `/alerts/ingest` with the workspace API key.
+7. Backend queues alerts in Redis.
+8. `ids_worker` writes alerts to PostgreSQL and broadcasts WebSocket events.
+9. Dashboard/Intrusions display `signature_msg` as the alert title.
+
+## Useful Checks
+
+```powershell
+docker compose ps
+docker logs ids_backend --tail 80
+docker logs ids_worker --tail 80
+docker logs ids_snort_bridge --tail 80
+docker exec ids_postgres psql -U postgres -d ids_db -c "\d alerts"
+docker exec ids_postgres psql -U postgres -d ids_db -c "\d monitored_websites"
+```
+
+Build frontend:
+
+```powershell
+cd frontend
+npm run build
+```

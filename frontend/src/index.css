@@ -7,3 +7,70 @@ body {
   background-color: #050505;
   color: #e5e5e5;
 }
+
+.black-rabbit {
+  position: fixed;
+  right: clamp(14px, 2vw, 28px);
+  bottom: clamp(12px, 2vw, 24px);
+  z-index: 80;
+  width: clamp(153px, 17vw, 215px);
+  cursor: default;
+  filter: drop-shadow(0 0 14px rgba(255, 65, 45, 0.42));
+}
+
+.black-rabbit-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  opacity: 0.86;
+  transition: transform 180ms ease, opacity 180ms ease, filter 180ms ease;
+  pointer-events: none;
+}
+
+.black-rabbit:hover .black-rabbit-image {
+  opacity: 1;
+  transform: translateY(-3px) scale(1.04);
+  filter: drop-shadow(0 0 12px rgba(0, 255, 106, 0.25));
+}
+
+.black-rabbit-tooltip {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% - 8px);
+  display: grid;
+  gap: 2px;
+  min-width: 210px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 255, 106, 0.4);
+  background: rgba(0, 8, 3, 0.9);
+  color: #39ff88;
+  font-family: "Courier New", "Lucida Console", monospace;
+  font-size: 12px;
+  line-height: 1.15;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px rgba(57, 255, 136, 0.9), 0 0 16px rgba(57, 255, 136, 0.35);
+  box-shadow: 0 0 22px rgba(0, 255, 106, 0.12), inset 0 0 18px rgba(0, 255, 106, 0.05);
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.black-rabbit-tooltip::before {
+  content: ">";
+  position: absolute;
+  left: 5px;
+  top: 9px;
+  color: #8cffb4;
+  opacity: 0.9;
+}
+
+.black-rabbit-tooltip span {
+  padding-left: 10px;
+}
+
+.black-rabbit:hover .black-rabbit-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}

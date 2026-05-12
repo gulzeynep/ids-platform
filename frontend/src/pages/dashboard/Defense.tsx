@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldBan, Plus, Trash2, Globe, ShieldCheck } from 'lucide-react';
+import { ShieldBan, Plus, Globe, ShieldCheck } from 'lucide-react';
 import apiClient from '../../api/client';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -11,7 +11,7 @@ interface BlacklistedIP {
     id: number;
     ip_address: string;
     reason: string;
-    created_at: string;
+    timestamp: string;
 }
 
 export const Defense = () => {
@@ -43,7 +43,7 @@ export const Defense = () => {
 
     // Engeli Kaldırma Mutation
     const removeMutation = useMutation({
-        mutationFn: (id: number) => apiClient.delete(`/defense/blacklist/${id}`),
+        mutationFn: (ipAddress: string) => apiClient.delete(`/defense/blacklist/${ipAddress}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['blacklist'] });
             toast.info('Access restored for the selected IP.');
@@ -125,7 +125,7 @@ export const Defense = () => {
                                                     variant="ghost" 
                                                     size="sm"
                                                     className="hover:text-green-500"
-                                                    onClick={() => removeMutation.mutate(item.id)}
+                                                    onClick={() => removeMutation.mutate(item.ip_address)}
                                                 >
                                                     <ShieldCheck className="w-4 h-4" />
                                                 </Button>

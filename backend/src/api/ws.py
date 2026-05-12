@@ -48,6 +48,12 @@ async def websocket_endpoint(
 
         while True: 
             data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            if message.get("type") == "ping":
+                await websocket.send_json({"type": "pong", "timestamp": message.get("timestamp")})
 
     except JWTError:
         await websocket.close(code=1008)

@@ -6,7 +6,7 @@ import apiClient from '../../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Key, UserPlus, RefreshCw, Copy, ShieldAlert, Users, X, UserCog, Save } from 'lucide-react';
+import { Key, UserPlus, RefreshCw, Copy, ShieldAlert, Users, X, UserCog, Save, Globe, Server, Power, Info, Trash2, FlaskConical, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface UserData {
@@ -17,6 +17,51 @@ interface UserData {
   is_active: boolean;
 }
 
+interface ProtectedSite {
+  id: number;
+  domain: string;
+  target_ip: string;
+  target_port: number;
+  scheme: 'http' | 'https';
+  public_hostname: string | null;
+  listen_port: number;
+  tls_mode: string;
+  proxy_mode: string;
+  health_path: string;
+  is_active: boolean;
+  proxy_url: string;
+  dns_target: string;
+  nginx_server_block: string;
+  tls_status: string;
+  upstream_health: string;
+}
+
+interface DetectionRule {
+  id: number;
+  title: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  category: string;
+  match_type: 'contains' | 'regex';
+  pattern: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+interface DetectionProfile {
+  profile: string;
+  available_profiles: string[];
+  engine_profile?: string | null;
+  reload_requested?: boolean;
+}
+
+interface SensorKey {
+  api_key: string;
+  workspace_id: number;
+  key_file: string;
+  delivery: string;
+  rotate_requires_bridge_restart: boolean;
+}
+
 export const Management = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
@@ -24,6 +69,25 @@ export const Management = () => {
 
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [siteForm, setSiteForm] = useState({
+    domain: '',
+    public_hostname: '',
+    target_ip: '',
+    target_port: '80',
+    listen_port: '80',
+    scheme: 'http',
+    tls_mode: 'edge',
+    proxy_mode: 'reverse_proxy',
+    health_path: '/',
+  });
+  const [ruleForm, setRuleForm] = useState({
+    title: '',
+    severity: 'high',
+    category: 'Web Custom',
+    match_type: 'contains',
+    pattern: '',
+    enabled: true,
+  });
 
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['workspace_users'],
@@ -43,6 +107,133 @@ export const Management = () => {
       toast.success(data.data.new_status ? "Account reactivated." : "Account suspended.");
       setSelectedUser(null); 
     }
+  });
+
+  const { data: protectedSites, isLoading: sitesLoading } = useQuery({
+    queryKey: ['protected_sites'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/protected-sites');
+      return res.data as ProtectedSite[];
+    },
+    enabled: isAdmin
+  });
+
+  const { data: detectionRules, isLoading: rulesLoading } = useQuery({
+    queryKey: ['detection_rules'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/detection-rules');
+      return res.data as DetectionRule[];
+    },
+    enabled: isAdmin
+  });
+
+  const { data: detectionProfile } = useQuery({
+    queryKey: ['detection_profile'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/detection-profile');
+      return res.data as DetectionProfile;
+    },
+    enabled: isAdmin
+  });
+
+  const { data: sensorKey } = useQuery({
+    queryKey: ['sensor_key'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/sensor-key');
+      return res.data as SensorKey;
+    },
+    enabled: isAdmin
+  });
+
+  const createSiteMutation = useMutation({
+    mutationFn: async () => apiClient.post('/admin/protected-sites', {
+      domain: siteForm.domain,
+      target_ip: siteForm.target_ip,
+      target_port: Number(siteForm.target_port),
+      public_hostname: siteForm.public_hostname || null,
+      listen_port: Number(siteForm.listen_port),
+      scheme: siteForm.scheme,
+      tls_mode: siteForm.tls_mode,
+      proxy_mode: siteForm.proxy_mode,
+      health_path: siteForm.health_path,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
+      toast.success('Protected origin attached to W-IDS proxy.');
+      setSiteForm({ domain: '', public_hostname: '', target_ip: '', target_port: '80', listen_port: '80', scheme: 'http', tls_mode: 'edge', proxy_mode: 'reverse_proxy', health_path: '/' });
+    },
+    onError: () => toast.error('Could not attach this site. Check domain, IP, and port.')
+  });
+
+  const toggleSiteMutation = useMutation({
+    mutationFn: async (siteId: number) => apiClient.patch(`/admin/protected-sites/${siteId}/toggle`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
+      toast.success('Protection status updated.');
+    }
+  });
+
+  const healthcheckMutation = useMutation({
+    mutationFn: async (siteId: number) => apiClient.post(`/admin/protected-sites/${siteId}/healthcheck`),
+    onSuccess: (res) => {
+      queryClient.setQueryData(['protected_sites'], (current: ProtectedSite[] | undefined) =>
+        current?.map((site) => site.id === res.data.id ? res.data : site)
+      );
+      toast.success(`Origin health: ${res.data.upstream_health}`);
+    },
+    onError: () => toast.error('Healthcheck failed.')
+  });
+
+  const deleteSiteMutation = useMutation({
+    mutationFn: async (siteId: number) => apiClient.delete(`/admin/protected-sites/${siteId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
+      toast.info('Protected site removed from gateway config.');
+    }
+  });
+
+  const createRuleMutation = useMutation({
+    mutationFn: async () => apiClient.post('/admin/detection-rules', ruleForm),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['detection_rules'] });
+      toast.success('Custom detection rule is live in the bridge.');
+      setRuleForm({ title: '', severity: 'high', category: 'Web Custom', match_type: 'contains', pattern: '', enabled: true });
+    },
+    onError: () => toast.error('Could not save this rule.')
+  });
+
+  const updateRuleMutation = useMutation({
+    mutationFn: async ({ ruleId, data }: { ruleId: number; data: Partial<DetectionRule> }) =>
+      apiClient.patch(`/admin/detection-rules/${ruleId}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['detection_rules'] });
+      toast.success('Detection rule updated.');
+    }
+  });
+
+  const deleteRuleMutation = useMutation({
+    mutationFn: async (ruleId: number) => apiClient.delete(`/admin/detection-rules/${ruleId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['detection_rules'] });
+      toast.info('Detection rule deleted.');
+    }
+  });
+
+  const profileMutation = useMutation({
+    mutationFn: async (profile: string) => apiClient.patch('/admin/detection-profile', { profile }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['detection_profile'] });
+      toast.success('Detection profile saved. secure-engine reload requested.');
+    }
+  });
+
+  const rotateSensorKeyMutation = useMutation({
+    mutationFn: async () => apiClient.post('/admin/sensor-key/rotate'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sensor_key'] });
+      toast.success('Sensor key rotated and shared with the bridge.');
+    },
+    onError: () => toast.error('Could not rotate sensor key.')
   });
 
   if (!user) {
@@ -67,11 +258,14 @@ export const Management = () => {
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <div className="relative">
-              <Input value="WIDS_PRO_69f7ff410b76_SECURE_TOKEN" readOnly className="font-mono text-[10px] bg-black border-neutral-800 pr-20 h-10" />
-              <Button variant="ghost" className="absolute right-1 top-1 h-8 text-[10px] hover:bg-white/5" onClick={() => { navigator.clipboard.writeText("WIDS_PRO_69f7ff410b76_SECURE_TOKEN"); toast.success("API Key copied."); }}>
+              <Input value={sensorKey?.api_key || 'Loading sensor key...'} readOnly className="font-mono text-[10px] bg-black border-neutral-800 pr-20 h-10" />
+              <Button variant="ghost" className="absolute right-1 top-1 h-8 text-[10px] hover:bg-white/5" onClick={() => { navigator.clipboard.writeText(sensorKey?.api_key || ''); toast.success("Sensor key copied."); }}>
                 <Copy className="w-3 h-3" />
               </Button>
             </div>
+            <p className="text-[10px] text-neutral-600 font-mono">
+              DELIVERY: {sensorKey?.delivery || 'shared_file'} | FILE: {sensorKey?.key_file || '/var/log/snort/sensor_key'}
+            </p>
             
             {isAdmin ? (
               <div className="flex items-center justify-between p-4 rounded-2xl bg-red-500/5 border border-red-500/10">
@@ -79,7 +273,7 @@ export const Management = () => {
                   <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Critical Action</p>
                   <p className="text-[10px] text-neutral-500">Rotation forces sensor re-authentication.</p>
                 </div>
-                <Button variant="danger" size="sm" className="h-8 rounded-lg text-[10px] font-bold">
+                <Button variant="danger" size="sm" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => rotateSensorKeyMutation.mutate()} isLoading={rotateSensorKeyMutation.isPending}>
                   <RefreshCw className="w-3 h-3 mr-2" /> ROTATE
                 </Button>
               </div>
@@ -110,6 +304,214 @@ export const Management = () => {
           </CardContent>
         </Card>
       </div>
+
+      {isAdmin && (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <Card className="xl:col-span-2 border-neutral-900 bg-[#0a0a0a]">
+            <CardHeader className="border-b border-neutral-900 pb-4">
+              <CardTitle className="text-xs font-mono flex items-center gap-2 text-neutral-300">
+                <Globe className="w-4 h-4 text-blue-500" /> PROTECTED_WEB_TRAFFIC
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Input placeholder="app.example.com" value={siteForm.domain} onChange={(e) => setSiteForm({ ...siteForm, domain: e.target.value })} className="md:col-span-2 bg-black border-neutral-800" />
+                <Input placeholder="public host" value={siteForm.public_hostname} onChange={(e) => setSiteForm({ ...siteForm, public_hostname: e.target.value })} className="bg-black border-neutral-800" />
+                <Input placeholder="10.0.0.15" value={siteForm.target_ip} onChange={(e) => setSiteForm({ ...siteForm, target_ip: e.target.value })} className="bg-black border-neutral-800" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="flex gap-2">
+                  <Input placeholder="8080" value={siteForm.target_port} onChange={(e) => setSiteForm({ ...siteForm, target_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
+                  <select value={siteForm.scheme} onChange={(e) => setSiteForm({ ...siteForm, scheme: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-2 text-xs text-neutral-300 outline-none">
+                    <option value="http">HTTP</option>
+                    <option value="https">HTTPS</option>
+                  </select>
+                </div>
+                <Input placeholder="listen 80" value={siteForm.listen_port} onChange={(e) => setSiteForm({ ...siteForm, listen_port: e.target.value.replace(/\D/g, '') })} className="bg-black border-neutral-800" />
+                <select value={siteForm.tls_mode} onChange={(e) => setSiteForm({ ...siteForm, tls_mode: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
+                  <option value="edge">TLS at Gateway</option>
+                  <option value="passthrough">TLS Passthrough</option>
+                  <option value="origin">Origin TLS</option>
+                </select>
+                <Input placeholder="/health" value={siteForm.health_path} onChange={(e) => setSiteForm({ ...siteForm, health_path: e.target.value || '/' })} className="bg-black border-neutral-800" />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-neutral-500">Traffic path: user DNS {'->'} W-IDS gateway :8080 {'->'} Snort inspection {'->'} registered origin IP:port.</p>
+                <Button size="sm" onClick={() => createSiteMutation.mutate()} isLoading={createSiteMutation.isPending} disabled={!siteForm.domain || !siteForm.target_ip || !siteForm.target_port}>
+                  <Server className="w-3 h-3 mr-2" /> Attach Site
+                </Button>
+              </div>
+
+              <div className="overflow-x-auto border border-neutral-900 rounded-lg">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-black/40 text-[10px] uppercase text-neutral-600">
+                    <tr>
+                      <th className="px-4 py-3">Domain</th>
+                      <th className="px-4 py-3">Origin</th>
+                      <th className="px-4 py-3">Proxy Entry</th>
+                      <th className="px-4 py-3">TLS / Health</th>
+                      <th className="px-4 py-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-900">
+                    {sitesLoading ? (
+                      <tr><td colSpan={5} className="p-6 text-center text-neutral-500">Loading protected sites...</td></tr>
+                    ) : protectedSites?.length ? protectedSites.map((site) => (
+                      <tr key={site.id} className="hover:bg-white/[0.02]">
+                        <td className="px-4 py-3">
+                          <p className="text-neutral-100 font-medium">{site.domain}</p>
+                          <p className="text-[10px] text-neutral-600 font-mono">{site.scheme.toUpperCase()}</p>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-neutral-400">{site.target_ip}:{site.target_port}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-mono text-xs text-blue-400">{site.proxy_url}</p>
+                          <p className="font-mono text-[10px] text-neutral-600">DNS: {site.dns_target}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className={`text-[10px] uppercase font-bold ${site.tls_status === 'active' ? 'text-green-500' : 'text-yellow-500'}`}>{site.tls_status}</p>
+                          <p className="text-[10px] text-neutral-600 font-mono">{site.upstream_health}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => healthcheckMutation.mutate(site.id)} title="Check origin health">
+                              <FlaskConical className="w-3 h-3" />
+                            </Button>
+                            <Button variant={site.is_active ? 'secondary' : 'ghost'} size="sm" onClick={() => toggleSiteMutation.mutate(site.id)}>
+                              <Power className={`w-3 h-3 mr-2 ${site.is_active ? 'text-green-500' : 'text-neutral-600'}`} />
+                              {site.is_active ? 'Protected' : 'Paused'}
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => deleteSiteMutation.mutate(site.id)} title="Remove protected site">
+                              <Trash2 className="w-3 h-3 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={5} className="p-6 text-center text-neutral-500">No protected origin attached yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {protectedSites?.[0]?.nginx_server_block && (
+                <div className="rounded-lg border border-neutral-900 bg-black p-3">
+                  <p className="text-[10px] text-neutral-600 uppercase mb-2">Generated Nginx server block</p>
+                  <pre className="text-[10px] text-neutral-300 whitespace-pre-wrap overflow-x-auto">{protectedSites[0].nginx_server_block}</pre>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-blue-500/20 bg-blue-500/[0.03]">
+            <CardHeader>
+              <CardTitle className="text-xs font-mono flex items-center gap-2 text-blue-400">
+                <Info className="w-4 h-4" /> ROUTING_GUIDE
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-xs text-neutral-400">
+              <p>1. Add the real app origin, for example <span className="font-mono text-neutral-200">10.0.0.15:3000</span>.</p>
+              <p>2. Point the customer's A/CNAME record to the W-IDS gateway public IP; local lab traffic uses port <span className="font-mono text-neutral-200">8080</span>.</p>
+              <p>3. Edge TLS inspection expects certs at <span className="font-mono text-neutral-200">nginx/certs/domain/fullchain.pem</span> and <span className="font-mono text-neutral-200">privkey.pem</span>.</p>
+              <p>4. Backend writes <span className="font-mono text-neutral-200">protected-sites.conf</span>; the gateway validates and reloads it automatically.</p>
+              <div className="rounded-lg border border-neutral-800 bg-black p-3 font-mono text-[10px] text-neutral-300 break-all">
+                curl.exe -H "Host: app.example.com" http://127.0.0.1:8080/etc/passwd
+              </div>
+              <p className="text-neutral-500">Production path: DNS {'->'} W-IDS edge gateway {'->'} Snort sensor on the gateway network namespace {'->'} Nginx upstream to origin IP:port.</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {isAdmin && (
+        <Card className="border-neutral-900 bg-[#0a0a0a]">
+          <CardHeader className="border-b border-neutral-900 pb-4">
+            <CardTitle className="text-xs font-mono flex items-center gap-2 text-neutral-300">
+              <SlidersHorizontal className="w-4 h-4 text-blue-500" /> DETECTION_RULES
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-5 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-900 bg-black p-3">
+              <div>
+                <p className="text-[10px] uppercase text-neutral-600">Snort profile</p>
+                <p className="text-xs text-neutral-400">web-official loads only official web vulnerability categories for the active sensor.</p>
+                <p className="text-[10px] text-neutral-600 font-mono mt-1">
+                  ENGINE: {detectionProfile?.engine_profile || 'unknown'} {detectionProfile?.reload_requested ? '| reload pending' : '| in sync'}
+                </p>
+              </div>
+              <select
+                value={detectionProfile?.profile || 'web-official'}
+                onChange={(e) => profileMutation.mutate(e.target.value)}
+                className="bg-[#111] border border-neutral-800 text-xs rounded-lg px-3 h-10 text-neutral-300 outline-none"
+              >
+                {(detectionProfile?.available_profiles || ['web-official', 'web-balanced', 'web-full', 'local-only']).map((profile) => (
+                  <option key={profile} value={profile}>{profile}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
+              <Input placeholder="Critical: Admin Panel Probe" value={ruleForm.title} onChange={(e) => setRuleForm({ ...ruleForm, title: e.target.value })} className="lg:col-span-2 bg-black border-neutral-800" />
+              <Input placeholder="/admin.php" value={ruleForm.pattern} onChange={(e) => setRuleForm({ ...ruleForm, pattern: e.target.value })} className="lg:col-span-2 bg-black border-neutral-800" />
+              <select value={ruleForm.severity} onChange={(e) => setRuleForm({ ...ruleForm, severity: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <select value={ruleForm.match_type} onChange={(e) => setRuleForm({ ...ruleForm, match_type: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
+                <option value="contains">Contains</option>
+                <option value="regex">Regex</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap justify-between gap-3">
+              <Input placeholder="Category, e.g. Web Custom" value={ruleForm.category} onChange={(e) => setRuleForm({ ...ruleForm, category: e.target.value })} className="max-w-md bg-black border-neutral-800" />
+              <Button size="sm" onClick={() => createRuleMutation.mutate()} isLoading={createRuleMutation.isPending} disabled={!ruleForm.title || !ruleForm.pattern}>
+                <Save className="w-3 h-3 mr-2" /> Add Rule
+              </Button>
+            </div>
+
+            <div className="overflow-x-auto border border-neutral-900 rounded-lg">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-black/40 text-[10px] uppercase text-neutral-600">
+                  <tr>
+                    <th className="px-4 py-3">Title</th>
+                    <th className="px-4 py-3">Pattern</th>
+                    <th className="px-4 py-3">Severity</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-900">
+                  {rulesLoading ? (
+                    <tr><td colSpan={4} className="p-6 text-center text-neutral-500">Loading detection rules...</td></tr>
+                  ) : detectionRules?.length ? detectionRules.map((rule) => (
+                    <tr key={rule.id} className="hover:bg-white/[0.02]">
+                      <td className="px-4 py-3">
+                        <p className="text-neutral-100 font-medium">{rule.title}</p>
+                        <p className="text-[10px] text-neutral-600 font-mono">{rule.category} / {rule.match_type}</p>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-neutral-400 break-all">{rule.pattern}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded border text-[10px] uppercase ${rule.severity === 'critical' ? 'text-red-500 border-red-500/20 bg-red-500/10' : rule.severity === 'high' ? 'text-orange-500 border-orange-500/20 bg-orange-500/10' : 'text-blue-500 border-blue-500/20 bg-blue-500/10'}`}>{rule.severity}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant={rule.enabled ? 'secondary' : 'ghost'} size="sm" onClick={() => updateRuleMutation.mutate({ ruleId: rule.id, data: { enabled: !rule.enabled } })}>
+                            {rule.enabled ? 'Live' : 'Paused'}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => deleteRuleMutation.mutate(rule.id)} title="Delete rule">
+                            <Trash2 className="w-3 h-3 text-red-500" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={4} className="p-6 text-center text-neutral-500">No custom signatures yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isAdmin && (
         <Card className="border-neutral-900 bg-[#0a0a0a]">

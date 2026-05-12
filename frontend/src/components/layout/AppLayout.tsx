@@ -4,7 +4,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShieldAlert, ShieldCheck, Settings, 
   Bell, User, PanelLeftClose, PanelLeftOpen, Fingerprint,
-  Zap, LogOut, Activity, Mail, Hash
+  Zap, LogOut, Activity
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 import { useAlertsStore } from '../../stores/alerts.store';
@@ -135,6 +135,14 @@ export const AppLayout = () => {
         <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           <div className="max-w-7xl mx-auto"><Outlet /></div>
         </main>
+      </div>
+
+      <div className="black-rabbit group" aria-label="follow the black rabbit coming soon">
+        <div className="black-rabbit-tooltip">
+          <span>follow the black rabbit</span>
+          <span>coming soon...</span>
+        </div>
+        <img src="/black-rabbit.png" alt="" className="black-rabbit-image" />
       </div>
     </div>
   );
