@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Flag, ShieldCheck, Search, ChevronLeft, ChevronRight, X, FileSearch, Radio, Fingerprint, Bookmark, RotateCcw, ShieldQuestion, CircleCheck, MessageSquare } from 'lucide-react';
 import { alertsApi, alertKeys } from '../../api/endpoints/alerts';
@@ -11,11 +11,16 @@ import type { AlertSeverity, AlertStatus, AlertUpdateDto } from '../../types';
 
 export const Intrusions = () => {
   const queryClient = useQueryClient();
-  const { filters, setFilters } = useAlertsStore();
+  const { filters, setFilters, resetFilters } = useAlertsStore();
   const [page, setPage] = useState(0);
   const [selectedAlertId, setSelectedAlertId] = useState<number | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const limit = 50;
+
+  useEffect(() => {
+    resetFilters();
+    setPage(0);
+  }, [resetFilters]);
 
 
   const { data: alerts, isLoading, error: alertsError } = useQuery({
