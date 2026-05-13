@@ -34,7 +34,7 @@ POLL_INTERVAL = float(os.environ.get("SNORT_BRIDGE_POLL_INTERVAL", "0.25"))
 REOPEN_INTERVAL = float(os.environ.get("SNORT_BRIDGE_REOPEN_INTERVAL", "2"))
 SENSOR_IP = os.environ.get("IDS_SENSOR_IP", "172.18.0.7")
 MAX_RECENT_EVENTS = int(os.environ.get("SNORT_BRIDGE_RECENT_EVENTS", "4096"))
-ENABLE_NGINX_SIGNATURE_FALLBACK = os.environ.get("ENABLE_NGINX_SIGNATURE_FALLBACK", "false").lower() in {"1", "true", "yes"}
+ENABLE_NGINX_SIGNATURE_FALLBACK = os.environ.get("ENABLE_NGINX_SIGNATURE_FALLBACK", "true").lower() in {"1", "true", "yes"}
 ENABLE_EVENT_PCAP = os.environ.get("ENABLE_EVENT_PCAP", "true").lower() in {"1", "true", "yes"}
 PCAP_INTERFACE = os.environ.get("PCAP_INTERFACE", os.environ.get("INTERFACE", "eth0"))
 PCAP_WINDOW_SECONDS = int(os.environ.get("EVENT_PCAP_WINDOW_SECONDS", "5"))
@@ -47,6 +47,7 @@ ACCESS_RE = re.compile(r'^(?P<src>\S+) \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) (?
 WEB_SIGNATURES = [
     ("Critical: Shadow File Access", "Path Traversal", "critical", ["/etc/shadow"]),
     ("High: Password File Disclosure Attempt", "Path Traversal", "high", ["/etc/passwd"]),
+    ("High: Windows CGI Command Probe", "Exploit Attempt", "high", ["cmd.exe", "/winnt/system32/", "%5c../winnt/"]),
     ("High: Acunetix Scanner Probe", "Port Scan", "high", ["/acunetix-wvs-test-for-some-inexistent-file"]),
     ("Critical: SQL Union Select Injection", "SQL Injection", "critical", ["union select", "union+select", "union%20select"]),
     ("High: Script Tag XSS Attempt", "XSS", "high", ["<script", "%3cscript"]),
