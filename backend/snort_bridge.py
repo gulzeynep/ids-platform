@@ -46,15 +46,25 @@ PRIORITY_MAP = {1: "critical", 2: "high", 3: "medium", 4: "low"}
 ACCESS_RE = re.compile(r'^(?P<src>\S+) \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) (?P<target>\S+) HTTP/[^"]+" (?P<status>\d+)')
 WEB_SIGNATURES = [
     ("Critical: Shadow File Access", "Path Traversal", "critical", ["/etc/shadow"]),
-    ("High: Password File Disclosure Attempt", "Path Traversal", "high", ["/etc/passwd"]),
+    ("High: Password File Disclosure Attempt", "Path Traversal", "high", ["/etc/passwd", "passwd.txt", "/wwwboard/passwd"]),
     ("High: Windows CGI Command Probe", "Exploit Attempt", "high", ["cmd.exe", "/winnt/system32/", "%5c../winnt/"]),
+    ("High: Directory Traversal Probe", "Path Traversal", "high", ["../", "..%2f", "%2e%2e", "..%5c", "%5c../"]),
     ("High: Acunetix Scanner Probe", "Port Scan", "high", ["/acunetix-wvs-test-for-some-inexistent-file"]),
     ("Critical: SQL Union Select Injection", "SQL Injection", "critical", ["union select", "union+select", "union%20select"]),
+    ("High: SQL Boolean Injection Probe", "SQL Injection", "high", ["or 1=1", "or+1=1", "or%201=1", "' or '1'='1"]),
     ("High: Script Tag XSS Attempt", "XSS", "high", ["<script", "%3cscript"]),
+    ("High: Event Handler XSS Attempt", "XSS", "high", ["onerror=", "onload=", "javascript:alert"]),
     ("High: Environment File Disclosure", "Path Traversal", "high", ["/.env", ".env"]),
+    ("High: Git Config Disclosure", "Path Traversal", "high", ["/.git/config", ".git%2fconfig"]),
+    ("High: Proc Environ Disclosure", "Path Traversal", "high", ["/proc/self/environ"]),
     ("High: WordPress Config Disclosure", "Path Traversal", "high", ["wp-config.php"]),
+    ("Critical: WordPress Admin Registration Abuse", "Exploit Attempt", "critical", ["/wp-admin/admin-ajax.php", "administrator"]),
     ("Medium: phpMyAdmin Probe", "Port Scan", "medium", ["phpmyadmin"]),
+    ("High: Exposed Backup Archive Probe", "Path Traversal", "high", [".sql", ".bak", ".zip", "backup"]),
+    ("Critical: Web Shell Upload Probe", "Exploit Attempt", "critical", ["shell.php", "cmd=", "eval("]),
     ("Critical: Log4Shell JNDI Lookup", "Exploit Attempt", "critical", ["${jndi:", "%24%7bjndi"]),
+    ("Critical: CVE-2026-24880 Apache Tomcat request smuggling demo marker", "Exploit Attempt", "critical", ["/cve-2026-24880", "chunked=true"]),
+    ("High: CVE-2026-29046 TinyWeb encoded header injection demo marker", "Exploit Attempt", "high", ["/cve-2026-29046", "%0d%0a"]),
 ]
 CUSTOM_SIGNATURES_MTIME = 0.0
 CUSTOM_SIGNATURES: list[dict] = []
