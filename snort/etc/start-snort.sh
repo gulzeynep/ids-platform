@@ -15,19 +15,19 @@ include /etc/snort/rules/local/local.rules
 EOF
 
 cat > "$PROFILE_DIR/web-official.rules" <<'EOF'
-include /etc/snort/rules/local/local.rules
 include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
 include /etc/snort/rules/official/snort3-server-webapp.rules
+include /etc/snort/rules/official/snort3-x11.rules
 EOF
 
 cat > "$PROFILE_DIR/web-balanced.rules" <<'EOF'
-include /etc/snort/rules/local/local.rules
 include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
 include /tmp/snort-rules/server-webapp-community.rules
+include /etc/snort/rules/official/snort3-x11.rules
 EOF
 
 cat > "$PROFILE_DIR/web-full.rules" <<'EOF'
@@ -35,6 +35,7 @@ include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
 include /etc/snort/rules/official/snort3-server-webapp.rules
+include /etc/snort/rules/official/snort3-x11.rules
 EOF
 
 read_profile() {
@@ -74,7 +75,7 @@ while [ "$stop_requested" -eq 0 ]; do
 
   echo "[snort-start] Starting Snort with profile=$profile rules=$SNORT_RULE_PROFILE_FILE"
   archive_alert_log
-  bpf_filter="${SNORT_BPF_FILTER:-tcp port 80 or tcp port 443}"
+  bpf_filter="${SNORT_BPF_FILTER:-tcp port 80 or tcp port 443 or udp port 177}"
 
   /usr/local/bin/snort \
     -c /etc/snort/etc/snort.lua \

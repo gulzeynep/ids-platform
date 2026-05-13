@@ -38,6 +38,8 @@ export interface Alert {
   signature_class?: string | null;
   signature_sid?: number | null;
   signature_gid?: number | null;
+  signature_rule?: string | null;
+  signature_rule_source?: string | null;
   event_id?: string | null;
   capture_path?: string | null;
   capture_mode?: string | null;

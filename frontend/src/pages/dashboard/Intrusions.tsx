@@ -324,6 +324,13 @@ const eventTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
                   <p className="text-xs text-neutral-400 break-all">Msg: {selectedAlert.signature_msg || 'n/a'}</p>
                 </div>
                 <div className="p-3 bg-black border border-neutral-900 rounded-lg">
+                  <p className="text-[10px] uppercase text-neutral-600 mb-1 flex items-center gap-2"><FileSearch size={14} /> Rule detail</p>
+                  <p className="text-xs text-neutral-500 break-all mb-2">{selectedAlert.signature_rule_source || 'Rule file not resolved.'}</p>
+                  <p className="font-mono text-[11px] leading-relaxed text-neutral-300 break-all whitespace-pre-wrap">
+                    {selectedAlert.signature_rule || 'No rule text available for this SID.'}
+                  </p>
+                </div>
+                <div className="p-3 bg-black border border-neutral-900 rounded-lg">
                   <p className="text-[10px] uppercase text-neutral-600 mb-1">Flow</p>
                   <p className="font-mono text-neutral-300">{selectedAlert.source_ip}:{selectedAlert.source_port || '*'} {'->'} {selectedAlert.destination_ip}:{selectedAlert.destination_port || '*'}</p>
                 </div>

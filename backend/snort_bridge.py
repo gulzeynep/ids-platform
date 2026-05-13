@@ -34,7 +34,7 @@ POLL_INTERVAL = float(os.environ.get("SNORT_BRIDGE_POLL_INTERVAL", "0.25"))
 REOPEN_INTERVAL = float(os.environ.get("SNORT_BRIDGE_REOPEN_INTERVAL", "2"))
 SENSOR_IP = os.environ.get("IDS_SENSOR_IP", "172.18.0.7")
 MAX_RECENT_EVENTS = int(os.environ.get("SNORT_BRIDGE_RECENT_EVENTS", "4096"))
-ENABLE_NGINX_SIGNATURE_FALLBACK = os.environ.get("ENABLE_NGINX_SIGNATURE_FALLBACK", "true").lower() in {"1", "true", "yes"}
+ENABLE_NGINX_SIGNATURE_FALLBACK = os.environ.get("ENABLE_NGINX_SIGNATURE_FALLBACK", "false").lower() in {"1", "true", "yes"}
 ENABLE_EVENT_PCAP = os.environ.get("ENABLE_EVENT_PCAP", "true").lower() in {"1", "true", "yes"}
 PCAP_INTERFACE = os.environ.get("PCAP_INTERFACE", os.environ.get("INTERFACE", "eth0"))
 PCAP_WINDOW_SECONDS = int(os.environ.get("EVENT_PCAP_WINDOW_SECONDS", "5"))
@@ -44,28 +44,7 @@ ROLLING_PCAP_FILTER = os.environ.get("ROLLING_PCAP_FILTER", "tcp port 80 or tcp 
 
 PRIORITY_MAP = {1: "critical", 2: "high", 3: "medium", 4: "low"}
 ACCESS_RE = re.compile(r'^(?P<src>\S+) \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) (?P<target>\S+) HTTP/[^"]+" (?P<status>\d+)')
-WEB_SIGNATURES = [
-    ("Critical: Shadow File Access", "Path Traversal", "critical", ["/etc/shadow"]),
-    ("High: Password File Disclosure Attempt", "Path Traversal", "high", ["/etc/passwd", "passwd.txt", "/wwwboard/passwd"]),
-    ("High: Windows CGI Command Probe", "Exploit Attempt", "high", ["cmd.exe", "/winnt/system32/", "%5c../winnt/"]),
-    ("High: Directory Traversal Probe", "Path Traversal", "high", ["../", "..%2f", "%2e%2e", "..%5c", "%5c../"]),
-    ("High: Acunetix Scanner Probe", "Port Scan", "high", ["/acunetix-wvs-test-for-some-inexistent-file"]),
-    ("Critical: SQL Union Select Injection", "SQL Injection", "critical", ["union select", "union+select", "union%20select"]),
-    ("High: SQL Boolean Injection Probe", "SQL Injection", "high", ["or 1=1", "or+1=1", "or%201=1", "' or '1'='1"]),
-    ("High: Script Tag XSS Attempt", "XSS", "high", ["<script", "%3cscript"]),
-    ("High: Event Handler XSS Attempt", "XSS", "high", ["onerror=", "onload=", "javascript:alert"]),
-    ("High: Environment File Disclosure", "Path Traversal", "high", ["/.env", ".env"]),
-    ("High: Git Config Disclosure", "Path Traversal", "high", ["/.git/config", ".git%2fconfig"]),
-    ("High: Proc Environ Disclosure", "Path Traversal", "high", ["/proc/self/environ"]),
-    ("High: WordPress Config Disclosure", "Path Traversal", "high", ["wp-config.php"]),
-    ("Critical: WordPress Admin Registration Abuse", "Exploit Attempt", "critical", ["/wp-admin/admin-ajax.php", "administrator"]),
-    ("Medium: phpMyAdmin Probe", "Port Scan", "medium", ["phpmyadmin"]),
-    ("High: Exposed Backup Archive Probe", "Path Traversal", "high", [".sql", ".bak", ".zip", "backup"]),
-    ("Critical: Web Shell Upload Probe", "Exploit Attempt", "critical", ["shell.php", "cmd=", "eval("]),
-    ("Critical: Log4Shell JNDI Lookup", "Exploit Attempt", "critical", ["${jndi:", "%24%7bjndi"]),
-    ("Critical: CVE-2026-24880 Apache Tomcat request smuggling demo marker", "Exploit Attempt", "critical", ["/cve-2026-24880", "chunked=true"]),
-    ("High: CVE-2026-29046 TinyWeb encoded header injection demo marker", "Exploit Attempt", "high", ["/cve-2026-29046", "%0d%0a"]),
-]
+WEB_SIGNATURES = []
 CUSTOM_SIGNATURES_MTIME = 0.0
 CUSTOM_SIGNATURES: list[dict] = []
 HTTP_METHODS = (
@@ -182,7 +161,43 @@ def extract_raw_request_from_alert(raw: dict) -> Optional[str]:
     return extract_http_request_from_bytes(decoded)
 
 
-def extract_raw_request_from_pcap(path: Path) -> Optional[str]:
+def extract_http_request_from_packet(packet: bytes, src_port: Optional[int] = None, dst_port: Optional[int] = None) -> Optional[str]:
+    if len(packet) < 54:
+        return extract_http_request_from_bytes(packet)
+
+    ether_type = int.from_bytes(packet[12:14], "big")
+    if ether_type != 0x0800:
+        return extract_http_request_from_bytes(packet)
+
+    ip_start = 14
+    version_ihl = packet[ip_start]
+    if version_ihl >> 4 != 4:
+        return extract_http_request_from_bytes(packet)
+
+    ip_header_len = (version_ihl & 0x0F) * 4
+    protocol = packet[ip_start + 9]
+    if protocol != 6:
+        return None
+
+    tcp_start = ip_start + ip_header_len
+    if len(packet) < tcp_start + 20:
+        return None
+
+    packet_src_port = int.from_bytes(packet[tcp_start : tcp_start + 2], "big")
+    packet_dst_port = int.from_bytes(packet[tcp_start + 2 : tcp_start + 4], "big")
+    if src_port and packet_src_port != src_port:
+        return None
+    if dst_port and packet_dst_port != dst_port:
+        return None
+
+    tcp_header_len = (packet[tcp_start + 12] >> 4) * 4
+    payload_start = tcp_start + tcp_header_len
+    if payload_start >= len(packet):
+        return None
+    return extract_http_request_from_bytes(packet[payload_start:])
+
+
+def extract_raw_request_from_pcap(path: Path, src_port: Optional[int] = None, dst_port: Optional[int] = None) -> Optional[str]:
     if not path.exists() or path.stat().st_size <= 24:
         return None
 
@@ -208,7 +223,8 @@ def extract_raw_request_from_pcap(path: Path) -> Optional[str]:
         if included_len <= 0 or offset + included_len > len(data):
             return None
 
-        request = extract_http_request_from_bytes(data[offset : offset + included_len])
+        packet = data[offset : offset + included_len]
+        request = extract_http_request_from_packet(packet, src_port, dst_port)
         if request:
             return request
         offset += included_len
@@ -250,7 +266,19 @@ def write_capture_metadata(raw: dict, payload: dict, event_id: str) -> dict:
     }
 
 
-async def capture_event_pcap(event_id: str, bpf_filter: str) -> Optional[Path]:
+def ring_file_score(path: Path, event_seconds: Optional[float]) -> float:
+    if event_seconds is None:
+        return -path.stat().st_mtime
+
+    match = re.search(r"ids-(\d+)\.pcap$", path.name)
+    start = float(match.group(1)) if match else path.stat().st_mtime
+    end = start + ROLLING_PCAP_SECONDS + 2
+    if start <= event_seconds <= end:
+        return 0
+    return min(abs(event_seconds - start), abs(event_seconds - end))
+
+
+async def capture_event_pcap(event_id: str, bpf_filter: str, event_seconds: Optional[float] = None) -> Optional[Path]:
     if not ENABLE_EVENT_PCAP:
         return None
 
@@ -260,8 +288,7 @@ async def capture_event_pcap(event_id: str, bpf_filter: str) -> Optional[Path]:
 
     ring_files = sorted(
         (path for path in ROLLING_CAPTURE_DIR.glob("*.pcap") if path.stat().st_size > 24),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
+        key=lambda path: ring_file_score(path, event_seconds),
     )
     if ring_files:
         try:
@@ -569,9 +596,17 @@ async def tail_and_send():
                     if payload["event_id"] in recent:
                         continue
                     recent.append(payload["event_id"])
-                    pcap_path = await capture_event_pcap(payload["event_id"], payload.get("packet_filter") or "tcp")
+                    pcap_path = await capture_event_pcap(
+                        payload["event_id"],
+                        payload.get("packet_filter") or "tcp",
+                        float(raw["seconds"]) if str(raw.get("seconds", "")).replace(".", "", 1).isdigit() else None,
+                    )
                     if not payload.get("raw_request") and pcap_path:
-                        payload["raw_request"] = extract_raw_request_from_pcap(pcap_path)
+                        payload["raw_request"] = extract_raw_request_from_pcap(
+                            pcap_path,
+                            payload.get("source_port"),
+                            payload.get("destination_port"),
+                        )
                     await post_payload(client, payload)
 
             await asyncio.sleep(POLL_INTERVAL)

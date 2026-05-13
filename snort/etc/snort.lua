@@ -20,15 +20,16 @@
 -- -------------------------------------------------------------------------
 
 -- HOME_NET and EXTERNAL_NET must be set now
--- setup the network addresses you are protecting
-HOME_NET = '172.18.0.0/16'
+-- setup the network addresses you are protecting. Keep this configurable
+-- because Docker Compose can assign different bridge subnets on each host.
+HOME_NET = os.getenv('SNORT_HOME_NET') or 'any'
 
 -- set up the external network addresses.
 -- (leave as "any" in most situations)
 -- In this Docker reverse-proxy topology Snort sees the proxied leg as
 -- container-to-container traffic, so the source can also be inside HOME_NET.
 -- Keep official $EXTERNAL_NET -> $HOME_NET web signatures effective.
-EXTERNAL_NET = 'any'
+EXTERNAL_NET = os.getenv('SNORT_EXTERNAL_NET') or 'any'
 
 
 include 'snort_defaults.lua'
@@ -148,7 +149,7 @@ binder = {
     { when = { service = 'sunrpc' },           use = { type = 'rpc_decode' } },
     { when = { service = 'telnet' },           use = { type = 'telnet' } },
 
-   -- { use = { type = 'wizard' } }
+    { use = { type = 'wizard' } }
 }
 
 -- -------------------------------------------------------------------------

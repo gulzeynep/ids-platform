@@ -54,6 +54,7 @@ services:
     volumes:
       - ./backend:/app
       - ./snort/logs:/var/log/snort
+      - ./snort/rules:/etc/snort/rules:ro
       - ./nginx/generated:/etc/nginx/generated
       - ./nginx/certs:/etc/nginx/certs:ro
     env_file:
@@ -100,6 +101,7 @@ services:
     ports:
       - "8080:80"
       - "8443:443"
+      - "177:177/udp"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/reload-watch.sh:/etc/nginx/reload-watch.sh:ro
@@ -139,6 +141,9 @@ services:
     environment:
       - INTERFACE=eth0
       - SNORT_RULE_PROFILE=web-official
+      - SNORT_HOME_NET=any
+      - SNORT_EXTERNAL_NET=any
+      - SNORT_BPF_FILTER=tcp port 80 or tcp port 443 or udp port 177
     command:
       - sh
       - /etc/snort/etc/start-snort.sh
@@ -167,6 +172,10 @@ services:
       - ./nginx/logs:/var/log/nginx:ro
     env_file:
       - .env
+    environment:
+      - ENABLE_NGINX_SIGNATURE_FALLBACK=false
+      - ENABLE_EVENT_PCAP=true
+      - ROLLING_PCAP_FILTER=tcp port 80 or tcp port 443 or udp port 177
     depends_on:
       backend:
         condition: service_healthy

@@ -5,6 +5,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
+import re
 
 from src.database import get_db
 from src.models import Alert, User
@@ -15,10 +16,45 @@ from snort_bridge import extract_raw_request_from_pcap
 
 router = APIRouter()
 
+REPO_ROOT = Path(__file__).resolve().parents[4]
+RULE_SEARCH_ROOTS = [
+    Path("/etc/snort/rules/official"),
+    Path("/etc/snort/rules/local"),
+    REPO_ROOT / "snort/rules/official",
+    REPO_ROOT / "snort/rules/local",
+]
+_RULE_CACHE: dict[int, tuple[str, str] | None] = {}
+
+
+def find_signature_rule(signature_sid: Optional[int]) -> tuple[Optional[str], Optional[str]]:
+    if not signature_sid:
+        return None, None
+    if signature_sid in _RULE_CACHE:
+        cached = _RULE_CACHE[signature_sid]
+        return cached if cached else (None, None)
+
+    sid_pattern = re.compile(rf"\bsid\s*:\s*{re.escape(str(signature_sid))}\s*;", re.IGNORECASE)
+    for root in RULE_SEARCH_ROOTS:
+        if not root.exists():
+            continue
+        for path in root.glob("*.rules"):
+            try:
+                for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+                    if sid_pattern.search(line):
+                        result = (line.strip(), str(path))
+                        _RULE_CACHE[signature_sid] = result
+                        return result
+            except OSError:
+                continue
+
+    _RULE_CACHE[signature_sid] = None
+    return None, None
+
 
 def serialize_alert(alert: Alert) -> AlertResponse:
     response = AlertResponse.model_validate(alert)
     response.title = build_alert_title(alert.severity, alert.payload_preview, alert.type, alert.signature_msg)
+    response.signature_rule, response.signature_rule_source = find_signature_rule(alert.signature_sid)
     return response
 
 
