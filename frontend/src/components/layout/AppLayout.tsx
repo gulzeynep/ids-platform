@@ -4,7 +4,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShieldAlert, ShieldCheck, Settings, 
   Bell, User, PanelLeftClose, PanelLeftOpen,
-  Zap, LogOut, Activity
+  Zap, LogOut, Activity, SlidersHorizontal
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 import { useAlertsStore } from '../../stores/alerts.store';
@@ -26,6 +26,7 @@ export const AppLayout = () => {
     '/intelligence': 'Intelligence',
     '/intrusions': 'Detection',
     '/defense': 'Defense',
+    '/security/detection-rules': 'Detection Rules',
     '/management': 'System',
     '/settings': 'Settings',
     '/notifications': 'Notifications',
@@ -63,6 +64,7 @@ export const AppLayout = () => {
             {sidebarOpen && <p className="px-4 text-[10px] font-bold text-neutral-600 uppercase tracking-[0.2em] mb-2 whitespace-nowrap">Security</p>}
             <NavItem to="/intrusions" icon={<ShieldAlert size={20} />} label="Intrusions" expanded={sidebarOpen} active={location.pathname === '/intrusions'} />
             <NavItem to="/defense" icon={<ShieldCheck size={20} />} label="Defense" expanded={sidebarOpen} active={location.pathname === '/defense'} />
+            <NavItem to="/security/detection-rules" icon={<SlidersHorizontal size={20} />} label="DETECTION_RULES" expanded={sidebarOpen} active={location.pathname === '/security/detection-rules'} />
           </div>
 
           <div className="h-px bg-white/5 mx-2" />

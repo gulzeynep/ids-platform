@@ -13,6 +13,7 @@ import { Intelligence } from './pages/dashboard/Intelligence';
 import { Overview } from './pages/dashboard/Overview';
 import { Intrusions } from './pages/dashboard/Intrusions';
 import { Defense } from './pages/dashboard/Defense';
+import { DetectionRules } from './pages/dashboard/DetectionRules';
 
 import { Management } from './pages/dashboard/Management';
 import { Settings } from './pages/dashboard/Settings';
@@ -60,6 +61,10 @@ function App() {
             <Route path="intelligence" element={<Intelligence />} />
             <Route path="intrusions" element={<Intrusions />} />
             <Route path="defense" element={<Defense />} />
+            <Route path="security" element={<Navigate to="/security/detection-rules" replace />} />
+            <Route path="security/detection-rules" element={<DetectionRules />} />
+            <Route path="security/intrusion-defense" element={<Navigate to="/defense" replace />} />
+            <Route path="security/rule-optimization" element={<Navigate to="/security/detection-rules" replace />} />
             <Route path="management" element={<Management />} />
             <Route path="settings" element={<Settings />} /> 
             <Route path="notifications" element={<Notifications />} />

@@ -162,6 +162,10 @@ html[data-theme="blue"] .border-white\/10 {
   filter: drop-shadow(0 0 12px rgba(185, 226, 255, 0.52));
 }
 
+html[data-theme="light"] .brand-mark {
+  filter: drop-shadow(0 0 12px rgba(185, 226, 255, 0.52)) !important;
+}
+
 .brand-lockup-collapsed .brand-mark-wrap {
   width: 58px;
   height: 58px;
@@ -181,7 +185,7 @@ html[data-theme="blue"] .border-white\/10 {
 }
 
 .brand-name {
-  color: #f7fbff;
+  color: #f7fbff !important;
   font-size: 18px;
   font-weight: 900;
   font-style: italic;
@@ -190,7 +194,7 @@ html[data-theme="blue"] .border-white\/10 {
 }
 
 .brand-subtitle {
-  color: #8fb6d9;
+  color: #8fb6d9 !important;
   font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.12em;

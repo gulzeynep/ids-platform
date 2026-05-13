@@ -129,8 +129,6 @@ class AlertResponse(BaseModel):
     signature_class: Optional[str] = None
     signature_sid: Optional[int] = None
     signature_gid: Optional[int] = None
-    signature_rule: Optional[str] = None
-    signature_rule_source: Optional[str] = None
     event_id: Optional[str] = None
     capture_path: Optional[str] = None
     capture_mode: Optional[str] = None
@@ -221,8 +219,6 @@ def serialize_alert_contract(alert: Any) -> dict:
         "signature_class": alert.signature_class,
         "signature_sid": alert.signature_sid,
         "signature_gid": alert.signature_gid,
-        "signature_rule": getattr(alert, "signature_rule", None),
-        "signature_rule_source": getattr(alert, "signature_rule_source", None),
         "event_id": alert.event_id,
         "capture_path": alert.capture_path,
         "capture_mode": alert.capture_mode,
@@ -397,8 +393,8 @@ class DetectionRuleBase(BaseModel):
     @classmethod
     def validate_match_type(cls, v: str) -> str:
         cleaned = v.strip().lower()
-        if cleaned not in {"contains", "regex"}:
-            raise ValueError("match_type must be contains or regex")
+        if cleaned not in {"contains", "regex", "snort"}:
+            raise ValueError("match_type must be contains, regex, or snort")
         return cleaned
 
 

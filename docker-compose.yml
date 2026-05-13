@@ -54,7 +54,7 @@ services:
     volumes:
       - ./backend:/app
       - ./snort/logs:/var/log/snort
-      - ./snort/rules:/etc/snort/rules:ro
+      - ./snort/rules:/etc/snort/rules
       - ./nginx/generated:/etc/nginx/generated
       - ./nginx/certs:/etc/nginx/certs:ro
     env_file:
@@ -101,7 +101,6 @@ services:
     ports:
       - "8080:80"
       - "8443:443"
-      - "177:177/udp"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/reload-watch.sh:/etc/nginx/reload-watch.sh:ro

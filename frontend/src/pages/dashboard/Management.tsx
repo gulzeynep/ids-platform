@@ -6,7 +6,7 @@ import apiClient from '../../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Key, UserPlus, RefreshCw, Copy, ShieldAlert, Users, X, UserCog, Save, Globe, Server, Power, Info, Trash2, FlaskConical, SlidersHorizontal } from 'lucide-react';
+import { Key, UserPlus, RefreshCw, Copy, ShieldAlert, Users, X, UserCog, Save, Globe, Server, Power, Info, Trash2, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface UserData {
@@ -36,24 +36,6 @@ interface ProtectedSite {
   upstream_health: string;
 }
 
-interface DetectionRule {
-  id: number;
-  title: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  category: string;
-  match_type: 'contains' | 'regex';
-  pattern: string;
-  enabled: boolean;
-  created_at: string;
-}
-
-interface DetectionProfile {
-  profile: string;
-  available_profiles: string[];
-  engine_profile?: string | null;
-  reload_requested?: boolean;
-}
-
 interface SensorKey {
   api_key: string;
   workspace_id: number;
@@ -80,15 +62,6 @@ export const Management = () => {
     proxy_mode: 'reverse_proxy',
     health_path: '/',
   });
-  const [ruleForm, setRuleForm] = useState({
-    title: '',
-    severity: 'high',
-    category: 'Web Custom',
-    match_type: 'contains',
-    pattern: '',
-    enabled: true,
-  });
-
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['workspace_users'],
     queryFn: async () => {
@@ -114,24 +87,6 @@ export const Management = () => {
     queryFn: async () => {
       const res = await apiClient.get('/admin/protected-sites');
       return res.data as ProtectedSite[];
-    },
-    enabled: isAdmin
-  });
-
-  const { data: detectionRules, isLoading: rulesLoading } = useQuery({
-    queryKey: ['detection_rules'],
-    queryFn: async () => {
-      const res = await apiClient.get('/admin/detection-rules');
-      return res.data as DetectionRule[];
-    },
-    enabled: isAdmin
-  });
-
-  const { data: detectionProfile } = useQuery({
-    queryKey: ['detection_profile'],
-    queryFn: async () => {
-      const res = await apiClient.get('/admin/detection-profile');
-      return res.data as DetectionProfile;
     },
     enabled: isAdmin
   });
@@ -189,41 +144,6 @@ export const Management = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['protected_sites'] });
       toast.info('Protected site removed from gateway config.');
-    }
-  });
-
-  const createRuleMutation = useMutation({
-    mutationFn: async () => apiClient.post('/admin/detection-rules', ruleForm),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['detection_rules'] });
-      toast.success('Custom detection rule is live in the bridge.');
-      setRuleForm({ title: '', severity: 'high', category: 'Web Custom', match_type: 'contains', pattern: '', enabled: true });
-    },
-    onError: () => toast.error('Could not save this rule.')
-  });
-
-  const updateRuleMutation = useMutation({
-    mutationFn: async ({ ruleId, data }: { ruleId: number; data: Partial<DetectionRule> }) =>
-      apiClient.patch(`/admin/detection-rules/${ruleId}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['detection_rules'] });
-      toast.success('Detection rule updated.');
-    }
-  });
-
-  const deleteRuleMutation = useMutation({
-    mutationFn: async (ruleId: number) => apiClient.delete(`/admin/detection-rules/${ruleId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['detection_rules'] });
-      toast.info('Detection rule deleted.');
-    }
-  });
-
-  const profileMutation = useMutation({
-    mutationFn: async (profile: string) => apiClient.patch('/admin/detection-profile', { profile }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['detection_profile'] });
-      toast.success('Detection profile saved. secure-engine reload requested.');
     }
   });
 
@@ -419,98 +339,6 @@ export const Management = () => {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {isAdmin && (
-        <Card className="border-neutral-900 bg-[#0a0a0a]">
-          <CardHeader className="border-b border-neutral-900 pb-4">
-            <CardTitle className="text-xs font-mono flex items-center gap-2 text-neutral-300">
-              <SlidersHorizontal className="w-4 h-4 text-blue-500" /> DETECTION_RULES
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-5 space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-900 bg-black p-3">
-              <div>
-                <p className="text-[10px] uppercase text-neutral-600">Snort profile</p>
-                <p className="text-xs text-neutral-400">web-official loads only official web vulnerability categories for the active sensor.</p>
-                <p className="text-[10px] text-neutral-600 font-mono mt-1">
-                  ENGINE: {detectionProfile?.engine_profile || 'unknown'} {detectionProfile?.reload_requested ? '| reload pending' : '| in sync'}
-                </p>
-              </div>
-              <select
-                value={detectionProfile?.profile || 'web-official'}
-                onChange={(e) => profileMutation.mutate(e.target.value)}
-                className="bg-[#111] border border-neutral-800 text-xs rounded-lg px-3 h-10 text-neutral-300 outline-none"
-              >
-                {(detectionProfile?.available_profiles || ['web-official', 'web-balanced', 'web-full', 'local-only']).map((profile) => (
-                  <option key={profile} value={profile}>{profile}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
-              <Input placeholder="Critical: Admin Panel Probe" value={ruleForm.title} onChange={(e) => setRuleForm({ ...ruleForm, title: e.target.value })} className="lg:col-span-2 bg-black border-neutral-800" />
-              <Input placeholder="/admin.php" value={ruleForm.pattern} onChange={(e) => setRuleForm({ ...ruleForm, pattern: e.target.value })} className="lg:col-span-2 bg-black border-neutral-800" />
-              <select value={ruleForm.severity} onChange={(e) => setRuleForm({ ...ruleForm, severity: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-              <select value={ruleForm.match_type} onChange={(e) => setRuleForm({ ...ruleForm, match_type: e.target.value })} className="bg-black border border-neutral-800 rounded-lg px-3 text-xs text-neutral-300 outline-none">
-                <option value="contains">Contains</option>
-                <option value="regex">Regex</option>
-              </select>
-            </div>
-            <div className="flex flex-wrap justify-between gap-3">
-              <Input placeholder="Category, e.g. Web Custom" value={ruleForm.category} onChange={(e) => setRuleForm({ ...ruleForm, category: e.target.value })} className="max-w-md bg-black border-neutral-800" />
-              <Button size="sm" onClick={() => createRuleMutation.mutate()} isLoading={createRuleMutation.isPending} disabled={!ruleForm.title || !ruleForm.pattern}>
-                <Save className="w-3 h-3 mr-2" /> Add Rule
-              </Button>
-            </div>
-
-            <div className="overflow-x-auto border border-neutral-900 rounded-lg">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-black/40 text-[10px] uppercase text-neutral-600">
-                  <tr>
-                    <th className="px-4 py-3">Title</th>
-                    <th className="px-4 py-3">Pattern</th>
-                    <th className="px-4 py-3">Severity</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-900">
-                  {rulesLoading ? (
-                    <tr><td colSpan={4} className="p-6 text-center text-neutral-500">Loading detection rules...</td></tr>
-                  ) : detectionRules?.length ? detectionRules.map((rule) => (
-                    <tr key={rule.id} className="hover:bg-white/[0.02]">
-                      <td className="px-4 py-3">
-                        <p className="text-neutral-100 font-medium">{rule.title}</p>
-                        <p className="text-[10px] text-neutral-600 font-mono">{rule.category} / {rule.match_type}</p>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-neutral-400 break-all">{rule.pattern}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded border text-[10px] uppercase ${rule.severity === 'critical' ? 'text-red-500 border-red-500/20 bg-red-500/10' : rule.severity === 'high' ? 'text-orange-500 border-orange-500/20 bg-orange-500/10' : 'text-blue-500 border-blue-500/20 bg-blue-500/10'}`}>{rule.severity}</span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant={rule.enabled ? 'secondary' : 'ghost'} size="sm" onClick={() => updateRuleMutation.mutate({ ruleId: rule.id, data: { enabled: !rule.enabled } })}>
-                            {rule.enabled ? 'Live' : 'Paused'}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => deleteRuleMutation.mutate(rule.id)} title="Delete rule">
-                            <Trash2 className="w-3 h-3 text-red-500" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr><td colSpan={4} className="p-6 text-center text-neutral-500">No custom signatures yet.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
       )}
 
       {isAdmin && (

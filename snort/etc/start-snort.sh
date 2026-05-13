@@ -5,13 +5,15 @@ PROFILE_DIR=/tmp/snort-rules
 PROFILE_STATE_FILE="${SNORT_PROFILE_PATH:-/var/log/snort/detection_profile}"
 RELOAD_REQUEST_FILE="${SNORT_RELOAD_REQUEST_PATH:-/var/log/snort/reload_snort}"
 
-mkdir -p /var/log/snort/archive /var/log/snort/event_captures "$PROFILE_DIR"
+mkdir -p /var/log/snort/archive /var/log/snort/event_captures "$PROFILE_DIR" /etc/snort/rules/local
+touch /etc/snort/rules/local/workspace.rules
 
 awk '/^alert/ && /metadata:ruleset community/ { print }' \
   /etc/snort/rules/official/snort3-server-webapp.rules > "$PROFILE_DIR/server-webapp-community.rules"
 
 cat > "$PROFILE_DIR/local-only.rules" <<'EOF'
 include /etc/snort/rules/local/local.rules
+include /etc/snort/rules/local/workspace.rules
 EOF
 
 cat > "$PROFILE_DIR/web-official.rules" <<'EOF'
@@ -19,7 +21,7 @@ include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
 include /etc/snort/rules/official/snort3-server-webapp.rules
-include /etc/snort/rules/official/snort3-x11.rules
+include /etc/snort/rules/local/workspace.rules
 EOF
 
 cat > "$PROFILE_DIR/web-balanced.rules" <<'EOF'
@@ -27,7 +29,7 @@ include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
 include /tmp/snort-rules/server-webapp-community.rules
-include /etc/snort/rules/official/snort3-x11.rules
+include /etc/snort/rules/local/workspace.rules
 EOF
 
 cat > "$PROFILE_DIR/web-full.rules" <<'EOF'
@@ -35,7 +37,7 @@ include /etc/snort/rules/official/snort3-server-apache.rules
 include /etc/snort/rules/official/snort3-server-iis.rules
 include /etc/snort/rules/official/snort3-sql.rules
 include /etc/snort/rules/official/snort3-server-webapp.rules
-include /etc/snort/rules/official/snort3-x11.rules
+include /etc/snort/rules/local/workspace.rules
 EOF
 
 read_profile() {
