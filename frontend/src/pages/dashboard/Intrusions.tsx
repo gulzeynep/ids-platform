@@ -15,7 +15,12 @@ export const Intrusions = () => {
   const [page, setPage] = useState(0);
   const [selectedAlertId, setSelectedAlertId] = useState<number | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
-  const limit = 50;
+const limit = 50;
+const eventTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
+  dateStyle: 'short',
+  timeStyle: 'medium',
+  timeZone: 'Europe/Istanbul',
+});
 
   useEffect(() => {
     resetFilters();
@@ -79,7 +84,7 @@ export const Intrusions = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <header>
         <h2 className="text-2xl font-bold text-white tracking-wide">Intrusion Events</h2>
-        <p className="text-sm text-neutral-500">Monitor, retain, and triage historical IDS events</p>
+        <p className="text-sm text-neutral-500">Monitor and triage IDS events retained from the last 2 days</p>
       </header>
 
       {alertsError && (
@@ -102,7 +107,7 @@ export const Intrusions = () => {
 
         <select
           className="bg-[#111] border border-neutral-800 text-sm rounded-lg px-3 h-10 text-neutral-300 focus:ring-2 focus:ring-blue-500 outline-none"
-          value={filters.status || 'new'}
+          value={filters.status || 'all'}
           onChange={(e) => setFilters({ status: e.target.value as AlertStatus | 'all' })}
         >
           <option value="all">All Statuses</option>
@@ -181,12 +186,12 @@ export const Intrusions = () => {
               {isLoading ? (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">Scanning neural databanks...</td></tr>
               ) : alerts?.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No security events match the current filters. Use Show History to view retained IDS alerts.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No security events match the current filters in the last 2 days.</td></tr>
               ) : (
                 alerts?.map((alert) => (
                   <tr key={alert.id} className="hover:bg-neutral-900/30 transition-colors group cursor-pointer" onClick={() => selectAlert(alert.id, alert.notes)}>
                     <td className="px-6 py-4 text-sm font-mono text-neutral-500">
-                      {new Date(alert.timestamp).toLocaleTimeString()}
+                      {eventTimeFormatter.format(new Date(alert.timestamp))}
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-neutral-100">{getAlertTitle(alert)}</div>

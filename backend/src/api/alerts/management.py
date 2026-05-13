@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
 
@@ -60,7 +60,7 @@ async def hydrate_raw_request_from_capture(alert: Alert, db: AsyncSession) -> No
 
 @router.get("/", response_model=List[AlertResponse])
 async def get_workspace_alerts(
-    status: Optional[str] = "new",
+    status: Optional[str] = "all",
     severity: Optional[str] = "all",
     is_saved: Optional[bool] = None,
     is_flagged: Optional[bool] = None,
@@ -74,6 +74,8 @@ async def get_workspace_alerts(
 ):
     """Fetch and filter alerts for the Intrusions Datatable."""
     query = select(Alert).where(Alert.workspace_id == current_user.workspace_id)
+    effective_start_date = start_date or (datetime.now(timezone.utc) - timedelta(days=2))
+    query = query.where(Alert.timestamp >= effective_start_date)
     
     if status and status != "all":
         query = query.where(Alert.status == status)
@@ -96,12 +98,10 @@ async def get_workspace_alerts(
                 Alert.signature_class.ilike(like),
             )
         )
-    if start_date:
-        query = query.where(Alert.timestamp >= start_date)
     if end_date:
         query = query.where(Alert.timestamp <= end_date)
 
-    result = await db.execute(query.order_by(Alert.timestamp.desc()).offset(offset).limit(limit))
+    result = await db.execute(query.order_by(Alert.timestamp.desc(), Alert.id.desc()).offset(offset).limit(limit))
     return [serialize_alert(alert) for alert in result.scalars().all()]
 
 @router.get("/{alert_id}", response_model=AlertResponse)
