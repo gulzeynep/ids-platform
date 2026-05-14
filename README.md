@@ -25,9 +25,25 @@ For Docker, keep:
 ```env
 POSTGRES_PASSWORD=12345
 DATABASE_URL=postgresql+asyncpg://postgres:12345@db:5432/ids_db
-API_KEY=ids_engine_icin_gizli_api_anahtari
-SNORT_API_KEY=ids_engine_icin_gizli_api_anahtari
+API_KEY=secret_api_key_for_ids_engine
+SNORT_API_KEY=secret_api_key_for_ids_engine
 ```
+
+For live email delivery, configure SMTP in the root `.env`:
+
+```env
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_gmail_app_password
+SMTP_FROM=your_email@gmail.com
+FRONTEND_URL=http://localhost:5173
+```
+
+Registration sends a non-blocking account-created email. Alert emails are sent
+by the worker when the user's notification threshold is reached. If SMTP is
+misconfigured, account creation and alert processing continue and the backend
+logs the delivery failure.
 
 `backend/.env.example` is only for running the backend outside Docker. In that
 case it points PostgreSQL to `127.0.0.1:5434`.

@@ -16,6 +16,8 @@ from pydantic import BaseModel
 from src.database import get_db
 from src.models import User, Workspace
 from src.schemas import UserRegister, UserResponse, UserProfileUpdate, PasswordChangeRequest
+from src.core.logger import logger
+from src.core.mailer import send_registration_email
 from src.core.security import ( get_password_hash, verify_password, create_access_token, get_current_user)
 from config import settings
 
@@ -71,7 +73,19 @@ async def register_user(
     )
     db.add(new_user)
     await db.commit()
-    return {"message": "Success"}
+
+    email_confirmation_sent = False
+    try:
+        await send_registration_email(new_user.email)
+        email_confirmation_sent = True
+    except Exception:
+        logger.warning(
+            "Registration email delivery failed for %s; continuing account creation.",
+            new_user.email,
+            exc_info=True,
+        )
+
+    return {"message": "Success", "email_confirmation_sent": email_confirmation_sent}
 
 # LOGIN (TOKEN GENERATION)
 @router.post("/token") 

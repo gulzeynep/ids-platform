@@ -1,4 +1,4 @@
-from src.analytics import build_success_metrics, ratio, with_share
+from src.analytics import build_success_metrics, limit_with_other, ratio, with_share
 from src.core.mailer import should_send_alert_email
 from src.schemas import AlertUpdateStatus
 from sensor_simulator import build_alert_payload
@@ -19,6 +19,24 @@ def test_with_share_adds_distribution_ratios():
 
     assert items[0]["ratio"] == 0.75
     assert items[1]["ratio"] == 0.25
+
+
+def test_limit_with_other_groups_overflow_items():
+    items = limit_with_other(
+        [
+            {"type": "SQL Injection", "count": 5},
+            {"type": "XSS", "count": 3},
+            {"type": "Path Traversal", "count": 2},
+            {"type": "Scanner", "count": 1},
+        ],
+        limit=3,
+    )
+
+    assert items == [
+        {"type": "SQL Injection", "count": 5},
+        {"type": "XSS", "count": 3},
+        {"type": "Other", "count": 3},
+    ]
 
 
 def test_success_metrics_calculate_triage_and_backlog_rates():

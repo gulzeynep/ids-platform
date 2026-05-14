@@ -32,8 +32,8 @@ async def _broadcast_loop() -> None:
                     "timestamp": payload.get("timestamp"),
                 }
                 await manager.broadcast_to_workspace(ws_message, int(workspace_id))
-            except Exception as exc:
-                logger.error(f"Redis alert broadcast error: {exc}")
+            except Exception:
+                logger.exception("Redis alert broadcast loop failed.")
     finally:
         with suppress(Exception):
             await pubsub.unsubscribe(ALERT_EVENTS_CHANNEL)

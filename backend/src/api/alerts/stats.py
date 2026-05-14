@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.analytics import build_success_metrics, ratio, with_share
+from src.analytics import build_success_metrics, limit_with_other, ratio, with_share
 from src.core.security import get_current_user
 from src.database import get_db
 from src.models import Alert, BlacklistedIP, MonitoredWebsite, User
@@ -18,6 +18,7 @@ ANALYSIS_PERIODS = {
     "week": timedelta(days=7),
     "month": timedelta(days=30),
 }
+SEVERITY_ORDER = ("critical", "high", "medium", "low")
 
 
 async def scalar_count(db: AsyncSession, query) -> int:
@@ -74,6 +75,28 @@ async def get_success_metrics(db: AsyncSession, ws_id: int, since: datetime | No
         critical_alerts=critical_alerts,
         resolved_critical_alerts=resolved_critical_alerts,
     )
+
+
+async def count_alerts_between(db: AsyncSession, ws_id: int, start: datetime, end: datetime) -> int:
+    return await scalar_count(
+        db,
+        select(func.count(Alert.id)).where(
+            Alert.workspace_id == ws_id,
+            Alert.timestamp >= start,
+            Alert.timestamp < end,
+        ),
+    )
+
+
+def ordered_severity_distribution(rows) -> dict[str, int]:
+    counts = {row.severity: row.count for row in rows}
+    ordered = {severity: counts[severity] for severity in SEVERITY_ORDER if severity in counts}
+    extras = {
+        severity: count
+        for severity, count in sorted(counts.items())
+        if severity not in ordered
+    }
+    return {**ordered, **extras}
 
 
 @router.get("/dashboard")
@@ -150,12 +173,11 @@ async def get_dashboard_metrics(
         .where(Alert.workspace_id == ws_id, Alert.timestamp >= last_24h)
         .group_by(Alert.type)
         .order_by(desc("count"))
-        .limit(6)
     )
-    today_attack_types = [
-        {"type": row.type or "Unknown", "count": row.count}
-        for row in attack_type_result
-    ]
+    today_attack_types = limit_with_other(
+        [{"type": row.type or "Unknown", "count": row.count} for row in attack_type_result],
+        limit=6,
+    )
 
     latest_block = await db.execute(
         select(BlacklistedIP)
@@ -367,7 +389,6 @@ async def get_analysis_stats(
         .where(*filters)
         .group_by(Alert.type)
         .order_by(desc("count"))
-        .limit(8)
     )
     top_rule_result = await db.execute(
         select(Alert.signature_msg, Alert.signature_sid, func.count(Alert.id).label("count"))
@@ -399,6 +420,14 @@ async def get_analysis_stats(
             Alert.timestamp < period_start,
         ),
     )
+    # This metric always compares the last 24 hours, independent of the selected period.
+    current_24h_count = await count_alerts_between(db, ws_id, now - timedelta(hours=24), now)
+    previous_24h_count = await count_alerts_between(
+        db,
+        ws_id,
+        now - timedelta(hours=48),
+        now - timedelta(hours=24),
+    )
     trend_bucket = func.date_trunc("day", Alert.timestamp).label("bucket")
     trend_result = await db.execute(
         select(trend_bucket, func.count(Alert.id).label("count"))
@@ -418,10 +447,10 @@ async def get_analysis_stats(
         "period": period,
         "period_days": period_delta.days,
         "top_attackers": [{"ip": row.source_ip, "count": row.attack_count} for row in top_attackers_result],
-        "severity_distribution": {row.severity: row.count for row in severity_result},
+        "severity_distribution": ordered_severity_distribution(severity_result),
         "protocol_distribution": protocol_distribution,
         "protocol_share": {key: ratio(value, protocol_total) for key, value in protocol_distribution.items()},
-        "attack_type_distribution": with_share(attack_type_distribution, total_alerts),
+        "attack_type_distribution": with_share(limit_with_other(attack_type_distribution, limit=8), total_alerts),
         "unique_attackers": unique_attackers,
         "trend_period": {
             "current": current_count,
@@ -429,9 +458,9 @@ async def get_analysis_stats(
             "delta": current_count - previous_count,
         },
         "trend_24h": {
-            "current": current_count,
-            "previous": previous_count,
-            "delta": current_count - previous_count,
+            "current": current_24h_count,
+            "previous": previous_24h_count,
+            "delta": current_24h_count - previous_24h_count,
         },
         "daily_trend": [{"timestamp": row.bucket.isoformat(), "count": row.count} for row in trend_result],
         "top_rule": (

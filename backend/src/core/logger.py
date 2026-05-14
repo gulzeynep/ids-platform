@@ -1,11 +1,17 @@
-import logging 
-import sys 
+import logging
+import sys
 
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
 
 def setup_logging():
     logger = logging.getLogger("ids_platform")
     logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    # Uvicorn reloads can import modules more than once; keep handlers single-copy.
+    if logger.handlers:
+        return logger
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
@@ -15,6 +21,7 @@ def setup_logging():
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(file_handler)
 
-    return logger 
+    return logger
 
-logger =setup_logging()
+
+logger = setup_logging()

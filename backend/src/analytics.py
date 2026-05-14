@@ -19,6 +19,27 @@ def with_share(items: list[dict[str, Any]], total: int, count_key: str = "count"
     ]
 
 
+def limit_with_other(
+    items: list[dict[str, Any]],
+    *,
+    limit: int,
+    label_key: str = "type",
+    count_key: str = "count",
+    other_label: str = "Other",
+) -> list[dict[str, Any]]:
+    # Keep charts readable while preserving the hidden tail as a single bucket.
+    if limit <= 0 or len(items) <= limit:
+        return items
+
+    visible_count = max(limit - 1, 0)
+    visible = items[:visible_count]
+    other_count = sum(int(item.get(count_key, 0)) for item in items[visible_count:])
+    if other_count <= 0:
+        return visible
+
+    return [*visible, {label_key: other_label, count_key: other_count}]
+
+
 def build_success_metrics(
     *,
     total_alerts: int,
