@@ -36,6 +36,9 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str
 
+    # Logging
+    SQLALCHEMY_ECHO: bool = False
+
     # Docker Compose injects the root .env into the container environment and
     # those real environment variables always win. The files below are only
     # fallbacks for local, non-Docker development.
