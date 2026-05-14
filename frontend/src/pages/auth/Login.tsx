@@ -54,7 +54,7 @@ export const Login = () => {
             }
         } catch (error) {
             setServerError("Invalid credentials or server error.");
-            console.error(error);
+            console.error('Login request failed:', error);
         }
     };
 

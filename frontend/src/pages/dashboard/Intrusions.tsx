@@ -24,7 +24,6 @@ const eventTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
 
   useEffect(() => {
     resetFilters();
-    setPage(0);
   }, [resetFilters]);
 
 

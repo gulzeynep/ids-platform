@@ -1,6 +1,6 @@
 // src/pages/dashboard/Management.tsx
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/auth.store';
 import apiClient from '../../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -42,6 +42,21 @@ interface SensorKey {
   key_file: string;
   delivery: string;
   rotate_requires_bridge_restart: boolean;
+}
+
+interface AddMemberModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  queryClient: QueryClient;
+}
+
+interface ManageUserModalProps {
+  user: UserData | null;
+  onClose: () => void;
+  currentUserId: string;
+  queryClient: QueryClient;
+  onToggleAccess: () => void;
+  isToggling: boolean;
 }
 
 export const Management = () => {
@@ -429,7 +444,7 @@ export const Management = () => {
 // MODAL COMPONENTS (Extracted for Clean Code)
 // ==========================================
 
-const AddMemberModal = ({ isOpen, onClose, queryClient }: any) => {
+const AddMemberModal = ({ isOpen, onClose, queryClient }: AddMemberModalProps) => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('analyst');
   const [password, setPassword] = useState('');
@@ -504,12 +519,15 @@ const AddMemberModal = ({ isOpen, onClose, queryClient }: any) => {
 }
 
 
-const ManageUserModal = ({ user, onClose, currentUserId, queryClient, onToggleAccess, isToggling }: any) => {
+const ManageUserModal = ({ user, onClose, currentUserId, queryClient, onToggleAccess, isToggling }: ManageUserModalProps) => {
   // SAVING LOGIC: We hold the selected role in local state. Only save when button is clicked.
   const [pendingRole, setPendingRole] = useState(user?.role || 'viewer');
 
   const updateRoleMutation = useMutation({
     mutationFn: async (newRole: string) => {
+      if (!user) {
+        throw new Error('No user selected.');
+      }
       return apiClient.patch(`/admin/team/${user.id}/grant-access?new_role=${newRole}`);
     },
     onSuccess: () => {

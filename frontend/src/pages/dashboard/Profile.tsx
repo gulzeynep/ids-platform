@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import apiClient from '../../api/client';
+import apiClient, { isApiError } from '../../api/client';
 import { useAuthStore } from '../../stores/auth.store';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -28,9 +28,14 @@ export const Profile = () => {
       setNewPassword('');
       setConfirmPassword('');
     },
-    onError: (error: any) => {
-      const errorMsg = error.response?.data?.detail || "Failed to update password.";
-      toast.error(typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg);
+    onError: (error: unknown) => {
+      const detail = isApiError(error) ? (error.response?.data as { detail?: unknown } | undefined)?.detail : undefined;
+      const errorMsg = typeof detail === 'string'
+        ? detail
+        : detail
+          ? JSON.stringify(detail)
+          : "Failed to update password.";
+      toast.error(errorMsg);
     }
   });
 

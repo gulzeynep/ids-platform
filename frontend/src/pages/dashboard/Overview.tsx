@@ -50,7 +50,7 @@ export const Overview = () => {
                     Dashboard telemetry could not be loaded. Check backend auth/session and refresh the page.
                 </div>
             )}
-            {/*  Canlı Sistem Durum Barı */}
+            {/* Live system status bar */}
             <div className={`p-6 rounded-2xl border flex items-center justify-between transition-all duration-1000 ${statusColor}`}>
                 <div className="flex items-center gap-6">
                     <div className="relative">
@@ -112,14 +112,14 @@ export const Overview = () => {
                 </Card>
             </div>
 
-            {/*  Canlı Akış Paneli (WebSocket Feed) */}
+            {/* Live WebSocket activity panel */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <Card className="lg:col-span-2 border-neutral-900 bg-[#0a0a0a]">
                     <CardHeader className="border-b border-neutral-900 pb-4">
                         <CardTitle className="text-sm font-bold flex items-center gap-2">
                             <BarChart3 className="w-4 h-4 text-blue-500" /> Daily Alert Rhythm
                         </CardTitle>
-                        <p className="text-xs text-neutral-600">Son 24 saatte alert yoğunluğu. Spike görülen saatler canlı inceleme için önceliklidir.</p>
+                        <p className="text-xs text-neutral-600">Alert density over the last 24 hours. Spike hours should be prioritized for live investigation.</p>
                     </CardHeader>
                     <CardContent className="pt-6">
                         {isLoading ? (

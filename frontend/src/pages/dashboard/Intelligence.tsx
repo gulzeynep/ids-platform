@@ -25,6 +25,13 @@ type Period = 'week' | 'month';
 
 const formatPercent = (value: number | undefined) => `${Math.round((value ?? 0) * 100)}%`;
 const CHART_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7', '#14b8a6', '#f97316', '#e11d48'];
+const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'];
+const SEVERITY_COLORS: Record<string, string> = {
+    critical: '#ef4444',
+    high: '#f97316',
+    medium: '#f59e0b',
+    low: '#3b82f6',
+};
 
 interface NormalizedTrendPoint {
     label: string;
@@ -125,7 +132,13 @@ export const Intelligence = () => {
     const dailyTrend = stats?.daily_trend ?? [];
     const normalizedTrend = normalizeTrend(dailyTrend, stats?.period_days ?? (period === 'week' ? 7 : 30));
     const attackTypes = stats?.attack_type_distribution ?? [];
-    const severityEntries = Object.entries(stats?.severity_distribution ?? {});
+    const severityEntries = Object.entries(stats?.severity_distribution ?? {}).sort(
+        ([left], [right]) => {
+            const leftIndex = SEVERITY_ORDER.indexOf(left);
+            const rightIndex = SEVERITY_ORDER.indexOf(right);
+            return (leftIndex === -1 ? 99 : leftIndex) - (rightIndex === -1 ? 99 : rightIndex);
+        }
+    );
     const protocolEntries = Object.entries(stats?.protocol_distribution ?? {});
     const attackTypeChart = attackTypes.map((item, index) => ({
         name: item.type,
@@ -138,10 +151,10 @@ export const Intelligence = () => {
         count,
         fill: CHART_COLORS[index % CHART_COLORS.length],
     }));
-    const severityChart = severityEntries.map(([severity, count], index) => ({
+    const severityChart = severityEntries.map(([severity, count]) => ({
         name: severity.toUpperCase(),
         count,
-        fill: CHART_COLORS[index % CHART_COLORS.length],
+        fill: SEVERITY_COLORS[severity] ?? '#737373',
     }));
 
     return (
@@ -179,7 +192,7 @@ export const Intelligence = () => {
                         </div>
                         <p className="text-2xl font-bold text-white mt-2">{isLoading ? '...' : stats?.trend_period.current ?? 0}</p>
                         <p className="text-[10px] text-neutral-500 mt-1">{periodLabel}, delta {stats?.trend_period.delta ?? 0}</p>
-                        <Description>Selected period içindeki toplam alert hacmini ve önceki aynı dönemle farkı gösterir.</Description>
+                        <Description>Shows total alert volume for the selected period and how it changed from the previous matching period.</Description>
                     </CardContent>
                 </Card>
                 <Card className="bg-red-500/5 border-red-900/20">
@@ -189,7 +202,7 @@ export const Intelligence = () => {
                             <Skull className="w-4 h-4 text-red-500" />
                         </div>
                         <p className="text-2xl font-bold text-white mt-2">{isLoading ? '...' : stats?.unique_attackers ?? 0}</p>
-                        <Description>Kaç farklı source IP’den saldırı gözlendiğini gösterir; yüksek değer geniş tarama davranışına işaret eder.</Description>
+                        <Description>Shows how many unique source IPs generated alerts; higher values may indicate broad scanning behavior.</Description>
                     </CardContent>
                 </Card>
                 <Card className="bg-neutral-900/40 border-neutral-800">
@@ -200,7 +213,7 @@ export const Intelligence = () => {
                         </div>
                         <p className="text-sm font-bold text-white mt-2 truncate">{stats?.top_rule?.signature_msg || 'No signatures yet'}</p>
                         <p className="text-[10px] text-neutral-500 mt-1">SID {stats?.top_rule?.sid ?? 'n/a'} / {stats?.top_rule?.count ?? 0} hits</p>
-                        <Description>En çok tetiklenen signature kuralını öne çıkarır; tuning ve false positive incelemesi için başlangıç noktasıdır.</Description>
+                        <Description>Highlights the most triggered signature rule as a starting point for tuning and false-positive review.</Description>
                     </CardContent>
                 </Card>
                 <Card className="bg-green-500/5 border-green-900/20">
@@ -211,7 +224,7 @@ export const Intelligence = () => {
                         </div>
                         <p className="text-2xl font-bold text-white mt-2">{formatPercent(stats?.success_metrics.resolution_rate)}</p>
                         <p className="text-[10px] text-neutral-500 mt-1">reviewed + false positive / total</p>
-                        <Description>Analistin kapattığı ya da false positive olarak işaretlediği olayların toplam alertlere oranıdır.</Description>
+                        <Description>Tracks the share of alerts closed by analysts or marked as false positives.</Description>
                     </CardContent>
                 </Card>
             </div>
@@ -222,7 +235,7 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <BarChart3 className="w-4 h-4 text-blue-500" /> {periodLabel} Alert Trend
                         </CardTitle>
-                        <p className="text-xs text-neutral-600">Zamana göre alert yoğunluğunu gösterir; ani sıçramalar aktif tarama veya kampanya işareti olabilir.</p>
+                        <p className="text-xs text-neutral-600">Shows alert volume over time; sharp spikes can indicate active scanning or campaign activity.</p>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -242,7 +255,7 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <Target className="w-4 h-4 text-red-500" /> Success Metrics
                         </CardTitle>
-                        <p className="text-xs text-neutral-600">IDS tarafında başarı, engellemeden çok triage kalitesi, backlog ve kritik olay kapanışıyla okunur.</p>
+                        <p className="text-xs text-neutral-600">IDS success is measured through triage quality, backlog control, and critical alert closure.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {[
@@ -270,7 +283,7 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <BarChart3 className="w-4 h-4 text-blue-500" /> Attack Type Ratio
                         </CardTitle>
-                        <p className="text-xs text-neutral-600">Saldırı sınıflarının dönem içindeki ağırlığını gösterir; hangi risk ailesine odaklanacağını söyler.</p>
+                        <p className="text-xs text-neutral-600">Shows the weight of each attack class in the period, helping analysts choose which risk family to inspect first.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {isLoading ? (
@@ -317,7 +330,7 @@ export const Intelligence = () => {
                         <CardTitle className="text-sm font-medium text-neutral-400 flex items-center gap-2">
                             <Globe className="w-4 h-4 text-red-500" /> Top Attackers
                         </CardTitle>
-                        <p className="text-xs text-neutral-600">En fazla alert üreten source IP’leri listeler; tekrar eden kaynaklar blocklist/tuning adayıdır.</p>
+                        <p className="text-xs text-neutral-600">Lists the source IPs generating the most alerts; repeated sources are candidates for blocklist or tuning review.</p>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
@@ -352,7 +365,7 @@ export const Intelligence = () => {
                 <Card className="border-neutral-900 bg-[#0a0a0a]">
                     <CardHeader>
                         <CardTitle className="text-sm font-medium text-neutral-400">Protocol Distribution</CardTitle>
-                        <p className="text-xs text-neutral-600">Alertlerin hangi protokoller üzerinden geldiğini gösterir; web IDS odağında HTTP/HTTPS baskın olmalıdır.</p>
+                        <p className="text-xs text-neutral-600">Shows which protocols generated alerts; HTTP and HTTPS should dominate in a web IDS deployment.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {protocolChart.length === 0 ? (
@@ -395,7 +408,7 @@ export const Intelligence = () => {
                 <Card className="border-neutral-900 bg-[#0a0a0a]">
                     <CardHeader>
                         <CardTitle className="text-sm font-medium text-neutral-400">Severity Distribution</CardTitle>
-                        <p className="text-xs text-neutral-600">Alertlerin önem derecesini gösterir; kritik ve yüksek değerler gerçek zamanlı triage önceliğidir.</p>
+                        <p className="text-xs text-neutral-600">Shows alert severity distribution; critical and high findings are the real-time triage priority.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {severityEntries.length === 0 ? (

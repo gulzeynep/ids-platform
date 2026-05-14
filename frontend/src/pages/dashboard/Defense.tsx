@@ -19,6 +19,7 @@ export const Defense = () => {
     const [newIp, setNewIp] = useState('');
     const [reason, setReason] = useState('');
 
+    // Load current blacklist entries.
     const { data: blacklist, isLoading } = useQuery({
         queryKey: ['blacklist'],
         queryFn: async () => {
@@ -27,6 +28,7 @@ export const Defense = () => {
         }
     });
 
+    // Add IP block mutation.
     const addMutation = useMutation({
         mutationFn: (data: { ip_address: string, reason: string }) =>
             apiClient.post('/defense/blacklist', data),
@@ -39,6 +41,7 @@ export const Defense = () => {
         onError: () => toast.error('Failed to block IP.')
     });
 
+    // Remove IP block mutation.
     const removeMutation = useMutation({
         mutationFn: (ipAddress: string) => apiClient.delete(`/defense/blacklist/${ipAddress}`),
         onSuccess: () => {
@@ -55,6 +58,7 @@ export const Defense = () => {
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* IP block form */}
                 <Card className="lg:col-span-1 border-neutral-800">
                     <CardHeader>
                         <CardTitle className="text-blue-500 flex items-center gap-2 text-base">
@@ -76,6 +80,7 @@ export const Defense = () => {
                     </CardContent>
                 </Card>
 
+                {/* Blacklist table */}
                 <Card className="lg:col-span-2 border-neutral-900 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">

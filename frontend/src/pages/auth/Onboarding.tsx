@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import apiClient from '../../api/client';
+import apiClient, { isApiError } from '../../api/client';
 import { useAuthStore } from '../../stores/auth.store';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -45,9 +45,13 @@ export const Onboarding = () => {
             setApiKey(response.data.sensor_api_key);
             toast.success("Workspace initialized securely.");
             
-        } catch (error: any) {
-            const message = error.response?.data?.detail || "Failed to initialize workspace.";
-            const safeMessage = typeof message === 'object' ? JSON.stringify(message) : message;
+        } catch (error: unknown) {
+            const detail = isApiError(error) ? (error.response?.data as { detail?: unknown } | undefined)?.detail : undefined;
+            const safeMessage = typeof detail === 'string'
+                ? detail
+                : detail
+                    ? JSON.stringify(detail)
+                    : "Failed to initialize workspace.";
             
             setServerError(safeMessage);
             toast.error(safeMessage);

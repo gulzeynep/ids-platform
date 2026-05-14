@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, FileCode2, Plus, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react';
-import apiClient from '../../api/client';
+import apiClient, { isApiError } from '../../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -71,8 +71,11 @@ export const DetectionRules = () => {
             queryClient.invalidateQueries({ queryKey: ['detection_rules'] });
             toast.success('Custom Snort rule saved and reload requested.');
         },
-        onError: (error: any) => {
-            toast.error(error?.response?.data?.detail ?? 'Could not save this Snort rule.');
+        onError: (error: unknown) => {
+            const responseDetail = isApiError(error)
+                ? (error.response?.data as { detail?: unknown } | undefined)?.detail
+                : undefined;
+            toast.error(typeof responseDetail === 'string' ? responseDetail : 'Could not save this Snort rule.');
         }
     });
 

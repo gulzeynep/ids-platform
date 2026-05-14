@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useAlertsStore } from '../stores/alerts.store';
 import { useAuthStore } from '../stores/auth.store';
@@ -36,8 +36,9 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const reconnectAttempts = useRef(0);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const heartbeatInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const lastMessageAt = useRef(Date.now());
+  const lastMessageAt = useRef(0);
   const connectRef = useRef<() => void>(() => undefined);
+  const [isConnected, setIsConnected] = useState(false);
 
   const { addRealtimeAlert, setWsConnected } = useAlertsStore();
   const token = useAuthStore((state) => state.token);
@@ -83,6 +84,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       ws.current.onopen = () => {
         reconnectAttempts.current = 0;
         lastMessageAt.current = Date.now();
+        setIsConnected(true);
         setWsConnected(true);
 
         ws.current?.send(JSON.stringify({
@@ -124,12 +126,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
           onMessage?.(message as WebSocketMessage);
         } catch (error) {
-          console.error('WS Data Parse Error:', error);
+          console.error('WebSocket message parse failed:', error);
         }
       };
 
       ws.current.onclose = () => {
         setWsConnected(false);
+        setIsConnected(false);
         if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
         heartbeatInterval.current = undefined;
         ws.current = null;
@@ -139,15 +142,18 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
       ws.current.onerror = (error) => {
         setWsConnected(false);
+        setIsConnected(false);
         onError?.(error);
       };
     } catch (error) {
-      console.error('WebSocket connection error:', error);
+      console.error('WebSocket connection failed:', error);
       scheduleReconnect();
     }
   }, [enabled, token, setWsConnected, onConnect, onDisconnect, onError, onMessage, handleAlert, scheduleReconnect]);
 
-  connectRef.current = connect;
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     clearTimers();
@@ -159,6 +165,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       ws.current.close();
       ws.current = null;
     }
+    setIsConnected(false);
     setWsConnected(false);
   }, [clearTimers, setWsConnected]);
 
@@ -188,6 +195,6 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   return {
     send,
-    isConnected: ws.current?.readyState === WebSocket.OPEN,
+    isConnected,
   };
 };

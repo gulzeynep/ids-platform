@@ -4,15 +4,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import apiClient from '../../api/client';
+import apiClient, { isApiError } from '../../api/client';
 import { useAuthStore } from '../../stores/auth.store';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import.meta.env
 
 const registerSchema = z.object({
     email: z.string().email({ message: "Invalid email address" }),
-    password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+    password: z.string()
+        .min(8, { message: "Password must be at least 8 characters" })
+        .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter" })
+        .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter" })
+        .regex(/[0-9]/, { message: "Password must contain at least one digit" })
+        .regex(/[!@#$%^&*()_+.-]/, { message: "Password must contain at least one special character" }),
     confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -62,8 +66,9 @@ export const Register = () => {
             
             navigate('/onboarding');
             
-        } catch (error: any) {
-            const errorMsg = error.response?.data?.detail || "Registration failed. Email might be in use.";
+        } catch (error: unknown) {
+            const detail = isApiError(error) ? (error.response?.data as { detail?: unknown } | undefined)?.detail : undefined;
+            const errorMsg = typeof detail === 'string' ? detail : "Registration failed. Email might be in use.";
             setServerError(errorMsg);
             toast.error(errorMsg);
         }
