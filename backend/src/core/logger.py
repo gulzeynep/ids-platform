@@ -17,9 +17,11 @@ def setup_logging():
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(console_handler)
 
-    file_handler = logging.FileHandler("app.log", encoding="utf-8")
-    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    logger.addHandler(file_handler)
+    is_pytest_process = any("pytest" in arg.lower() for arg in sys.argv)
+    if not is_pytest_process:
+        file_handler = logging.FileHandler("app.log", encoding="utf-8")
+        file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        logger.addHandler(file_handler)
 
     return logger
 

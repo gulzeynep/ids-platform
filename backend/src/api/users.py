@@ -5,6 +5,7 @@ from typing import List
 
 from src.database import get_db
 from src.models import User, Notification
+from src.core.logger import logger
 from src.core.mailer import send_confirmation_email
 from src.schemas import UserResponse, UserRegister, UserSettingsResponse, UserSettingsUpdate
 from src.core.security import get_current_user, get_password_hash
@@ -50,7 +51,21 @@ async def update_user_settings(
 async def send_settings_confirmation_email(current_user: User = Depends(get_current_user)):
     """Send a confirmation email to the configured alert mailbox."""
     recipient = current_user.alert_email or current_user.email
-    await send_confirmation_email(recipient)
+    try:
+        await send_confirmation_email(recipient)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning(
+            "Settings confirmation email delivery failed for user_id=%s recipient=%s.",
+            current_user.id,
+            recipient,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Email delivery failed. Check SMTP credentials or email service configuration.",
+        ) from exc
     return {"status": "sent", "recipient": recipient}
 
 @router.get("/notifications")
