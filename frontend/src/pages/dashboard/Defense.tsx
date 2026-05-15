@@ -55,6 +55,9 @@ export const Defense = () => {
             <header>
                 <h2 className="text-2xl font-bold text-white tracking-wide">Active Defense</h2>
                 <p className="text-sm text-neutral-500">Manage source blocking and active response controls</p>
+                <p className="mt-2 text-xs text-neutral-600">
+                    Blocks apply at the gateway, so use the source IP shown by Nginx or the latest gateway logs.
+                </p>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -68,7 +71,7 @@ export const Defense = () => {
                     <CardContent className="space-y-4">
                         <div>
                             <label className="text-xs text-neutral-500 mb-1.5 block uppercase tracking-wider">Target IP</label>
-                            <Input placeholder="e.g. 192.168.1.1" value={newIp} onChange={(e) => setNewIp(e.target.value)} />
+                            <Input placeholder="e.g. 172.18.0.1 or 203.0.113.0/24" value={newIp} onChange={(e) => setNewIp(e.target.value)} />
                         </div>
                         <div>
                             <label className="text-xs text-neutral-500 mb-1.5 block uppercase tracking-wider">Reason</label>

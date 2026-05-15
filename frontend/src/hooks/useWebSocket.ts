@@ -10,6 +10,7 @@ const BASE_RECONNECT_INTERVAL = 3000;
 const MAX_RECONNECT_INTERVAL = 30000;
 const HEARTBEAT_INTERVAL = 25000;
 const STALE_CONNECTION_MS = 70000;
+const POLICY_VIOLATION_CLOSE = 1008;
 
 interface UseWebSocketOptions {
   enabled?: boolean;
@@ -38,10 +39,12 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const heartbeatInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const lastMessageAt = useRef(0);
   const connectRef = useRef<() => void>(() => undefined);
+  const authCloseNotified = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
 
   const { addRealtimeAlert, setWsConnected } = useAlertsStore();
   const token = useAuthStore((state) => state.token);
+  const logout = useAuthStore((state) => state.logout);
 
   const clearTimers = useCallback(() => {
     if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
@@ -130,13 +133,24 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         }
       };
 
-      ws.current.onclose = () => {
+      ws.current.onclose = (event) => {
         setWsConnected(false);
         setIsConnected(false);
         if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
         heartbeatInterval.current = undefined;
         ws.current = null;
         onDisconnect?.();
+
+        if (event.code === POLICY_VIOLATION_CLOSE) {
+          clearTimers();
+          logout();
+          if (!authCloseNotified.current) {
+            authCloseNotified.current = true;
+            toast.error('SOC stream authentication expired. Please sign in again.');
+          }
+          return;
+        }
+
         scheduleReconnect();
       };
 
@@ -149,11 +163,15 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       console.error('WebSocket connection failed:', error);
       scheduleReconnect();
     }
-  }, [enabled, token, setWsConnected, onConnect, onDisconnect, onError, onMessage, handleAlert, scheduleReconnect]);
+  }, [enabled, token, setWsConnected, onConnect, onDisconnect, onError, onMessage, handleAlert, scheduleReconnect, clearTimers, logout]);
 
   useEffect(() => {
     connectRef.current = connect;
   }, [connect]);
+
+  useEffect(() => {
+    authCloseNotified.current = false;
+  }, [token]);
 
   const disconnect = useCallback(() => {
     clearTimers();

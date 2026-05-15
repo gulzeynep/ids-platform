@@ -1,7 +1,8 @@
 from pydantic import BaseModel, EmailStr, computed_field, field_validator
 from typing import Any, Optional
 from datetime import datetime
-import re 
+import ipaddress
+import re
 
 # Auth and User Schemas
 class UserRegister(BaseModel):
@@ -272,9 +273,24 @@ class UserSettingsResponse(BaseModel):
     min_severity_level: str = "high"
 
 # Defense and Blacklist Schemas
+def normalize_blacklist_address(value: str) -> str:
+    cleaned = value.strip()
+    try:
+        if "/" in cleaned:
+            return str(ipaddress.ip_network(cleaned, strict=False))
+        return str(ipaddress.ip_address(cleaned))
+    except ValueError as exc:
+        raise ValueError("Blacklist target must be a valid IPv4, IPv6, or CIDR range.") from exc
+
+
 class BlacklistCreate(BaseModel):
     ip_address: str
     reason: Optional[str] = "Malicious activity detected by analyst"
+
+    @field_validator("ip_address")
+    @classmethod
+    def normalize_ip_address(cls, value: str) -> str:
+        return normalize_blacklist_address(value)
 
 class BlacklistResponse(BaseModel):
     id: int
