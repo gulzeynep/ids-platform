@@ -1,0 +1,2172 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Length 3449 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(# W-IDS Thesis Reports) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(This document combines two thesis-ready sections generated for the ids-health-mail-tests-) Tj
+0 -14 Td
+(analytics branch:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(1. W-IDS Platform: Web Intrusion Detection and Analysis System) Tj
+0 -14 Td
+(2. Project Structure and File Responsibility Report) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(---) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(# W-IDS Platform: Web Intrusion Detection and Analysis System) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 1. Introduction) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(W-IDS is a Dockerized web intrusion detection and analysis platform designed to detect ) Tj
+0 -14 Td
+(suspicious HTTP traffic, normalize security events, persist them for investigation, and ) Tj
+0 -14 Td
+(present them through a SOC-style analyst dashboard. The system combines a reverse-proxy ) Tj
+0 -14 Td
+(gateway, a Snort 3 detection engine, an asynchronous backend, a PostgreSQL database, Redis-) Tj
+0 -14 Td
+(based event processing, email notifications, and a React-based frontend.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The platform follows the core purpose of an intrusion detection and prevention system: ) Tj
+0 -14 Td
+(observing potentially malicious activity, logging security-relevant events, supporting ) Tj
+0 -14 Td
+(analyst investigation, and enabling response decisions [1]. In this project, the monitored ) Tj
+0 -14 Td
+(environment is a local web demo environment, but the architecture models the same conceptual) Tj
+0 -14 Td
+( pipeline used in larger security monitoring systems: traffic enters a protected gateway, ) Tj
+0 -14 Td
+(the IDS inspects it, alerts are converted into structured records, and analysts review the ) Tj
+0 -14 Td
+(results through an operational interface.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 1: Docker Compose services running]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 2: High-level IDS architecture diagram]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 2. System Architecture) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The platform is orchestrated with Docker Compose, which allows multiple services to run ) Tj
+0 -14 Td
+(together as one reproducible environment [5]. The main services are defined in docker-) Tj
+0 -14 Td
+(compose.yml.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The reverse proxy is implemented with Nginx. It acts as the protected gateway and forwards ) Tj
+0 -14 Td
+(HTTP traffic to the demo origin service. Nginx also includes generated configuration files ) Tj
+0 -14 Td
+(for protected sites and blocked IP rules. This makes it possible for backend state changes, ) Tj
+0 -14 Td
+(such as adding a monitored website or blacklist entry, to affect gateway behavior.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Snort 3 is used as the IDS sensor. It runs in the network namespace of the Nginx gateway, ) Tj
+0 -14 Td
+(which allows it to observe traffic that reaches the reverse proxy. Snort rule profiles ) Tj
+0 -14 Td
+(include official web-related rules and local fallback signatures for common web attack ) Tj
+0 -14 Td
+(patterns such as path traversal, environment file disclosure, SQL injection, XSS, and ) Tj
+0 -14 Td
+(Log4Shell-style probes.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The snort-bridge service reads Snort JSON alerts from the Snort log directory, enriches them) Tj
+0 -14 Td
+( with normalized fields, optionally extracts raw HTTP requests or PCAP metadata, and sends ) Tj
+0 -14 Td
+(them to the backend ingestion endpoint. The backend is built with FastAPI, which provides ) Tj
+ET
+endstream
+endobj
+3 0 obj
+<< /Length 4846 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(the REST APIs, authentication, alert management, analytics, settings, and WebSocket ) Tj
+0 -14 Td
+(endpoints [6].) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Redis has two roles. First, Redis Streams are used as an asynchronous queue between alert ) Tj
+0 -14 Td
+(ingestion and alert persistence [8]. Second, Redis Pub/Sub is used to broadcast processed ) Tj
+0 -14 Td
+(alert events to the backend WebSocket broadcaster. PostgreSQL stores durable application ) Tj
+0 -14 Td
+(data: users, workspaces, alerts, notifications, monitored sites, blacklisted IPs, and ) Tj
+0 -14 Td
+(detection rules [7].) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The frontend is a React, TypeScript, and Vite application. It provides the analyst-facing ) Tj
+0 -14 Td
+(interface for monitoring, triage, intelligence analysis, defense operations, rule ) Tj
+0 -14 Td
+(management, settings, and notifications [10], [11].) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 2.1. Technology Stack and System Connections) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The W-IDS platform combines infrastructure, detection, backend, database, messaging, ) Tj
+0 -14 Td
+(frontend, notification, and testing technologies. Each technology has a specific role in the) Tj
+0 -14 Td
+( end-to-end IDS pipeline.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| Technology | What It Is | Purpose in the Project | Connection to Other Components |) Tj
+0 -14 Td
+(|---|---|---|---|) Tj
+0 -14 Td
+(| Docker Compose | Multi-container orchestration tool | Runs the platform as a reproducible local environment | Starts ) Tj
+0 -14 Td
+(and connects backend, worker, PostgreSQL, Redis, Nginx, Snort, snort-bridge, and demo-origin services |) Tj
+0 -14 Td
+(| Docker | Containerization platform | Packages runtime environments consistently | Provides isolated containers for ) Tj
+0 -14 Td
+(Python backend, Snort engine, Nginx gateway, Redis, PostgreSQL, and demo origin |) Tj
+0 -14 Td
+(| Python 3.12 | Backend programming language/runtime | Implements backend APIs, worker, bridge, simulator, and seeding ) Tj
+0 -14 Td
+(logic | Used by FastAPI, SQLAlchemy, Redis client, mailer, tests, and bridge scripts |) Tj
+0 -14 Td
+(| FastAPI | Python web API framework | Exposes authentication, alert ingestion, alert management, analytics, admin, ) Tj
+0 -14 Td
+(defense, settings, and WebSocket endpoints | Receives data from snort-bridge, reads/writes PostgreSQL, queues Redis ) Tj
+0 -14 Td
+(events, serves frontend API requests |) Tj
+0 -14 Td
+(| Uvicorn | ASGI server | Runs the FastAPI application inside the backend container | Serves HTTP and WebSocket traffic ) Tj
+0 -14 Td
+(for the backend |) Tj
+0 -14 Td
+(| Pydantic / Pydantic Settings | Data validation and configuration library | Validates request/response schemas and ) Tj
+0 -14 Td
+(loads .env configuration | Defines API contracts in schemas.py and runtime settings in config.py |) Tj
+0 -14 Td
+(| SQLAlchemy Async ORM | Python ORM and database toolkit | Maps Python models to PostgreSQL tables using async sessions ) Tj
+0 -14 Td
+(| Connects FastAPI routes and worker logic to database models such as Alert, User, and Workspace |) Tj
+0 -14 Td
+(| Alembic | Database migration tool | Tracks and applies database schema changes | Evolves PostgreSQL schema for alerts,) Tj
+0 -14 Td
+( workspaces, blacklist, monitored websites, detection rules, and runtime fields |) Tj
+0 -14 Td
+(| PostgreSQL | Relational database | Stores durable security and application data | Persists users, workspaces, alerts, ) Tj
+0 -14 Td
+(notifications, blacklisted IPs, protected sites, and detection rules |) Tj
+0 -14 Td
+(| asyncpg | Async PostgreSQL driver | Enables asynchronous PostgreSQL access from SQLAlchemy | Used through ) Tj
+0 -14 Td
+(DATABASE_URL=postgresql+asyncpg://... |) Tj
+0 -14 Td
+(| Redis Streams | Redis append-only stream structure | Queues IDS alert payloads between ingestion and processing | ) Tj
+0 -14 Td
+(/alerts/ingest writes alerts; worker.py consumes and persists them |) Tj
+0 -14 Td
+(| Redis Pub/Sub | Redis publish-subscribe messaging | Distributes processed alert events for real-time delivery | ) Tj
+0 -14 Td
+(worker.py publishes events; realtime.py subscribes and broadcasts through WebSocket |) Tj
+0 -14 Td
+(| Redis Key-Value Operations | In-memory data operations | Supports rate limiting and blacklist cache synchronization | ) Tj
+0 -14 Td
+(Used by ingest rate limiting and defense blacklist logic |) Tj
+0 -14 Td
+(| Nginx | Reverse proxy and gateway server | Receives protected web traffic and proxies it to the demo origin/backend | ) Tj
+0 -14 Td
+(Traffic passing through Nginx is observed by Snort; generated configs control protected sites and deny rules |) Tj
+0 -14 Td
+(| Nginx Reload Watcher | Shell-based config watcher | Reloads Nginx after generated config changes pass validation | ) Tj
+0 -14 Td
+(Applies backend-generated protected-site and blacklist configuration without manual restart |) Tj
+ET
+endstream
+endobj
+4 0 obj
+<< /Length 5384 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(| Snort 3 | Network intrusion detection engine | Detects suspicious web traffic through official and local rules | ) Tj
+0 -14 Td
+(Watches the Nginx gateway network namespace and writes JSON alerts |) Tj
+0 -14 Td
+(| DAQ / AFPacket | Snort packet acquisition layer | Allows Snort to capture packets from the container network interface) Tj
+0 -14 Td
+( | Used by Snort in tap mode to observe HTTP traffic |) Tj
+0 -14 Td
+(| Snort Rules | Detection signature definitions | Identify attack patterns such as path traversal, SQL injection, XSS, ) Tj
+0 -14 Td
+(.env disclosure, and custom rules | Official rules and local/workspace rules feed Snort detection behavior |) Tj
+0 -14 Td
+(| tcpdump / PCAP | Packet capture tooling and format | Captures short event windows and extracts raw HTTP request ) Tj
+0 -14 Td
+(evidence | Used by snort_bridge.py to enrich alerts with capture paths and raw requests |) Tj
+0 -14 Td
+(| snort_bridge.py | Python bridge service | Normalizes Snort JSON alerts and posts them to the backend ingest API | ) Tj
+0 -14 Td
+(Connects Snort output to FastAPI /alerts/ingest |) Tj
+0 -14 Td
+(| demo-origin | Local upstream demo web app | Provides a protected target behind Nginx | Receives proxied traffic for ) Tj
+0 -14 Td
+(app.example.com demo requests |) Tj
+0 -14 Td
+(| JWT | Token-based authentication mechanism | Authenticates API and WebSocket users | Created during login and used by ) Tj
+0 -14 Td
+(protected routes and WebSocket handshake |) Tj
+0 -14 Td
+(| python-jose | JWT implementation library | Encodes and decodes backend access tokens | Used by security.py and ws.py |) Tj
+0 -14 Td
+(| bcrypt | Password hashing algorithm/library | Stores user passwords securely as hashes | Used during registration, ) Tj
+0 -14 Td
+(login verification, and password changes |) Tj
+0 -14 Td
+(| SlowAPI | Rate limiting library | Limits login attempts | Protects /auth/token from repeated brute-force attempts |) Tj
+0 -14 Td
+(| HTTPX | Async HTTP client | Performs protected-site health checks and bridge/backend calls | Used by admin health ) Tj
+0 -14 Td
+(checks and snort bridge posting |) Tj
+0 -14 Td
+(| FastAPI-Mail / SMTP | Email delivery integration | Sends registration, settings confirmation, and alert emails | ) Tj
+0 -14 Td
+(Connects backend and worker to external SMTP provider configured in .env |) Tj
+0 -14 Td
+(| React | Frontend UI library | Builds the analyst-facing dashboard | Renders Overview, Intrusions, Intelligence, ) Tj
+0 -14 Td
+(Defense, Detection Rules, Management, Settings, Notifications, and Profile pages |) Tj
+0 -14 Td
+(| TypeScript | Typed JavaScript language | Adds static typing to frontend models and components | Defines alert, stats, ) Tj
+0 -14 Td
+(settings, and WebSocket types used across frontend modules |) Tj
+0 -14 Td
+(| Vite | Frontend dev/build tool | Runs the development server and production build | Builds the React dashboard and ) Tj
+0 -14 Td
+(supports Vitest integration |) Tj
+0 -14 Td
+(| React Router | Client-side routing library | Separates public auth pages and protected dashboard pages | Connects URL ) Tj
+0 -14 Td
+(routes to Login, Register, Overview, Intrusions, Intelligence, and other screens |) Tj
+0 -14 Td
+(| TanStack React Query | Data fetching and cache management library | Fetches backend API data with caching, refetching,) Tj
+0 -14 Td
+( loading, and error states | Powers dashboard stats, alert lists, detail queries, settings, and intelligence data |) Tj
+0 -14 Td
+(| Zustand | Lightweight frontend state store | Stores auth state, UI theme, alert filters, live alerts, and WebSocket ) Tj
+0 -14 Td
+(status | Persists JWT session and coordinates UI state across pages |) Tj
+0 -14 Td
+(| Recharts | React charting library | Visualizes alert trends, severity distribution, protocol distribution, and attack ) Tj
+0 -14 Td
+(type ratios | Used mainly by Overview and Intelligence pages |) Tj
+0 -14 Td
+(| Tailwind CSS | Utility-first CSS framework | Provides dashboard styling and responsive layout utilities | Used across ) Tj
+0 -14 Td
+(frontend components and pages |) Tj
+0 -14 Td
+(| Lucide React | Icon library | Provides consistent UI icons for dashboard controls | Used in navigation, buttons, ) Tj
+0 -14 Td
+(cards, settings, and alert actions |) Tj
+0 -14 Td
+(| Sonner | Toast notification library | Shows frontend success/error and live alert notifications | Used for ) Tj
+0 -14 Td
+(high/critical WebSocket alerts and settings feedback |) Tj
+0 -14 Td
+(| Axios | HTTP client library | Sends frontend API requests to the backend | Used by api/client.ts and endpoint modules ) Tj
+0 -14 Td
+(|) Tj
+0 -14 Td
+(| Vitest | Frontend test runner | Runs unit and component tests | Verifies Register, Overview, Intelligence, Settings, ) Tj
+0 -14 Td
+(and alert title behavior |) Tj
+0 -14 Td
+(| React Testing Library | React component testing utility | Tests UI behavior from the user perspective | Used with ) Tj
+0 -14 Td
+(Vitest to validate forms, empty states, and settings workflows |) Tj
+0 -14 Td
+(| jsdom | Browser-like test environment | Provides DOM APIs during frontend tests | Allows React component tests to run ) Tj
+0 -14 Td
+(in Node.js |) Tj
+0 -14 Td
+(| ESLint | Static analysis/linting tool | Enforces frontend code quality rules | Used by npm run lint |) Tj
+0 -14 Td
+(| Pytest | Python testing framework | Runs backend unit tests | Verifies analytics, mailer, worker, bridge payloads, ) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Length 3865 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(blacklist sync, and alert contracts |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 3. IDS Detection Pipeline) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The detection pipeline begins when a user sends traffic through the Nginx gateway, typically) Tj
+0 -14 Td
+( using the Host: app.example.com header in the local demo setup. The gateway proxies this ) Tj
+0 -14 Td
+(request to the demo origin while Snort observes the same traffic path.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 3: Example malicious request sent through the Nginx gateway]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(When Snort detects traffic that matches an enabled rule, it writes a JSON alert to ) Tj
+0 -14 Td
+(alert_json.txt. The bridge service tails this file and transforms each raw Snort event into ) Tj
+0 -14 Td
+(the application's canonical alert payload. This payload includes fields such as attack type,) Tj
+0 -14 Td
+( severity, source and destination IPs, ports, protocol, signature message, SID/GID, payload ) Tj
+0 -14 Td
+(preview, event ID, capture path, and raw request when available.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The bridge then sends the normalized alert to /alerts/ingest with the workspace sensor API ) Tj
+0 -14 Td
+(key. The backend validates this key, applies Redis-based rate limiting, and writes the alert) Tj
+0 -14 Td
+( payload into the Redis stream. This prevents alert ingestion from being tightly coupled to ) Tj
+0 -14 Td
+(database writes.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 4: Snort bridge log showing alert normalization and backend ingest]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The worker consumes Redis stream messages, creates Alert records in PostgreSQL, publishes ) Tj
+0 -14 Td
+(WebSocket events through Redis Pub/Sub, and sends email notifications when the alert ) Tj
+0 -14 Td
+(severity reaches the user's configured threshold. The frontend receives live alert events ) Tj
+0 -14 Td
+(through a token-authenticated WebSocket connection and updates the dashboard in real time.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 4. Backend Design and Features) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The backend uses FastAPI as its application framework. The main application registers ) Tj
+0 -14 Td
+(routers for authentication, alert ingestion and management, statistics, user settings, admin) Tj
+0 -14 Td
+( features, defense operations, and WebSocket communication. The backend structure is ) Tj
+0 -14 Td
+(centered around backend/src, especially main.py, models.py, and schemas.py.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Authentication is JWT-based. Users register and log in through the auth API, and the ) Tj
+0 -14 Td
+(frontend persists the token through Zustand storage. The backend validates this token for ) Tj
+0 -14 Td
+(protected REST endpoints and for WebSocket authentication. A stale token can cause a ) Tj
+0 -14 Td
+(WebSocket connection to be accepted and then closed with a policy violation, which explains ) Tj
+0 -14 Td
+(the earlier open/close behavior observed during development.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The workspace model is central to the design. A workspace owns users, alerts, detection ) Tj
+0 -14 Td
+(rules, monitored websites, blacklisted IPs, and notifications. The sensor API key belongs to) Tj
+0 -14 Td
+( the workspace, allowing the bridge to send events to the correct tenant context.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The /alerts/ingest endpoint verifies the API key and rate limits sensor traffic with Redis. ) Tj
+0 -14 Td
+(The alert is not written directly to PostgreSQL at ingestion time; instead, it is queued. ) Tj
+0 -14 Td
+(This improves resilience because temporary spikes in IDS events do not immediately block the) Tj
+0 -14 Td
+( HTTP ingestion path.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Alert management supports filtering by status, severity, flags, saved state, search text, ) Tj
+0 -14 Td
+(and time range. Analysts can update alert status, add notes, flag important alerts, save ) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Length 3859 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(alerts for later, and inspect details such as signature metadata, raw request content, and ) Tj
+0 -14 Td
+(event capture information.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The analytics endpoints support both operational and intelligence views. Dashboard metrics ) Tj
+0 -14 Td
+(include active alerts, critical threats, resolved alerts, protected sites, blocked IPs, ) Tj
+0 -14 Td
+(recent alert counts, daily delta, hourly trend, attack type distribution, and success ) Tj
+0 -14 Td
+(metrics. Intelligence metrics include top attackers, severity distribution, protocol ) Tj
+0 -14 Td
+(distribution, attack type ratio, top rule, daily trend, and resolution metrics.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Admin features include team management, workspace listing, sensor key retrieval and ) Tj
+0 -14 Td
+(rotation, protected site configuration, detection profile control, and custom detection ) Tj
+0 -14 Td
+(rules. Detection rules can be written as simple contains/regex rules for bridge-level ) Tj
+0 -14 Td
+(matching or as Snort rules, which are written into generated rule files and trigger Snort ) Tj
+0 -14 Td
+(reload behavior.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Defense features include IP blacklist persistence, Redis synchronization, and generated ) Tj
+0 -14 Td
+(Nginx deny rules. In the current branch, blacklist behavior exists as a demo reverse-proxy ) Tj
+0 -14 Td
+(defense mechanism; it affects traffic as seen by the Nginx gateway rather than acting as a ) Tj
+0 -14 Td
+(full host firewall.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The email subsystem supports registration emails, settings confirmation emails, and ) Tj
+0 -14 Td
+(severity-based alert emails. Email failures are intentionally non-blocking for registration ) Tj
+0 -14 Td
+(and worker processing. For example, if SMTP credentials are wrong, account creation still ) Tj
+0 -14 Td
+(succeeds, while the response can indicate that the confirmation email was not sent.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Configuration is controlled primarily through the root .env file in Docker Compose. The ) Tj
+0 -14 Td
+(backend also supports local fallback .env loading for non-Docker development. SQL query spam) Tj
+0 -14 Td
+( is disabled by default through SQLALCHEMY_ECHO=false, and the backend uses an ids_platform ) Tj
+0 -14 Td
+(logger for application-level logs.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 5: Backend API documentation / FastAPI Swagger page]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 5. Database Design and Data Model) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(PostgreSQL is used as the persistent data store because IDS alerts and analyst decisions ) Tj
+0 -14 Td
+(need durable history. Redis is used for short-lived queueing and real-time communication, ) Tj
+0 -14 Td
+(while PostgreSQL stores the evidence trail needed for later investigation, reporting, and ) Tj
+0 -14 Td
+(dashboard analytics.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The backend uses SQLAlchemy's asynchronous ORM layer to define models and interact with the ) Tj
+0 -14 Td
+(database [9]. The main database models are defined in models.py.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 6: Database ERD showing Workspace, User, Alert, DetectionRule, ) Tj
+0 -14 Td
+(BlacklistedIP, and MonitoredWebsite relationships]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Workspace represents the tenant or operational boundary. It stores the workspace name, ) Tj
+0 -14 Td
+(sensor API key, detection profile, and creation timestamp. One workspace owns many users, ) Tj
+0 -14 Td
+(alerts, notifications, blacklisted IPs, monitored websites, and detection rules.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(User represents the analyst or administrator. It stores email, hashed password, full name, ) Tj
+0 -14 Td
+(role, active state, workspace relation, alert email, notification toggle, minimum severity ) Tj
+0 -14 Td
+(threshold, and creation timestamp. This connects identity and notification preference ) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Length 3827 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(management to the security workflow.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Alert is the core IDS event record. It stores the attack type, severity, source and ) Tj
+0 -14 Td
+(destination IPs, ports, protocol, action, status, notes, payload preview, raw request, ) Tj
+0 -14 Td
+(signature message, signature class, SID/GID, event ID, capture metadata, timestamp, ) Tj
+0 -14 Td
+(workspace ID, flagged state, and saved state. This model is the center of the analysis ) Tj
+0 -14 Td
+(platform because it combines network evidence, IDS signature data, and analyst triage state.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Notification stores dashboard/system notifications. It allows the system to keep user-facing) Tj
+0 -14 Td
+( security or operational messages associated with a workspace.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(BlacklistedIP stores analyst-created IP block entries. Each record contains the IP address, ) Tj
+0 -14 Td
+(reason, creator, timestamp, and workspace relation. The backend can synchronize this ) Tj
+0 -14 Td
+(database state into Nginx deny-rule configuration.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(MonitoredWebsite stores protected origin configuration. It includes domain, target IP, ) Tj
+0 -14 Td
+(target port, scheme, public hostname, listen port, TLS mode, proxy mode, health path, active) Tj
+0 -14 Td
+( state, and workspace relation. These records are used to generate Nginx reverse-proxy ) Tj
+0 -14 Td
+(server blocks.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(DetectionRule stores custom workspace-owned detection logic. A rule has a title, severity, ) Tj
+0 -14 Td
+(category, match type, pattern, enabled state, creation timestamp, and workspace relation. ) Tj
+0 -14 Td
+(These records support both bridge-level custom matching and Snort custom rule output.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(This database design separates durable state from streaming state. PostgreSQL answers ) Tj
+0 -14 Td
+(historical and analytical questions, while Redis supports event flow between ingestion, ) Tj
+0 -14 Td
+(processing, and live frontend updates.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 6. Frontend Analysis Platform) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The frontend is not only a visual layer; it is the analyst-facing analysis platform. It is ) Tj
+0 -14 Td
+(implemented with React and TypeScript, bundled by Vite, and organized around protected ) Tj
+0 -14 Td
+(dashboard routes and public authentication routes.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(React Router separates public pages such as login, registration, and onboarding from ) Tj
+0 -14 Td
+(protected dashboard pages. The protected route checks authentication state from the Zustand ) Tj
+0 -14 Td
+(auth store. This means the frontend keeps a persisted session in wids-auth-storage, allowing) Tj
+0 -14 Td
+( users to remain logged in across reloads.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(React Query is used for API fetching, caching, refetch intervals, and error handling. This ) Tj
+0 -14 Td
+(is important in an IDS dashboard because metrics and alerts need regular refreshes even when) Tj
+0 -14 Td
+( no WebSocket event is received. For example, the Overview page refetches dashboard ) Tj
+0 -14 Td
+(statistics frequently, while the Intrusions page refetches alert lists.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Zustand is used for lightweight application state. The auth store persists the JWT token and) Tj
+0 -14 Td
+( user data. The alerts store tracks filters, selected alert state, real-time alert history, ) Tj
+0 -14 Td
+(and WebSocket connection state.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The WebSocket hook connects to VITE_WS_URL, sends the JWT token as an authentication ) Tj
+0 -14 Td
+(message, listens for alert events, sends heartbeat pings, and shows toast notifications for ) Tj
+0 -14 Td
+(high and critical alerts. This gives the frontend a live monitoring behavior rather than a ) Tj
+0 -14 Td
+(purely request/response model.) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Length 3492 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+() Tj
+0 -14 Td
+(Recharts is used for visualization. The platform displays hourly alert trends, daily rhythm,) Tj
+0 -14 Td
+( attack type distribution, severity distribution, protocol distribution, and success ) Tj
+0 -14 Td
+(metrics. These charts turn raw IDS alerts into operational security information.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The frontend also includes loading, empty, and error states. This is important for ) Tj
+0 -14 Td
+(professional dashboard behavior: empty telemetry should not look broken, loading states ) Tj
+0 -14 Td
+(should not shift the layout excessively, and authentication/backend errors should be visible) Tj
+0 -14 Td
+( to the analyst.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 7. Frontend Screens and Analyst Workflows) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The Overview screen functions as the operational command view. It shows live traffic volume,) Tj
+0 -14 Td
+( active threats, secured segments, daily alert rhythm, daily success metrics, attack mix, ) Tj
+0 -14 Td
+(last mitigation, and a live alert stream. This page answers the first SOC question: "Is the ) Tj
+0 -14 Td
+(system currently under attack-") Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 7: Overview dashboard with live metrics]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The Intrusions screen is the main investigation table. It supports searching, filtering by ) Tj
+0 -14 Td
+(status and severity, date filtering, pagination, and alert detail inspection. The detail ) Tj
+0 -14 Td
+(modal shows why the alert fired, the signature metadata, the rule source when available, ) Tj
+0 -14 Td
+(flow information, event capture metadata, packet filter, raw request, analyst notes, and ) Tj
+0 -14 Td
+(triage actions. This page answers the second SOC question: "What happened, how severe is it,) Tj
+0 -14 Td
+( and what should be done next-") Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 8: Intrusions table with filters]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 9: Alert detail modal showing raw request, signature metadata, and triage) Tj
+0 -14 Td
+( controls]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The Intelligence screen provides historical and statistical analysis. It supports weekly and) Tj
+0 -14 Td
+( monthly views, period volume, unique attackers, top triggered rule, resolution rate, alert ) Tj
+0 -14 Td
+(trend, success metrics, attack type ratio, top attackers, protocol distribution, and ) Tj
+0 -14 Td
+(severity distribution. This page helps analysts identify patterns rather than individual ) Tj
+0 -14 Td
+(alerts.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 10: Intelligence page with trend, severity, protocol, and attack type ) Tj
+0 -14 Td
+(charts]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The Defense screen supports IP blacklist workflows. It allows analysts to persist suspicious) Tj
+0 -14 Td
+( IPs as defense entries. In the current architecture, this is a gateway-level reverse-proxy ) Tj
+0 -14 Td
+(block model.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The Detection Rules screen allows custom detection logic to be managed from the UI. This is ) Tj
+0 -14 Td
+(important because IDS systems require tuning: rules must be added, enabled, disabled, or ) Tj
+0 -14 Td
+(refined as the monitored application and threat model evolve.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 11: Detection Rules page]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The Management screen supports workspace and protected site administration. Protected site ) Tj
+0 -14 Td
+(records are used to generate Nginx configuration, which connects application-level ) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Length 1888 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(management with gateway runtime behavior.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The Settings screen controls alert email delivery, notification enablement, minimum severity) Tj
+0 -14 Td
+( threshold, confirmation email testing, and dashboard theme. This makes the notification ) Tj
+0 -14 Td
+(system configurable by the analyst instead of hardcoded.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 12: Settings page showing email notification configuration]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Notifications and Profile provide supporting workflows: user-facing system messages and ) Tj
+0 -14 Td
+(personal account information.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 8. Testing and Quality Assurance) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The current branch was verified with backend and frontend checks.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Backend Python compilation passed with:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(``text) Tj
+0 -14 Td
+(python -m compileall -q backend) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Backend tests were executed inside Docker because the local Python environment did not have ) Tj
+0 -14 Td
+(pytest installed. The Docker test run passed:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(docker compose run --rm backend pytest) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Result: 20 passed.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 13: Backend pytest result]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Frontend linting passed:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(npm.cmd run lint) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Frontend unit/component tests passed:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(npm.cmd run test) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Result: 5 test files, 6 tests passed.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Frontend production build passed:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(npm.cmd run build) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+ET
+endstream
+endobj
+10 0 obj
+<< /Length 3456 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(The build completed successfully, but Vite reported a chunk-size warning because the ) Tj
+0 -14 Td
+(generated JavaScript bundle is larger than 500 kB. This is not a functional failure, but it ) Tj
+0 -14 Td
+(suggests that production optimization could benefit from code-splitting.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([Insert Screenshot 14: Frontend Vitest/lint/build terminal results]) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The backend test suite covers alert contract serialization, analytics helpers, bridge ) Tj
+0 -14 Td
+(payload extraction, blacklist config generation, mailer behavior, registration email failure) Tj
+0 -14 Td
+( handling, and worker email threshold behavior. The frontend tests cover registration ) Tj
+0 -14 Td
+(password validation, alert title utilities, Overview empty telemetry rendering, Intelligence) Tj
+0 -14 Td
+( empty chart states, and Settings confirmation email workflow.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 9. Limitations and Future Work) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The current platform is strong as a local IDS demo and thesis implementation, but it is not ) Tj
+0 -14 Td
+(yet a production deployment.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(First, the blacklist feature is implemented at the Nginx reverse-proxy level. It ) Tj
+0 -14 Td
+(demonstrates real gateway blocking behavior, but it does not block all traffic at the host ) Tj
+0 -14 Td
+(firewall, container network, or kernel level.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Second, WebSocket authentication is functional, but stale JWT tokens can create reconnect ) Tj
+0 -14 Td
+(loops. A future improvement would be to detect 1008 policy closes on the frontend and force ) Tj
+0 -14 Td
+(logout or token refresh instead of retrying indefinitely.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Third, the backend test suite passes, but overall coverage is limited because many FastAPI ) Tj
+0 -14 Td
+(routers are not covered by full integration tests. Future work should add authenticated API ) Tj
+0 -14 Td
+(tests for alert filtering, admin protected sites, detection rules, settings, WebSocket ) Tj
+0 -14 Td
+(failure cases, and workspace isolation.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Fourth, the backend shows Pydantic v2 deprecation warnings for class-based model config. ) Tj
+0 -14 Td
+(These warnings do not break the application now, but they should be cleaned up before long-) Tj
+0 -14 Td
+(term maintenance.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Fifth, the frontend build passes but reports a large JavaScript chunk. The dashboard could ) Tj
+0 -14 Td
+(be improved with route-level dynamic imports, lazy-loaded chart modules, and production ) Tj
+0 -14 Td
+(bundle analysis.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Finally, SMTP mail delivery depends on real provider credentials and provider-specific ) Tj
+0 -14 Td
+(security requirements, such as app passwords for Gmail. The current code handles failure ) Tj
+0 -14 Td
+(gracefully, but production usage should include explicit SMTP validation, observability, and) Tj
+0 -14 Td
+( operational documentation.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 10. References) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([1] NIST, "Guide to Intrusion Detection and Prevention Systems \(IDPS\)," NIST SP 800-94. ) Tj
+0 -14 Td
+(https://csrc.nist.gov/pubs/sp/800/94/final) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([2] OWASP Foundation, "OWASP Top Ten Web Application Security Risks." https://owasp.org/www-) Tj
+0 -14 Td
+(project-top-ten/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([3] Snort, "Snort 3 Rule Writing Guide." https://docs.snort.org/) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Length 2499 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+() Tj
+0 -14 Td
+([4] Nginx, "ngx_http_proxy_module." ) Tj
+0 -14 Td
+(https://nginx.org/en/docs/http/ngx_http_proxy_module.html) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([5] Docker, "Docker Compose Documentation." https://docs.docker.com/compose/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([6] FastAPI, "FastAPI Documentation." https://fastapi.tiangolo.com/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([7] PostgreSQL Global Development Group, "PostgreSQL Documentation." ) Tj
+0 -14 Td
+(https://www.postgresql.org/docs/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([8] Redis, "Redis Streams Documentation." https://redis.io/docs/latest/develop/data-) Tj
+0 -14 Td
+(types/streams/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([9] SQLAlchemy, "SQLAlchemy 2.0 Documentation." https://docs.sqlalchemy.org/en/20/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([10] React, "React Documentation." https://react.dev/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([11] Vite, "Vite Guide." https://vite.dev/guide/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([12] Vitest, "Vitest Guide." https://vitest.dev/guide/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([13] Testing Library, "React Testing Library Introduction." https://testing-) Tj
+0 -14 Td
+(library.com/docs/react-testing-library/intro/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([14] Project source code, ids-health-mail-tests-analytics branch: README.md, docker-) Tj
+0 -14 Td
+(compose.yml, backend/src, backend/snort_bridge.py, and frontend/src.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(---) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(# Project Structure and File Responsibility Report) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 1. Overview) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The W-IDS platform is organized as a multi-service intrusion detection and analysis system. ) Tj
+0 -14 Td
+(Its structure separates detection, ingestion, persistence, backend APIs, frontend ) Tj
+0 -14 Td
+(visualization, and runtime infrastructure. At a high level, the project is divided into five) Tj
+0 -14 Td
+( major layers:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(ids-platform/) Tj
+0 -14 Td
+(??? backend/          FastAPI API, database models, worker, bridge, tests) Tj
+0 -14 Td
+(??? frontend/         React + TypeScript SOC dashboard) Tj
+0 -14 Td
+(??? nginx/            Reverse-proxy gateway configuration) Tj
+0 -14 Td
+(??? snort/            Snort 3 configuration, local rules, official rules, logs) Tj
+0 -14 Td
+(??? demo-origin/      Protected demo web application) Tj
+0 -14 Td
+(??? docker-compose.yml) Tj
+0 -14 Td
+(??? Dockerfile.snort) Tj
+0 -14 Td
+(??? README.md) Tj
+0 -14 Td
+(??? .env / .env.example) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+ET
+endstream
+endobj
+12 0 obj
+<< /Length 2621 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(The files are connected through the runtime pipeline: Nginx receives protected web traffic, ) Tj
+0 -14 Td
+(Snort inspects that traffic, snort_bridge.py converts IDS events into API payloads, the ) Tj
+0 -14 Td
+(backend queues them in Redis, the worker persists them into PostgreSQL, and the React ) Tj
+0 -14 Td
+(frontend displays them for investigation.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 2. Root-Level Files) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(ids-platform/) Tj
+0 -14 Td
+(??? docker-compose.yml) Tj
+0 -14 Td
+(??? Dockerfile.snort) Tj
+0 -14 Td
+(??? README.md) Tj
+0 -14 Td
+(??? .env) Tj
+0 -14 Td
+(??? .env.example) Tj
+0 -14 Td
+(??? .gitignore) Tj
+0 -14 Td
+(??? .gitattributes) Tj
+0 -14 Td
+(??? main.py) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| docker-compose.yml | Defines the full local platform: backend, worker, PostgreSQL, Redis, Nginx gateway, Snort engine,) Tj
+0 -14 Td
+( snort bridge, and demo origin. | This is the central runtime orchestrator. |) Tj
+0 -14 Td
+(| Dockerfile.snort | Builds the Snort 3 container image, including DAQ, Snort 3, tcpdump, and runtime networking tools. ) Tj
+0 -14 Td
+(| Used by the secure-engine service. |) Tj
+0 -14 Td
+(| README.md | Documents services, environment setup, demo login, IDS testing commands, and runtime flow. | Main ) Tj
+0 -14 Td
+(operational guide for the project. |) Tj
+0 -14 Td
+(| .env | Runtime configuration used by Docker Compose. | Supplies database URL, API keys, SMTP settings, Redis config, ) Tj
+0 -14 Td
+(frontend URL, and secrets. |) Tj
+0 -14 Td
+(| .env.example | Template for recreating .env. | Used for setup and documentation. |) Tj
+0 -14 Td
+(| .gitignore | Prevents committing local/generated files. | Protects secrets, caches, logs, builds, and local artifacts.) Tj
+0 -14 Td
+( |) Tj
+0 -14 Td
+(| .gitattributes | Git behavior configuration. | Supports consistent repository handling. |) Tj
+0 -14 Td
+(| main.py | Small root-level Python entry file; not part of the active Docker pipeline. | The real backend entrypoint is) Tj
+0 -14 Td
+( backend/src/main.py. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 3. Backend Structure) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(backend/) Tj
+0 -14 Td
+(??? Dockerfile) Tj
+0 -14 Td
+(??? requirements.txt) Tj
+0 -14 Td
+(??? start.sh) Tj
+0 -14 Td
+(??? config.py) Tj
+0 -14 Td
+(??? sensor_simulator.py) Tj
+0 -14 Td
+(??? seed_workspace.py) Tj
+0 -14 Td
+(??? snort_bridge.py) Tj
+0 -14 Td
+(??? snort_reader.py) Tj
+0 -14 Td
+(??? pytest.ini) Tj
+0 -14 Td
+(??? alembic/) Tj
+0 -14 Td
+(??? tests/) Tj
+0 -14 Td
+(??? src/) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Length 3323 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The backend is the control and processing layer of the system. It exposes APIs, validates ) Tj
+0 -14 Td
+(users and sensors, queues IDS alerts, persists processed events, sends email notifications, ) Tj
+0 -14 Td
+(and broadcasts live alerts.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| backend/Dockerfile | Builds the Python backend image. | Shared by backend, worker, and snort-bridge services. |) Tj
+0 -14 Td
+(| requirements.txt | Lists Python dependencies such as FastAPI, SQLAlchemy, Redis, asyncpg, fastapi-mail, pytest. | ) Tj
+0 -14 Td
+(Defines backend runtime and test environment. |) Tj
+0 -14 Td
+(| start.sh | Backend container startup script. | Runs migrations/seeding before serving API. |) Tj
+0 -14 Td
+(| config.py | Loads environment settings using Pydantic settings. | Used by database, auth, Redis, email, and logging ) Tj
+0 -14 Td
+(configuration. |) Tj
+0 -14 Td
+(| sensor_simulator.py | Generates sample alert payloads for testing/demo. | Used by tests and simulation workflows. |) Tj
+0 -14 Td
+(| seed_workspace.py | Seeds demo workspace, user, sensor key, and protected site data. | Ensures the local demo starts ) Tj
+0 -14 Td
+(with usable data. |) Tj
+0 -14 Td
+(| snort_bridge.py | Reads Snort JSON alerts, extracts request/capture metadata, normalizes events, posts to ) Tj
+0 -14 Td
+(/alerts/ingest. | Connects the IDS engine to the backend alert pipeline. |) Tj
+0 -14 Td
+(| snort_reader.py | Legacy alert reader. | Documented as unused by the current Compose pipeline. |) Tj
+0 -14 Td
+(| pytest.ini | Backend test configuration. | Controls pytest discovery and coverage behavior. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 4. Backend Application Files) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(backend/src/) Tj
+0 -14 Td
+(??? main.py) Tj
+0 -14 Td
+(??? database.py) Tj
+0 -14 Td
+(??? models.py) Tj
+0 -14 Td
+(??? schemas.py) Tj
+0 -14 Td
+(??? analytics.py) Tj
+0 -14 Td
+(??? worker.py) Tj
+0 -14 Td
+(??? core/) Tj
+0 -14 Td
+(??? api/) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| src/main.py | Creates the FastAPI app, configures CORS, includes routers, starts/stops realtime broadcaster. | Backend) Tj
+0 -14 Td
+( API entrypoint. |) Tj
+0 -14 Td
+(| src/database.py | Creates async SQLAlchemy engine and session dependency. | Used by all API routes and worker database) Tj
+0 -14 Td
+( operations. |) Tj
+0 -14 Td
+(| src/models.py | Defines database tables: Workspace, User, Alert, Notification, BlacklistedIP, MonitoredWebsite, ) Tj
+0 -14 Td
+(DetectionRule. | Core PostgreSQL data model. |) Tj
+0 -14 Td
+(| src/schemas.py | Defines Pydantic request/response contracts and alert serialization helpers. | Shapes API payloads ) Tj
+0 -14 Td
+(and WebSocket alert contracts. |) Tj
+0 -14 Td
+(| src/analytics.py | Contains reusable analytics helpers: ratios, "Other" grouping, success metrics. | Used by alert ) Tj
+0 -14 Td
+(statistics endpoints. |) Tj
+0 -14 Td
+(| src/worker.py | Consumes Redis alert stream, writes alerts to PostgreSQL, publishes WebSocket events, sends alert ) Tj
+0 -14 Td
+(emails. | Bridges queued IDS events to durable storage and live frontend updates. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 5. Backend Core Modules) Tj
+ET
+endstream
+endobj
+14 0 obj
+<< /Length 2706 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(backend/src/core/) Tj
+0 -14 Td
+(??? logger.py) Tj
+0 -14 Td
+(??? mailer.py) Tj
+0 -14 Td
+(??? queue.py) Tj
+0 -14 Td
+(??? realtime.py) Tj
+0 -14 Td
+(??? security.py) Tj
+0 -14 Td
+(??? ws_manager.py) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| logger.py | Configures the ids_platform logger and file/console handlers. | Used across backend and worker for ) Tj
+0 -14 Td
+(operational logs. |) Tj
+0 -14 Td
+(| mailer.py | Builds SMTP mailer, sends registration, confirmation, and security alert emails. | Used by auth, settings,) Tj
+0 -14 Td
+( and worker. |) Tj
+0 -14 Td
+(| queue.py | Creates Redis client, writes alerts to Redis Streams, publishes WebSocket events. | Connects ingest, ) Tj
+0 -14 Td
+(worker, and realtime broadcaster. |) Tj
+0 -14 Td
+(| realtime.py | Subscribes to Redis Pub/Sub and forwards alert events to WebSocket clients. | Runs during FastAPI app ) Tj
+0 -14 Td
+(lifecycle. |) Tj
+0 -14 Td
+(| security.py | Handles password hashing, JWT creation, and authenticated user lookup. | Used by protected backend ) Tj
+0 -14 Td
+(routes. |) Tj
+0 -14 Td
+(| ws_manager.py | Tracks active WebSocket connections per workspace and broadcasts messages. | Used by WebSocket ) Tj
+0 -14 Td
+(endpoint and realtime broadcaster. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 6. Backend API Routers) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(backend/src/api/) Tj
+0 -14 Td
+(??? auth.py) Tj
+0 -14 Td
+(??? users.py) Tj
+0 -14 Td
+(??? admin.py) Tj
+0 -14 Td
+(??? defense.py) Tj
+0 -14 Td
+(??? ws.py) Tj
+0 -14 Td
+(??? alerts/) Tj
+0 -14 Td
+(    ??? ingest.py) Tj
+0 -14 Td
+(    ??? management.py) Tj
+0 -14 Td
+(    ??? stats.py) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| auth.py | Registration, login, onboarding, profile, password changes, sensor workspace/key helper logic. | Creates ) Tj
+0 -14 Td
+(users and JWT tokens. |) Tj
+0 -14 Td
+(| users.py | User settings, notification preferences, test email sending, dashboard notifications. | Connects user ) Tj
+0 -14 Td
+(preferences to email delivery. |) Tj
+0 -14 Td
+(| admin.py | Admin/team features, protected sites, sensor key rotation, detection profiles, custom rules, Nginx config ) Tj
+0 -14 Td
+(generation. | Connects UI management actions to runtime gateway/Snort outputs. |) Tj
+0 -14 Td
+(| defense.py | Blacklist CRUD, Redis blacklist sync, generated Nginx deny file. | Supports reverse-proxy-level blocking.) Tj
+0 -14 Td
+( |) Tj
+0 -14 Td
+(| ws.py | WebSocket endpoint with JWT authentication. | Delivers live alert events to authenticated workspace users. |) Tj
+ET
+endstream
+endobj
+15 0 obj
+<< /Length 2370 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(| alerts/ingest.py | Sensor ingestion endpoint with API key validation and Redis rate limiting. | Entry point for ) Tj
+0 -14 Td
+(snort_bridge.py. |) Tj
+0 -14 Td
+(| alerts/management.py | Alert listing, filtering, detail lookup, triage updates, rule lookup, raw request hydration. | ) Tj
+0 -14 Td
+(Main Intrusions page backend. |) Tj
+0 -14 Td
+(| alerts/stats.py | Dashboard and intelligence analytics endpoints. | Feeds Overview and Intelligence charts. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 7. Database and Migration Files) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(backend/alembic/) Tj
+0 -14 Td
+(??? env.py) Tj
+0 -14 Td
+(??? script.py.mako) Tj
+0 -14 Td
+(??? README) Tj
+0 -14 Td
+(??? versions/*.py) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(Alembic manages schema evolution. The migration files add and adjust SaaS/workspace ) Tj
+0 -14 Td
+(structures, blacklist tables, alert flags, raw request fields, monitored websites, detection) Tj
+0 -14 Td
+( rules, signature metadata, and runtime compatibility fixes.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The database model is connected as follows:) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(Workspace) Tj
+0 -14 Td
+(??? Users) Tj
+0 -14 Td
+(??? Alerts) Tj
+0 -14 Td
+(??? Notifications) Tj
+0 -14 Td
+(??? BlacklistedIPs) Tj
+0 -14 Td
+(??? MonitoredWebsites) Tj
+0 -14 Td
+(??? DetectionRules) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(PostgreSQL stores durable investigation state. Redis is intentionally separate and used for ) Tj
+0 -14 Td
+(queueing, rate limiting, blacklist cache operations, and real-time message distribution.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 8. Backend Tests) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(backend/tests/) Tj
+0 -14 Td
+(??? test_alert_contract.py) Tj
+0 -14 Td
+(??? test_analytics.py) Tj
+0 -14 Td
+(??? test_bridge_payload.py) Tj
+0 -14 Td
+(??? test_defense_blacklist.py) Tj
+0 -14 Td
+(??? test_mailer.py) Tj
+0 -14 Td
+(??? test_registration_email.py) Tj
+0 -14 Td
+(??? test_worker_email.py) Tj
+0 -14 Td
+(??? docker_compose_smoke.ps1) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(These tests verify alert serialization, analytics formulas, raw request extraction, ) Tj
+0 -14 Td
+(blacklist config generation, SMTP fallback behavior, registration email failure safety, and ) Tj
+0 -14 Td
+(worker email threshold logic. The branch currently passes 20 backend tests in Docker.) Tj
+ET
+endstream
+endobj
+16 0 obj
+<< /Length 2255 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+() Tj
+0 -14 Td
+(## 9. Frontend Structure) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(frontend/) Tj
+0 -14 Td
+(??? package.json) Tj
+0 -14 Td
+(??? vite.config.ts) Tj
+0 -14 Td
+(??? index.html) Tj
+0 -14 Td
+(??? eslint.config.js) Tj
+0 -14 Td
+(??? tailwind.config.js) Tj
+0 -14 Td
+(??? postcss.config.js) Tj
+0 -14 Td
+(??? tsconfig*.json) Tj
+0 -14 Td
+(??? public/) Tj
+0 -14 Td
+(??? src/) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| package.json | Defines frontend dependencies and scripts: dev, build, lint, test. | Main frontend project manifest. |) Tj
+0 -14 Td
+(| vite.config.ts | Vite build/test configuration. | Connects React app to dev/build/test tooling. |) Tj
+0 -14 Td
+(| index.html | Browser HTML entrypoint. | Loads React bundle. |) Tj
+0 -14 Td
+(| eslint.config.js | Frontend lint rules. | Used by npm run lint. |) Tj
+0 -14 Td
+(| tailwind.config.js | Tailwind styling configuration. | Supports dashboard styling. |) Tj
+0 -14 Td
+(| postcss.config.js | PostCSS setup. | Used by Tailwind/CSS build. |) Tj
+0 -14 Td
+(| tsconfig*.json | TypeScript compiler configuration. | Used by build and editor tooling. |) Tj
+0 -14 Td
+(| public/* | Static image/brand assets. | Used by UI branding and public layout. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 10. Frontend Source Files) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(frontend/src/) Tj
+0 -14 Td
+(??? main.tsx) Tj
+0 -14 Td
+(??? App.tsx) Tj
+0 -14 Td
+(??? index.css) Tj
+0 -14 Td
+(??? App.css) Tj
+0 -14 Td
+(??? api/) Tj
+0 -14 Td
+(??? stores/) Tj
+0 -14 Td
+(??? hooks/) Tj
+0 -14 Td
+(??? utils/) Tj
+0 -14 Td
+(??? types/) Tj
+0 -14 Td
+(??? components/) Tj
+0 -14 Td
+(??? pages/) Tj
+0 -14 Td
+(??? test/) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| main.tsx | React root render file. | Mounts App into index.html. |) Tj
+0 -14 Td
+(| App.tsx | Defines router, protected routes, layouts, pages, React Query provider, toaster. | Main frontend composition) Tj
+0 -14 Td
+( root. |) Tj
+0 -14 Td
+(| index.css | Global styles and Tailwind layers. | Applies visual design system. |) Tj
+0 -14 Td
+(| App.css | App-specific CSS. | Supports UI styling. |) Tj
+ET
+endstream
+endobj
+17 0 obj
+<< /Length 3032 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(| api/client.ts | Axios client and API base configuration. | Shared by all API endpoint modules. |) Tj
+0 -14 Td
+(| api/endpoints/alerts.ts | Alert list, detail, triage, stats, intelligence API calls. | Used by Overview, Intrusions, ) Tj
+0 -14 Td
+(Intelligence. |) Tj
+0 -14 Td
+(| api/endpoints/settings.ts | User settings and confirmation email API calls. | Used by Settings page. |) Tj
+0 -14 Td
+(| stores/auth.store.ts | Persisted authentication state with token and user. | Powers protected routing and WebSocket ) Tj
+0 -14 Td
+(auth. |) Tj
+0 -14 Td
+(| stores/alerts.store.ts | Alert filters, real-time alerts, selected alert, WebSocket state. | Used by Overview and ) Tj
+0 -14 Td
+(Intrusions. |) Tj
+0 -14 Td
+(| stores/ui.store.ts | Theme state. | Used by layout and Settings. |) Tj
+0 -14 Td
+(| hooks/useWebSocket.ts | WebSocket connection, auth message, heartbeat, reconnect, live alert toasts. | Connects ) Tj
+0 -14 Td
+(worker/realtime backend to UI. |) Tj
+0 -14 Td
+(| utils/alertTitles.ts | Frontend alert title normalization. | Keeps alert display readable. |) Tj
+0 -14 Td
+(| types/index.ts | TypeScript interfaces for alerts, stats, settings, WebSocket messages. | Shared frontend type ) Tj
+0 -14 Td
+(contract. |) Tj
+0 -14 Td
+(| test/render.tsx | Test helper for rendering components with providers/router. | Used by frontend tests. |) Tj
+0 -14 Td
+(| test/setup.tsx | Vitest/RTL test setup. | Adds test environment behavior. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 11. Frontend Components and Pages) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(components/) Tj
+0 -14 Td
+(??? layout/AppLayout.tsx) Tj
+0 -14 Td
+(??? layout/PublicLayout.tsx) Tj
+0 -14 Td
+(??? ui/Button.tsx, Card.tsx, Input.tsx, Modal.tsx, Skeleton.tsx) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(pages/) Tj
+0 -14 Td
+(??? auth/Login.tsx) Tj
+0 -14 Td
+(??? auth/Register.tsx) Tj
+0 -14 Td
+(??? auth/Onboarding.tsx) Tj
+0 -14 Td
+(??? dashboard/) Tj
+0 -14 Td
+(    ??? Overview.tsx) Tj
+0 -14 Td
+(    ??? Intrusions.tsx) Tj
+0 -14 Td
+(    ??? Intelligence.tsx) Tj
+0 -14 Td
+(    ??? Defense.tsx) Tj
+0 -14 Td
+(    ??? DetectionRules.tsx) Tj
+0 -14 Td
+(    ??? Management.tsx) Tj
+0 -14 Td
+(    ??? Settings.tsx) Tj
+0 -14 Td
+(    ??? Notifications.tsx) Tj
+0 -14 Td
+(    ??? Profile.tsx) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(AppLayout.tsx provides the authenticated dashboard shell. PublicLayout.tsx wraps login, ) Tj
+0 -14 Td
+(registration, and onboarding.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The dashboard pages map directly to analyst workflows. Overview shows live status and daily ) Tj
+0 -14 Td
+(alert rhythm. Intrusions supports investigation and triage. Intelligence provides trend and ) Tj
+0 -14 Td
+(distribution analysis. Defense supports IP blocking. DetectionRules supports rule ) Tj
+0 -14 Td
+(management. Management controls protected sites and workspace-related features. Settings ) Tj
+0 -14 Td
+(manages email delivery and theme. Notifications and Profile support user-level operations.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 12. Nginx Structure) Tj
+0 -14 Td
+() Tj
+ET
+endstream
+endobj
+18 0 obj
+<< /Length 2669 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+(`text) Tj
+0 -14 Td
+(nginx/) Tj
+0 -14 Td
+(??? nginx.conf) Tj
+0 -14 Td
+(??? reload-watch.sh) Tj
+0 -14 Td
+(??? generated/) Tj
+0 -14 Td
+(??? logs/) Tj
+0 -14 Td
+(??? certs/) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File/Directory | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| nginx.conf | Main Nginx config; includes generated site/block files and proxies default traffic to backend. | Runtime ) Tj
+0 -14 Td
+(gateway entrypoint. |) Tj
+0 -14 Td
+(| reload-watch.sh | Watches generated configs, validates with nginx -t, reloads Nginx. | Applies backend-generated ) Tj
+0 -14 Td
+(gateway changes. |) Tj
+0 -14 Td
+(| generated/ | Contains generated protected-site and blocked-IP config files. | Written by backend admin/defense logic. ) Tj
+0 -14 Td
+(|) Tj
+0 -14 Td
+(| logs/ | Nginx access/error logs. | Can be used by bridge fallback and troubleshooting. |) Tj
+0 -14 Td
+(| certs/ | TLS certificate mount location. | Used when protected sites have active edge TLS. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 13. Snort Structure) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(snort/) Tj
+0 -14 Td
+(??? etc/) Tj
+0 -14 Td
+(?   ??? snort.lua) Tj
+0 -14 Td
+(?   ??? snort_defaults.lua) Tj
+0 -14 Td
+(?   ??? file_magic.lua) Tj
+0 -14 Td
+(?   ??? start-snort.sh) Tj
+0 -14 Td
+(??? rules/) Tj
+0 -14 Td
+(?   ??? local/local.rules) Tj
+0 -14 Td
+(?   ??? local/workspace.rules) Tj
+0 -14 Td
+(?   ??? official/) Tj
+0 -14 Td
+(??? builtins/) Tj
+0 -14 Td
+(??? so_rules/) Tj
+0 -14 Td
+(??? logs/) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(| File/Directory | Purpose | Connection |) Tj
+0 -14 Td
+(|---|---|---|) Tj
+0 -14 Td
+(| etc/snort.lua | Main Snort configuration. | Defines HOME_NET, EXTERNAL_NET, inspection modules, rule profile include. ) Tj
+0 -14 Td
+(|) Tj
+0 -14 Td
+(| etc/start-snort.sh | Runtime launcher for Snort; builds selected profile includes and reloads on request. | Used by ) Tj
+0 -14 Td
+(secure-engine. |) Tj
+0 -14 Td
+(| rules/local/local.rules | Local fallback/demo signatures. | Detects common web attack probes in the lab. |) Tj
+0 -14 Td
+(| rules/local/workspace.rules | Generated/custom workspace Snort rules. | Written by backend custom rule workflow. |) Tj
+0 -14 Td
+(| rules/official/ | Official Snort rule assets. | Included by selected detection profiles. |) Tj
+0 -14 Td
+(| builtins/ | Built-in Snort rule assets. | Used by Snort runtime. |) Tj
+0 -14 Td
+(| so_rules/ | Shared object/precompiled Snort rule assets. | External rule engine assets. |) Tj
+0 -14 Td
+(| logs/ | Alert logs, sensor key, detection profile, capture files. | Read by snort_bridge.py and Snort launcher. |) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 14. Demo Origin) Tj
+ET
+endstream
+endobj
+19 0 obj
+<< /Length 2143 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(demo-origin/) Tj
+0 -14 Td
+(??? index.html) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(The demo origin is the protected upstream website. Nginx proxies app.example.com traffic to ) Tj
+0 -14 Td
+(this service. The IDS does not need the origin to be vulnerable; suspicious request patterns) Tj
+0 -14 Td
+( are enough to trigger Snort or fallback detection rules.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 15. How The Files Connect End-to-End) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(`text) Tj
+0 -14 Td
+(curl/browser request) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(nginx/nginx.conf + generated protected site config) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(demo-origin/index.html) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(Snort observes gateway namespace) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(snort/etc/snort.lua + snort/rules/local/*.rules + official rules) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(snort/logs/alert_json.txt) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(backend/snort_bridge.py) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(backend/src/api/alerts/ingest.py) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(backend/src/core/queue.py ? Redis Stream) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(backend/src/worker.py) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(backend/src/models.py ? PostgreSQL alerts table) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(backend/src/core/realtime.py + ws_manager.py) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(frontend/src/hooks/useWebSocket.ts) Tj
+0 -14 Td
+(    ?) Tj
+0 -14 Td
+(Overview / Intrusions / Intelligence pages) Tj
+0 -14 Td
+(`) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(This structure shows that each directory has a distinct responsibility. Nginx controls ) Tj
+0 -14 Td
+(gateway traffic, Snort detects suspicious patterns, the bridge normalizes sensor output, the) Tj
+0 -14 Td
+( backend validates and processes alerts, PostgreSQL stores durable investigation data, Redis) Tj
+0 -14 Td
+( coordinates asynchronous and real-time movement, and the frontend converts that backend ) Tj
+0 -14 Td
+(state into analyst workflows.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 16. Sources) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([1] Project source code, ids-health-mail-tests-analytics` branch.) Tj
+0 -14 Td
+() Tj
+ET
+endstream
+endobj
+20 0 obj
+<< /Length 811 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+([2] NIST, "Guide to Intrusion Detection and Prevention Systems \(IDPS\)," NIST SP 800-94.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([3] Docker Compose Documentation: https://docs.docker.com/compose/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([4] FastAPI Documentation: https://fastapi.tiangolo.com/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([5] PostgreSQL Documentation: https://www.postgresql.org/docs/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([6] Redis Streams Documentation: https://redis.io/docs/latest/develop/data-types/streams/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([7] Snort 3 Rule Writing Guide: https://docs.snort.org/) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([8] Nginx proxy module documentation: ) Tj
+0 -14 Td
+(https://nginx.org/en/docs/http/ngx_http_proxy_module.html) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+([9] React Documentation: https://react.dev/) Tj
+ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 2 0 R >>
+endobj
+22 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 3 0 R >>
+endobj
+23 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 4 0 R >>
+endobj
+24 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 5 0 R >>
+endobj
+25 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 6 0 R >>
+endobj
+26 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 7 0 R >>
+endobj
+27 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 8 0 R >>
+endobj
+28 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 9 0 R >>
+endobj
+29 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 10 0 R >>
+endobj
+30 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 11 0 R >>
+endobj
+31 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 12 0 R >>
+endobj
+32 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 13 0 R >>
+endobj
+33 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 14 0 R >>
+endobj
+34 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 15 0 R >>
+endobj
+35 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 16 0 R >>
+endobj
+36 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 17 0 R >>
+endobj
+37 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 18 0 R >>
+endobj
+38 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 19 0 R >>
+endobj
+39 0 obj
+<< /Type /Page /Parent 40 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents 20 0 R >>
+endobj
+40 0 obj
+<< /Type /Pages /Kids [21 0 R 22 0 R 23 0 R 24 0 R 25 0 R 26 0 R 27 0 R 28 0 R 29 0 R 30 0 R 31 0 R 32 0 R 33 0 R 34 0 R 35 0 R 36 0 R 37 0 R 38 0 R 39 0 R] /Count 19 >>
+endobj
+41 0 obj
+<< /Type /Catalog /Pages 40 0 R >>
+endobj
+xref
+0 42
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000003580 00000 n 
+0000008478 00000 n 
+0000013914 00000 n 
+0000017831 00000 n 
+0000021742 00000 n 
+0000025621 00000 n 
+0000029165 00000 n 
+0000031105 00000 n 
+0000034614 00000 n 
+0000037166 00000 n 
+0000039840 00000 n 
+0000043216 00000 n 
+0000045975 00000 n 
+0000048398 00000 n 
+0000050706 00000 n 
+0000053791 00000 n 
+0000056513 00000 n 
+0000058709 00000 n 
+0000059572 00000 n 
+0000059700 00000 n 
+0000059828 00000 n 
+0000059956 00000 n 
+0000060084 00000 n 
+0000060212 00000 n 
+0000060340 00000 n 
+0000060468 00000 n 
+0000060596 00000 n 
+0000060725 00000 n 
+0000060854 00000 n 
+0000060983 00000 n 
+0000061112 00000 n 
+0000061241 00000 n 
+0000061370 00000 n 
+0000061499 00000 n 
+0000061628 00000 n 
+0000061757 00000 n 
+0000061886 00000 n 
+0000062015 00000 n 
+0000062201 00000 n 
+trailer
+<< /Size 42 /Root 41 0 R >>
+startxref
+62252
+%%EOF
